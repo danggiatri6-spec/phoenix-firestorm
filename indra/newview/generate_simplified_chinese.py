@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Generate Simplified Chinese XUI resources from Firestorm's Traditional Chinese translations.
 
-The upstream viewer keeps its Chinese XUI translations under xui/zh. OpenCC
-converts the human-readable Chinese strings to Simplified Chinese while
-preserving XML structure, control names, and resource identifiers.
+Only visible text nodes and explicitly user-facing attributes are converted.
+Control names, setting keys, resource IDs, paths, and other machine-readable
+XML attributes are deliberately left unchanged.
 """
 from __future__ import annotations
 
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from opencc import OpenCC
@@ -15,6 +16,40 @@ from opencc import OpenCC
 
 ROOT = Path(__file__).resolve().parent
 SKINS = ROOT / "skins"
+VISIBLE_ATTRIBUTES = {
+    "label",
+    "short_label",
+    "tool_tip",
+    "tooltip",
+    "placeholder_text",
+    "description",
+    "help",
+    "title",
+}
+
+
+def convert_element(element: ET.Element, converter: OpenCC) -> None:
+    if element.text:
+        element.text = converter.convert(element.text)
+    if element.tail:
+        element.tail = converter.convert(element.tail)
+
+    for attribute in VISIBLE_ATTRIBUTES:
+        value = element.attrib.get(attribute)
+        if value:
+            element.attrib[attribute] = converter.convert(value)
+
+    for child in element:
+        convert_element(child, converter)
+
+
+def convert_xml(source: Path, target: Path, converter: OpenCC) -> None:
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    root = ET.fromstring(source.read_bytes(), parser=parser)
+    convert_element(root, converter)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    target.write_bytes(payload + b"\n")
 
 
 def main() -> int:
@@ -32,14 +67,13 @@ def main() -> int:
     converted_files = 0
     for source_dir in source_dirs:
         target_dir = source_dir.with_name("zh-Hans")
-        target_dir.mkdir(parents=True, exist_ok=True)
         for source_file in sorted(source_dir.rglob("*.xml")):
             relative = source_file.relative_to(source_dir)
             target_file = target_dir / relative
-            target_file.parent.mkdir(parents=True, exist_ok=True)
-            original = source_file.read_text(encoding="utf-8-sig")
-            converted = converter.convert(original)
-            target_file.write_text(converted, encoding="utf-8", newline="\n")
+            try:
+                convert_xml(source_file, target_file, converter)
+            except ET.ParseError as exc:
+                raise SystemExit(f"Invalid source XML {source_file}: {exc}") from exc
             converted_files += 1
 
     if converted_files == 0:
