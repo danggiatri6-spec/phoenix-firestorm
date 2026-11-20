@@ -34,3 +34,24 @@ This section is guided by the [TPV Policy](https://secondlife.com/corporate/thir
 Firestorm code is made available during ongoing development, with the **master** branch representing the current nightly build. Developers and self-compilers are encouraged to work on their own forks and contribute back via pull requests, as detailed in the [contributing guide](CONTRIBUTING.md).
 
 If you intend to use our code for your own viewer beyond personal use, please only use code from official release branches (for example, `Firestorm_7.1.13`), rather than from pre-release/preview or nightly builds.
+
+
+## OpenSim-next Viewer
+
+This repository is the canonical Viewer source repository for OpenSim-next. It retains the complete Firestorm source tree, upstream Git history, build system, third-party dependency definitions, and licensing notices. OpenSim-next-specific Viewer work is developed on the `opensim-next/integration` branch and feature branches based on it.
+
+### OpenSim-next engineering documents
+
+- [Integration plan](docs/opensim-next/INTEGRATION_PLAN.md)
+- [Pinned Firestorm baseline](docs/opensim-next/BASELINE.md)
+- [Windows build audit](docs/opensim-next/BUILD_AUDIT.md)
+- [Windows end-user distribution policy](docs/opensim-next/USER_DISTRIBUTION.md)
+- [Repository provenance and branch policy](docs/opensim-next/FORK_SETUP.md)
+
+### Repository boundaries
+
+- [opensim-next](https://github.com/danggiatri6-spec/opensim-next): platform-level architecture, roadmap, release coordination, and cross-repository decisions.
+- [opensim](https://github.com/danggiatri6-spec/opensim): OpenSimulator-derived server, simulator runtime, scripting, protocol, and Grid services.
+- This repository: Firestorm-derived PC Viewer source, client integration, UI/localization, rendering, performance, build, and packaging.
+
+The former standalone [opensim-next-viewer documentation repository](https://github.com/danggiatri6-spec/opensim-next-viewer) is being consolidated here. The source repository is not replaced by a source snapshot: the Firestorm upstream history remains authoritative. No successful build or Grid-compatibility milestone is implied by this documentation migration.
