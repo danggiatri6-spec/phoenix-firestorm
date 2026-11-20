@@ -1,18 +1,7 @@
 name: OpenSim-next Windows ReleaseOS Build
 
 on:
-  push:
-    branches:
-      - "opensim-next/integration"
-    paths:
-      - ".github/workflows/opensim-next-windows.yml"
-      - "indra/**"
-      - "autobuild.xml"
-      - "CMakeLists.txt"
-      - "requirements.txt"
-      - "scripts/**"
-      - "build.sh"
-      - "build.bat"
+  # Full installer and portable packages are produced only on demand.
   workflow_dispatch:
 
 permissions:
