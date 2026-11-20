@@ -5,6 +5,7 @@ config_version=5
 
 [application]
 config/name="OpenSim-next Godot Viewer Prototype"
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 run/main_scene="res://scenes/Main.tscn"
 
 [display]
