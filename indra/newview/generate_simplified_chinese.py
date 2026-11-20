@@ -64,7 +64,7 @@ def self_test(converter: OpenCC) -> None:
         raise SystemExit("OpenCC self-test changed a control identifier.")
     if sample.attrib.get("value") != "zh":
         raise SystemExit("OpenCC self-test changed a language code.")
-    if sample.findtext("text") != "偏好设置":
+    if sample.findtext("text") != "偏好设定":
         raise SystemExit("OpenCC self-test failed to convert element text.")
 
 
