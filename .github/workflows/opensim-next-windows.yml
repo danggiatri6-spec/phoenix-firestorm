@@ -63,6 +63,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install -r requirements.txt
           python -m pip install "autobuild>=3.8"
+          python -m pip install "opencc-python-reimplemented==0.1.7"
 
       - name: Verify toolchain
         shell: pwsh
@@ -74,6 +75,10 @@ jobs:
           if (-not (Test-Path $env:AUTOBUILD_VARIABLES_FILE)) {
             throw "Firestorm build variables file not found: $env:AUTOBUILD_VARIABLES_FILE"
           }
+
+      - name: Generate Simplified Chinese Viewer translations
+        shell: pwsh
+        run: python indra/newview/generate_simplified_chinese.py
 
       - name: Configure OpenSim-enabled viewer
         shell: cmd
