@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: opensim-next-releaseos-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-windows:
