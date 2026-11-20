@@ -121,12 +121,20 @@ jobs:
           if (-not $viewer) {
             throw "Viewer executable missing from packaged distribution."
           }
+          $portableRoot = Join-Path $env:GITHUB_WORKSPACE "opensim-next-portable"
+          New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
+          Get-ChildItem $stage -Force |
+            Where-Object { $_.Name -ne "installer" } |
+            Copy-Item -Destination $portableRoot -Recurse -Force
+          Compress-Archive -Path (Join-Path $portableRoot "*") -DestinationPath (Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip") -CompressionLevel Optimal
       - name: Upload Windows viewer distribution and installer
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: OpenSimNext-Windows-x64-ReleaseOS
-          path: opensim-next-distribution/**
+          path: |
+            opensim-next-distribution/**
+            OpenSimNext-Windows-x64-Portable.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -137,7 +145,7 @@ jobs:
           name: OpenSimNext-Windows-ReleaseOS-diagnostics
           path: |
             build-diagnostics.txt
-            build-windows-x64/CMakeCache.txt
-            build-windows-x64/**/*.log
+            build-vc170-64/CMakeCache.txt
+            build-vc170-64/**/*.log
           if-no-files-found: warn
           retention-days: 14
