@@ -52,11 +52,28 @@ def convert_xml(source: Path, target: Path, converter: OpenCC) -> None:
     target.write_bytes(payload + b"\n")
 
 
+def self_test(converter: OpenCC) -> None:
+    sample = ET.fromstring(
+        '<item label="繁體中文" name="Traditional Chinese" value="zh">'
+        '<text>偏好設定</text></item>'
+    )
+    convert_element(sample, converter)
+    if sample.attrib.get("label") != "简体中文":
+        raise SystemExit("OpenCC self-test failed to convert visible label text.")
+    if sample.attrib.get("name") != "Traditional Chinese":
+        raise SystemExit("OpenCC self-test changed a control identifier.")
+    if sample.attrib.get("value") != "zh":
+        raise SystemExit("OpenCC self-test changed a language code.")
+    if sample.findtext("text") != "偏好设置":
+        raise SystemExit("OpenCC self-test failed to convert element text.")
+
+
 def main() -> int:
     if not SKINS.is_dir():
         raise SystemExit(f"Skin directory not found: {SKINS}")
 
     converter = OpenCC("t2s")
+    self_test(converter)
     source_dirs = sorted(
         path for path in SKINS.glob("**/xui/zh")
         if path.is_dir()
