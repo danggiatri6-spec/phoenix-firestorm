@@ -16,12 +16,12 @@ Compatibility is a requirement to be demonstrated feature by feature, not an ass
 - [x] Engine-independent Grid connection boundary.
 - [x] First LibreMetaverse login/logout adapter spike.
 - [x] Windows x64 GitHub Actions build workflow.
-- [ ] First successful CI build.
+- [x] First successful CI build (commit `2b16148`; scaffold build only).
 - [ ] OpenSimulator login proof of concept.
 - [ ] Second Life login proof of concept.
 - [ ] Region object and terrain rendering.
 
-The current UI is only a startup shell. The adapter code is an initial integration spike and has not yet been compiled or tested against a live Grid.
+The current branch now includes a basic Godot login form wired to the LibreMetaverse adapter, with Second Life's login endpoint prefilled and password input masked. The UI change has not yet passed its own CI build and has not been tested against a live Grid. A successful compile does not establish SL authentication or full Viewer compatibility.
 
 ## Architecture rule
 
@@ -37,7 +37,7 @@ Keep protocol and compatibility code independent from Godot scene/rendering code
 - `docs/DEPENDENCY_AUDIT.md` — initial Godot/LibreMetaverse review.
 - `docs/MILESTONES.md` — implementation sequence and gates.
 
-## Build prerequisites
+## Login prototype\n\n- The default login URL is `https://login.secondlife.com/cgi-bin/login.cgi`.\n- Enter the account first and last names; for a single-name SL account, use `Resident` as the last name if required by the account format.\n- The password field is masked and cleared after the login attempt. Credentials are not saved.\n- MFA handling is provisional and must be validated against SL's current challenge flow before it is described as supported.\n- After a successful login, the prototype displays only session and simulator metadata; it does not yet render the Region.\n\n## Build prerequisites
 
 Install Godot .NET 4.7.2 (x86_64) and the 64-bit .NET 8 SDK. Open `project.godot` in the Godot .NET editor, allow the C# solution to load, then build/run from the editor.
 
