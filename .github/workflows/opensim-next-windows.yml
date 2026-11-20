@@ -53,6 +53,10 @@ jobs:
         with:
           cmakeVersion: "~4.1.2"
 
+      - name: Install NSIS installer compiler
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
       - name: Install Python build requirements
         shell: pwsh
         run: |
@@ -73,7 +77,7 @@ jobs:
 
       - name: Configure OpenSim-enabled viewer
         shell: cmd
-        run: autobuild configure -A 64 -c ReleaseOS -- --chan OpenSimNext -DLL_TESTS:BOOL=FALSE
+        run: autobuild configure -A 64 -c ReleaseOS -- --package --chan OpenSimNext -DLL_TESTS:BOOL=FALSE
 
       - name: Build OpenSim-enabled viewer
         shell: cmd
@@ -94,15 +98,44 @@ jobs:
               Out-File build-diagnostics.txt -Append
           }
 
-      - name: Upload Windows viewer build artifacts
+      - name: Stage Windows distribution and installer
+        if: success()
+        shell: pwsh
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64\newview"
+          if (-not (Test-Path $source)) {
+            throw "Expected Firestorm distribution directory not found: $source"
+          }
+          $stage = Join-Path $env:GITHUB_WORKSPACE "opensim-next-distribution"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Get-ChildItem $source -Recurse -File |
+            Where-Object { $_.Extension -in @(".exe", ".dll", ".dat", ".ini", ".xml", ".json", ".db", ".pak", ".bin", ".txt", ".crt") } |
+            ForEach-Object {
+              $relative = $_.FullName.Substring($source.Length).TrimStart('\')
+              $target = Join-Path $stage $relative
+              New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+              Copy-Item $_.FullName $target -Force
+            }
+          $installer = Get-ChildItem $source -Recurse -File -Filter "*Setup*.exe"
+          if (-not $installer) {
+            $installer = Get-ChildItem $source -Recurse -File -Filter "*.exe" |
+              Where-Object { $_.Name -match "OpenSimNext|Firestorm" }
+          }
+          if ($installer) {
+            New-Item -ItemType Directory -Force -Path (Join-Path $stage "installer") | Out-Null
+            $installer | Copy-Item -Destination (Join-Path $stage "installer") -Force
+          }
+          if (-not (Get-ChildItem $stage -Recurse -File -Filter "*.exe")) {
+            throw "No executable files found in staged viewer distribution."
+          }
+
+      - name: Upload Windows viewer distribution and installer
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: OpenSimNext-Windows-x64-ReleaseOS
-          path: |
-            build-windows-x64/newview/Release/**
-            build-windows-x64/newview/*.exe
-          if-no-files-found: warn
+          path: opensim-next-distribution/**
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload build diagnostics
