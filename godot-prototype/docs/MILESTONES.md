@@ -3,21 +3,24 @@
 ## M0 — Project and toolchain validation
 
 - [x] Isolated prototype branch and project scaffold.
-- [ ] Open project in the selected Godot .NET release.
-- [ ] Confirm C# solution generation and clean build.
-- [ ] Record Godot, .NET SDK, OS, GPU, and renderer versions.
-- [ ] Add a repeatable CI build.
+- [x] Pin stable Godot .NET 4.7.2 and .NET 8 target.
+- [x] Add Windows x64 CI build workflow.
+- [ ] Confirm first clean CI build.
+- [ ] Record Godot, .NET SDK, OS, GPU, and renderer versions from a successful run.
 
 Exit gate: clean project import/build/run on Windows x64.
 
 ## M1 — Protocol dependency and login proof
 
-- [ ] Audit LibreMetaverse and libOpenMetaverse lineage.
-- [ ] Confirm license, maintenance status, supported target frameworks, and protocol gaps.
-- [ ] Add dependency only after audit.
-- [ ] Implement a Grid connection adapter behind IGridConnection.
-- [ ] Login to a controlled OpenSimulator test Grid.
-- [ ] Prove Second Life login separately using an authorized test account and current service requirements.
+- [x] Initial LibreMetaverse repository, license, package, and framework audit.
+- [x] Pin LibreMetaverse 3.3.1 as a prototype dependency.
+- [x] Define engine-independent `IGridConnection` boundary.
+- [x] Add first LibreMetaverse login/logout adapter spike.
+- [ ] Confirm first clean CI build with LibreMetaverse dependency.
+- [ ] Review login/MFA challenge flow and add user-facing challenge handling.
+- [ ] Add protocol diagnostics with secrets redacted.
+- [ ] Test login/logout/reconnect against a controlled OpenSimulator Grid.
+- [ ] Separately assess and test Second Life login using an authorized test account and current service requirements.
 
 Exit gate: repeatable login/session lifecycle, redacted diagnostics, reconnect and logout tests. Login alone is not full compatibility.
 
