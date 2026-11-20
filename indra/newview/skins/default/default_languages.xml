@@ -28,6 +28,9 @@
 	 name="zh"
 	 value="系統預設" />
 	<label
+	 name="zh-Hans"
+	 value="系统默认" />
+	<label
 	 name="da"
 	 value="System standard" />
 	<label
