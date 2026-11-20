@@ -51,7 +51,7 @@ jobs:
       - name: Set up CMake
         uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: "~3.30.0"
+          cmakeVersion: "~4.1.2"
 
       - name: Install Python build requirements
         shell: pwsh
