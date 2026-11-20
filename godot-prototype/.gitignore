@@ -1,0 +1,16 @@
+# Godot generated data
+.godot/
+
+# .NET build output
+bin/
+obj/
+
+# IDE/user-specific files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Local credentials and grid configuration
+*.local.json
+appsettings.Development.json
