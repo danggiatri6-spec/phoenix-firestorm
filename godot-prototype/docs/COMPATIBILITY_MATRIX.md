@@ -4,7 +4,7 @@ Status values: Not started / In progress / Implemented / Verified / Blocked. No 
 
 | Area | Required behavior | Current status | Acceptance evidence |
 |---|---|---|---|
-| Login | SL and OpenSim login/session lifecycle | Not started | Login test logs with secrets redacted |
+| Login | SL and OpenSim login/session lifecycle | In progress (UI + adapter wired; live Grid untested) | Repeatable login test logs with secrets redacted |
 | LLUDP | Message templates, sequencing, ACK/reliability, circuit lifecycle | Not started | Protocol conformance tests |
 | Capabilities | Capability discovery and HTTP requests | Not started | Captured request/response fixtures |
 | LLSD | XML/binary LLSD parsing and serialization as required | Not started | Round-trip and fixture tests |
