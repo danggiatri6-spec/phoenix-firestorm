@@ -564,15 +564,24 @@ void audio_update_listener()
         // update listener position because agent has moved
         static LLUICachedControl<S32> mEarLocation("MediaSoundsEarLocation", 0);
         LLVector3d ear_position;
+        LLVector3 listener_up;
+        LLVector3 listener_at;
         switch(mEarLocation)
         {
         case 0:
         default:
             ear_position = gAgentCamera.getCameraPositionGlobal();
+            listener_up = LLViewerCamera::getInstance()->getUpAxis();
+            listener_at = LLViewerCamera::getInstance()->getAtAxis();
             break;
 
         case 1:
             ear_position = gAgent.getPositionGlobal();
+            // When the listener is attached to the avatar, use the avatar's
+            // orientation as well. Mixing avatar position with camera
+            // orientation makes directional audio disagree with the listener.
+            listener_up = gAgent.getFrameAgent().getUpAxis();
+            listener_at = gAgent.getFrameAgent().getAtAxis();
             break;
         }
         LLVector3d lpos_global = ear_position;
@@ -583,8 +592,8 @@ void audio_update_listener()
                              // LLViewerCamera::getInstance()VelocitySmoothed,
                              // LLVector3::zero,
                              gAgent.getVelocity(),    // !!! *TODO: need to replace this with smoothed velocity!
-                             LLViewerCamera::getInstance()->getUpAxis(),
-                             LLViewerCamera::getInstance()->getAtAxis());
+                             listener_up,
+                             listener_at);
     }
 }
 
