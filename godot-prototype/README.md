@@ -1,6 +1,6 @@
 # OpenSim-next Godot Viewer Prototype
 
-This directory contains an isolated Godot-based Viewer feasibility prototype. It does not replace the Firestorm-derived Viewer and does not yet implement Second Life connectivity.
+This directory contains an isolated Godot-based Viewer feasibility prototype. It does not replace the Firestorm-derived Viewer and does not yet implement full Second Life compatibility.
 
 ## Objective
 
@@ -11,14 +11,17 @@ Compatibility is a requirement to be demonstrated feature by feature, not an ass
 ## Current status
 
 - [x] Isolated feature branch created from `opensim-next/integration`.
-- [x] Godot .NET project scaffold added.
-- [ ] Godot editor/import/build verification.
-- [ ] .NET protocol-library dependency audit.
+- [x] Godot .NET 4.7.2 / .NET 8 project scaffold.
+- [x] LibreMetaverse 3.3.1 dependency pinned after initial license/framework review.
+- [x] Engine-independent Grid connection boundary.
+- [x] First LibreMetaverse login/logout adapter spike.
+- [x] Windows x64 GitHub Actions build workflow.
+- [ ] First successful CI build.
 - [ ] OpenSimulator login proof of concept.
 - [ ] Second Life login proof of concept.
 - [ ] Region object and terrain rendering.
 
-The current application is only a startup shell. It has no Grid connection, no LLUDP implementation, no Capabilities implementation, and no SL asset decoder.
+The current UI is only a startup shell. The adapter code is an initial integration spike and has not yet been compiled or tested against a live Grid.
 
 ## Architecture rule
 
@@ -27,16 +30,18 @@ Keep protocol and compatibility code independent from Godot scene/rendering code
 ## Project layout
 
 - `src/Main.cs` — prototype startup UI.
-- `src/Protocol/IGridConnection.cs` — transport boundary only; no protocol implementation yet.
+- `src/Protocol/IGridConnection.cs` — engine-independent Grid connection contract.
+- `src/Protocol/LibreMetaverseGridConnection.cs` — initial login/logout adapter spike.
 - `docs/ARCHITECTURE.md` — target architecture and boundaries.
 - `docs/COMPATIBILITY_MATRIX.md` — feature-by-feature acceptance tracking.
+- `docs/DEPENDENCY_AUDIT.md` — initial Godot/LibreMetaverse review.
 - `docs/MILESTONES.md` — implementation sequence and gates.
 
 ## Build prerequisites
 
-Install a matching Godot .NET (C#) editor/runtime and the .NET SDK required by that Godot release. Open `project.godot` in the Godot .NET editor, allow the C# solution to load, then build/run from the editor.
+Install Godot .NET 4.7.2 (x86_64) and the 64-bit .NET 8 SDK. Open `project.godot` in the Godot .NET editor, allow the C# solution to load, then build/run from the editor.
 
-The Godot SDK version is pinned in `OpenSimNextGodotViewer.csproj`; update it deliberately when upgrading the Godot editor.
+The Godot SDK and LibreMetaverse package versions are pinned in `OpenSimNextGodotViewer.csproj`; update them deliberately after compatibility testing.
 
 ## Security
 
