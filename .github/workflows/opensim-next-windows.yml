@@ -113,13 +113,41 @@ jobs:
           if (-not $installer) {
             throw "NSIS setup executable (*_Setup.exe) was not generated."
           }
-          $viewer = Get-ChildItem $stage -Recurse -File -Filter "firestorm-bin.exe"
-          if (-not $viewer) {
-            $viewer = Get-ChildItem $stage -Recurse -File -Filter "*.exe" |
-              Where-Object { $_.Name -notlike "*_Setup.exe" }
+
+          # The Firestorm manifest renames firestorm-bin.exe to the exact
+          # executable recorded in build_data.json. Never accept an arbitrary
+          # plugin/helper EXE as the viewer.
+          $buildData = Get-ChildItem $stage -Recurse -File -Filter "build_data.json" |
+            Select-Object -First 1
+          if (-not $buildData) {
+            throw "build_data.json missing from packaged distribution."
           }
-          if (-not $viewer) {
-            throw "Viewer executable missing from packaged distribution."
+          $metadata = Get-Content $buildData.FullName -Raw | ConvertFrom-Json
+          $executableName = [string]$metadata.Executable
+          if ([string]::IsNullOrWhiteSpace($executableName)) {
+            throw "build_data.json does not declare the Viewer Executable."
+          }
+          $viewer = Join-Path $buildData.DirectoryName $executableName
+          if (-not (Test-Path $viewer -PathType Leaf)) {
+            throw "Viewer executable declared by build_data.json not found: $viewer"
+          }
+
+          # Verify the OpenSim-specific voice stack and Chromium media plugin
+          # that the Firestorm Windows manifest is expected to stage.
+          $requiredFiles = @(
+            "slplugin.exe",
+            "SLVoice.exe",
+            "vivoxsdk_x64.dll",
+            "ortp_x64.dll",
+            "llplugin\\media_plugin_cef.dll",
+            "llplugin\\libcef.dll",
+            "llplugin\\dullahan_host.exe"
+          )
+          foreach ($relativePath in $requiredFiles) {
+            $candidate = Join-Path $stage $relativePath
+            if (-not (Test-Path $candidate -PathType Leaf)) {
+              throw "Required runtime file missing from packaged distribution: $relativePath"
+            }
           }
           $portableRoot = Join-Path $env:GITHUB_WORKSPACE "opensim-next-portable"
           New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
