@@ -14,7 +14,7 @@ Build the OpenSim-next PC Viewer by extending a mature Firestorm-derived viewer 
 ## Workstreams
 
 ### W0 — Repository and provenance
-- Keep this repository dedicated to the Viewer.
+- Keep `danggiatri6-spec/phoenix-firestorm` as the single canonical Viewer source repository; keep OpenSim-next Viewer plans and build notes under `docs/opensim-next/` in this repository.
 - Preserve upstream Git history; do not paste a source snapshot into a new unrelated history.
 - Record upstream URL, branch, commit SHA, import date, local patches, and third-party notices.
 - Keep OpenSim-next-specific changes in clearly named commits and avoid broad unrelated formatting changes.
@@ -77,4 +77,4 @@ Do not claim compatibility based only on a successful compile.
 
 ## Current limitations
 
-The repository currently contains project documentation only. The Firestorm source has not been imported. No build, runtime, or Grid-compatibility test has yet been completed.
+The former standalone `opensim-next-viewer` repository contained project documentation only; those documents have been migrated into this repository under `docs/opensim-next/`. The full Firestorm source remains in its existing upstream-derived history. No build, runtime, or Grid-compatibility test has yet been completed.
