@@ -9,19 +9,13 @@ The production viewer source must retain the official upstream history. Do not c
 ## Repository roles
 
 - `FirestormViewer/phoenix-firestorm`: official upstream; read-only source of truth.
-- `danggiatri6-spec/phoenix-firestorm`: intended personal fork and canonical source-code workspace after it is created.
-- `danggiatri6-spec/opensim-next-viewer`: OpenSim-next integration plan, build notes, decisions, and links to the source fork.
+- `danggiatri6-spec/phoenix-firestorm`: existing personal fork and canonical source-code workspace.
+- `danggiatri6-spec/phoenix-firestorm/docs/opensim-next/`: OpenSim-next integration plan, build notes, decisions, and release policy.
 - `danggiatri6-spec/opensim-next`: platform architecture and server/Grid work.
 
-## Create the fork
+## Fork status and provenance
 
-1. Open https://github.com/FirestormViewer/phoenix-firestorm/fork
-2. Choose owner `danggiatri6-spec`.
-3. Keep the repository name `phoenix-firestorm`; do not rename the existing `opensim-next-viewer` repository.
-4. Keep the fork public so upstream provenance and collaboration remain transparent.
-5. Create the fork without selecting only one branch; preserve the upstream branches and tags.
-
-The GitHub fork operation must be completed by the repository owner in the GitHub UI. The connected GitHub integration available to this workflow can inspect repositories and write files, but it does not expose a fork-creation operation.
+The GitHub fork already exists under `danggiatri6-spec/phoenix-firestorm`. The canonical Viewer source and its upstream Git history remain in this repository; the OpenSim-next engineering documents are consolidated under `docs/opensim-next/`.
 
 ## Verify after creation
 
