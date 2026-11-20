@@ -114,7 +114,8 @@ jobs:
           $stage = Join-Path $env:GITHUB_WORKSPACE "opensim-next-distribution"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item (Join-Path $source "*") $stage -Recurse -Force
-          $installer = Get-ChildItem $stage -Recurse -File -Filter "*_Setup.exe"
+          $installer = Get-ChildItem $stage -Recurse -File -Filter "*_Setup.exe" |
+            Select-Object -First 1
           if (-not $installer) {
             throw "NSIS setup executable (*_Setup.exe) was not generated."
           }
@@ -137,16 +138,15 @@ jobs:
             throw "Viewer executable declared by build_data.json not found: $viewer"
           }
 
-          # Verify the OpenSim-specific voice stack and Chromium media plugin
-          # that the Firestorm Windows manifest is expected to stage.
+          # Verify the OpenSim-specific voice stack and Chromium media plugin.
           $requiredFiles = @(
             "slplugin.exe",
             "SLVoice.exe",
             "vivoxsdk_x64.dll",
             "ortp_x64.dll",
-            "llplugin\\media_plugin_cef.dll",
-            "llplugin\\libcef.dll",
-            "llplugin\\dullahan_host.exe"
+            "llplugin\media_plugin_cef.dll",
+            "llplugin\libcef.dll",
+            "llplugin\dullahan_host.exe"
           )
           foreach ($relativePath in $requiredFiles) {
             $candidate = Join-Path $stage $relativePath
@@ -154,6 +154,22 @@ jobs:
               throw "Required runtime file missing from packaged distribution: $relativePath"
             }
           }
+
+          # Verify that Simplified Chinese resources survived staging.
+          $zhHans = Join-Path $stage "skins\default\xui\zh-Hans"
+          if (-not (Test-Path $zhHans -PathType Container)) {
+            throw "Simplified Chinese XUI resources were not staged: $zhHans"
+          }
+          $zhHansFiles = @(Get-ChildItem $zhHans -Recurse -File)
+          if ($zhHansFiles.Count -lt 1) {
+            throw "Simplified Chinese XUI resource directory is empty."
+          }
+
+          # Keep the two user-facing packages separate. The raw staged tree is
+          # only an intermediate validation directory and is not uploaded.
+          $installerOutput = Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Setup.exe"
+          Copy-Item $installer.FullName $installerOutput -Force
+
           $portableRoot = Join-Path $env:GITHUB_WORKSPACE "opensim-next-portable"
           New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
           Get-ChildItem $stage -Force |
@@ -162,14 +178,22 @@ jobs:
           Get-ChildItem $portableRoot -Recurse -File -Filter "*_Setup.exe" |
             Remove-Item -Force
           Compress-Archive -Path (Join-Path $portableRoot "*") -DestinationPath (Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip") -CompressionLevel Optimal
-      - name: Upload Windows viewer distribution and installer
+
+      - name: Upload Windows installer
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenSimNext-Windows-x64-ReleaseOS
-          path: |
-            opensim-next-distribution/**
-            OpenSimNext-Windows-x64-Portable.zip
+          name: OpenSimNext-Windows-x64-Installer
+          path: OpenSimNext-Windows-x64-Setup.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Windows portable package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenSimNext-Windows-x64-Portable
+          path: OpenSimNext-Windows-x64-Portable.zip
           if-no-files-found: error
           retention-days: 14
 
