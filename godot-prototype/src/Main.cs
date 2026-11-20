@@ -58,6 +58,7 @@ public partial class Main : Control
 
         root.AddChild(CreateLabel("Grid login URL"));
         _loginUri = CreateInput("https://login.secondlife.com/cgi-bin/login.cgi");
+        _loginUri.Text = SecondLifeLoginUri;
         root.AddChild(_loginUri);
 
         root.AddChild(CreateLabel("First name"));
