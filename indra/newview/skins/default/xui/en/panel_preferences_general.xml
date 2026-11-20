@@ -98,6 +98,11 @@
          value="ja" />
         <combo_box.item
          enabled="true"
+         label="简体中文 (Simplified Chinese)"
+         name="Simplified Chinese"
+         value="zh-Hans" />
+        <combo_box.item
+         enabled="true"
          label="正體中文 (Traditional Chinese)"
          name="Traditional Chinese"
          value="zh" />
