@@ -41,19 +41,20 @@ jobs:
           $uri = "https://downloads.godotengine.org/?flavor=stable&platform=windows.64&slug=mono_win64.zip&version=4.7.2"
           Invoke-WebRequest -Uri $uri -OutFile $archive
           Expand-Archive -Path $archive -DestinationPath $extract -Force
-          $godot = Get-ChildItem -Path $extract -Filter "Godot_v4.7.2-stable_mono_win64.exe" -Recurse |
+          $godot = Get-ChildItem -Path $extract -Filter "Godot_v4.7.2-stable_mono_win64_console.exe" -Recurse |
             Select-Object -First 1 -ExpandProperty FullName
           if (-not $godot) {
-            throw "Godot .NET 4.7.2 executable was not found in the downloaded archive."
+            throw "Godot .NET 4.7.2 console executable was not found in the downloaded archive."
           }
           "GODOT4=$godot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Import project and build C# solution
         shell: pwsh
         run: |
-          & $env:GODOT4 --headless --editor --path godot-prototype --build-solutions --quit
-          if ($LASTEXITCODE -ne 0) {
-            throw "Godot C# solution build failed with exit code $LASTEXITCODE."
+          $arguments = @("--headless", "--editor", "--path", "godot-prototype", "--build-solutions", "--quit")
+          $process = Start-Process -FilePath $env:GODOT4 -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 0) {
+            throw "Godot C# solution build failed with exit code $($process.ExitCode)."
           }
 
       - name: Verify .NET build
