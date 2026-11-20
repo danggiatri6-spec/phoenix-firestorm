@@ -16,7 +16,7 @@ Compatibility is a requirement to be demonstrated feature by feature, not an ass
 - [x] Engine-independent Grid connection boundary.
 - [x] First LibreMetaverse login/logout adapter spike.
 - [x] Windows x64 GitHub Actions build workflow.
-- [x] First successful CI build (commit `2b16148`; scaffold build only).
+- [x] First successful CI build (scaffold build; login UI change requires a new build).
 - [ ] OpenSimulator login proof of concept.
 - [ ] Second Life login proof of concept.
 - [ ] Region object and terrain rendering.
