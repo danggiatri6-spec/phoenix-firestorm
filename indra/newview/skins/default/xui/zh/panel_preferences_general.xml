@@ -16,6 +16,7 @@
 		<combo_box.item label="Русский（俄羅斯語）" name="Russian" />
 		<combo_box.item label="Türkçe（土耳其語）- 試用版" name="Turkish" />
 		<combo_box.item label="日本語（日語）- 試用版" name="(Japanese)" />
+		<combo_box.item label="簡體中文（簡體中文）" name="Simplified Chinese" />
 		<combo_box.item label="正體中文" name="Traditional Chinese" />
 	</combo_box>
 	<text name="language_textbox2">
