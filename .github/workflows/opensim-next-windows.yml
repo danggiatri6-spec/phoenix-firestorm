@@ -126,6 +126,8 @@ jobs:
           Get-ChildItem $stage -Force |
             Where-Object { $_.Name -ne "installer" } |
             Copy-Item -Destination $portableRoot -Recurse -Force
+          Get-ChildItem $portableRoot -Recurse -File -Filter "*_Setup.exe" |
+            Remove-Item -Force
           Compress-Archive -Path (Join-Path $portableRoot "*") -DestinationPath (Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip") -CompressionLevel Optimal
       - name: Upload Windows viewer distribution and installer
         if: success()
