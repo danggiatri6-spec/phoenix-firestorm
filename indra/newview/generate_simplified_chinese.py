@@ -58,7 +58,7 @@ def self_test(converter: OpenCC) -> None:
         '<text>偏好設定</text></item>'
     )
     convert_element(sample, converter)
-    if sample.attrib.get("label") != "简体中文":
+    if sample.attrib.get("label") != "繁体中文":
         raise SystemExit("OpenCC self-test failed to convert visible label text.")
     if sample.attrib.get("name") != "Traditional Chinese":
         raise SystemExit("OpenCC self-test changed a control identifier.")
