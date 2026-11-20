@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 360
     env:
       AUTOBUILD_VSVER: "170"
-      AUTOBUILD_VARIABLES_FILE: ${{ github.workspace }}\\build-variables\\variables
+      AUTOBUILD_VARIABLES_FILE: ${{ github.workspace }}\build-variables\variables
       PYTHON: python
     steps:
       - name: Checkout OpenSim-next Firestorm source
