@@ -1,0 +1,65 @@
+name: Godot Viewer Prototype
+
+on:
+  push:
+    branches:
+      - opensim-next/godot-prototype
+    paths:
+      - "godot-prototype/**"
+      - ".github/workflows/godot-prototype.yml"
+  pull_request:
+    paths:
+      - "godot-prototype/**"
+      - ".github/workflows/godot-prototype.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-prototype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64-build:
+    name: Windows x64 / Godot .NET 4.7.2
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download Godot .NET 4.7.2
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "godot-mono-win64.zip"
+          $extract = Join-Path $env:RUNNER_TEMP "godot-mono-win64"
+          $uri = "https://downloads.godotengine.org/?flavor=stable&platform=windows.64&slug=mono_win64.zip&version=4.7.2"
+          Invoke-WebRequest -Uri $uri -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $extract -Force
+          $godot = Get-ChildItem -Path $extract -Filter "Godot_v4.7.2-stable_mono_win64.exe" -Recurse |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $godot) {
+            throw "Godot .NET 4.7.2 executable was not found in the downloaded archive."
+          }
+          "GODOT4=$godot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Import project and build C# solution
+        shell: pwsh
+        run: |
+          & $env:GODOT4 --headless --editor --path godot-prototype --build-solutions --quit
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot C# solution build failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Verify .NET build
+        shell: pwsh
+        run: |
+          dotnet build godot-prototype/OpenSimNextGodotViewer.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) {
+            throw ".NET build failed with exit code $LASTEXITCODE."
+          }
