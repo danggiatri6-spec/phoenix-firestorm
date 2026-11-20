@@ -46,6 +46,7 @@ This repository is the canonical Viewer source repository for OpenSim-next. It r
 - [Pinned Firestorm baseline](docs/opensim-next/BASELINE.md)
 - [Windows build audit](docs/opensim-next/BUILD_AUDIT.md)
 - [Windows end-user distribution policy](docs/opensim-next/USER_DISTRIBUTION.md)
+- [Firestorm modernization roadmap](docs/opensim-next/MODERNIZATION_ROADMAP.md)
 - [Repository provenance and branch policy](docs/opensim-next/FORK_SETUP.md)
 
 ### Repository boundaries
