@@ -24,15 +24,25 @@ public enum GridConnectionState
     Faulted
 }
 
+/// <summary>
+/// Credentials are transient inputs. Callers must not persist or log this record.
+/// SL and OpenSimulator logins use first/last names and may require an MFA response.
+/// </summary>
 public sealed record GridLoginRequest(
     Uri LoginUri,
-    string Username,
-    string Password);
+    string FirstName,
+    string LastName,
+    string Password,
+    string StartLocation = "last",
+    string MfaToken = "",
+    string MfaHash = "");
 
+/// <summary>
+/// Non-secret session metadata exposed to the presentation layer.
+/// Session tokens and secure session identifiers must remain inside the protocol core.
+/// </summary>
 public sealed record GridSessionInfo(
     string AgentId,
-    string SessionId,
-    string SecureSessionId,
-    Uri SimulatorEndpoint,
+    string SimulatorName,
     string SimulatorAddress,
     int SimulatorPort);
