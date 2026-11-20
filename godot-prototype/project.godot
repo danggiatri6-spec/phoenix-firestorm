@@ -1,0 +1,22 @@
+; OpenSim-next Godot Viewer feasibility prototype.
+; This is an isolated prototype and is not yet an SL-compatible Viewer.
+
+config_version=5
+
+[application]
+config/name="OpenSim-next Godot Viewer Prototype"
+run/main_scene="res://scenes/Main.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/size/window_width_override=1280
+window/size/window_height_override=800
+
+[dotnet]
+project/assembly_name="OpenSimNextGodotViewer"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
