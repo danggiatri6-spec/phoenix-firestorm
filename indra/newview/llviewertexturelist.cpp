@@ -1325,19 +1325,28 @@ F32 LLViewerTextureList::updateImagesFetchTextures(F32 max_time)
 
     LLTimer timer;
 
-    for (auto& imagep : entries)
     {
-        mLastUpdateKey = LLTextureKey(imagep->getID(), (ETexListType)imagep->getTextureListType());
-
-        if (imagep->getNumRefs() > 1) // make sure this image hasn't been deleted before attempting to update (may happen as a side effect of some other image updating)
+        LL_PROFILE_ZONE_NAMED_CATEGORY_TEXTURE("vtluift - process texture batch");
+        for (auto& imagep : entries)
         {
-            updateImageDecodePriority(imagep);
-            imagep->updateFetch();
-        }
+            mLastUpdateKey = LLTextureKey(imagep->getID(), (ETexListType)imagep->getTextureListType());
 
-        if (timer.getElapsedTimeF32() > max_time)
-        {
-            break;
+            if (imagep->getNumRefs() > 1) // make sure this image hasn't been deleted before attempting to update (may happen as a side effect of some other image updating)
+            {
+                {
+                    LL_PROFILE_ZONE_NAMED_CATEGORY_TEXTURE("vtluift - decode priority");
+                    updateImageDecodePriority(imagep);
+                }
+                {
+                    LL_PROFILE_ZONE_NAMED_CATEGORY_TEXTURE("vtluift - fetch update");
+                    imagep->updateFetch();
+                }
+            }
+
+            if (timer.getElapsedTimeF32() > max_time)
+            {
+                break;
+            }
         }
     }
 
