@@ -107,7 +107,7 @@ jobs:
       # over variants, let GitHub distribute variants over multiple hosts.
       variants: ${{ matrix.configuration }}
       # Pass USE_VELOPACK to CMake when using Velopack installer (default) - Windows and macOS
-      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '--tracy' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
+      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '-- --tracy' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -302,9 +302,10 @@ jobs:
         if: steps.build.outputs.viewer_app
         uses: actions/upload-artifact@v7
         with:
-          name: "${{ steps.build.outputs.artifact }}-app"
+          name: "${{ github.event_name == 'workflow_dispatch' && 'OpenSim-next-Windows-x64-ReleaseOS-Tracy' || format('{0}-app', steps.build.outputs.artifact) }}"
           path: |
             ${{ steps.build.outputs.viewer_app }}
+          retention-days: 14
 
       # The other upload of nontrivial size is the symbol file. Use a distinct
       # artifact for that too.
