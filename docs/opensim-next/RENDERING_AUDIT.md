@@ -42,6 +42,30 @@ The current upstream Firestorm `master` version of this same function already us
 3. Capture CPU frame time, GPU frame time, FPS/1% lows, and allocation/rebuild counts before and after.
 4. Confirm geometry, alpha, PBR materials, attachments, and region crossing remain visually and functionally correct.
 
+
+## Finding 2 — Texture update scheduling observability
+
+**Status: diagnostic instrumentation added; build and profiler capture pending.**
+
+File: `indra/newview/llviewertexturelist.cpp`  
+Function: `LLViewerTextureList::updateImagesFetchTextures(F32 max_time)`
+
+The texture update batch already had a broad function-level Tracy zone and a named zone for copying entries from the UUID map. The per-texture processing loop did not have named child zones separating decode-priority calculation from fetch scheduling. This made it harder to determine which part of the texture update budget is consuming CPU time.
+
+The profiling-only change adds three named zones:
+- `vtluift - process texture batch`: the per-frame batch loop.
+- `vtluift - decode priority`: face visibility/virtual-size priority calculation and associated bookkeeping.
+- `vtluift - fetch update`: per-texture fetch state processing and request scheduling.
+
+No scheduling policy, priorities, discard levels, network requests, or texture behavior are changed. The purpose is to collect evidence before attempting performance optimizations.
+
+### Validation required
+
+1. Build the OpenSim-enabled Windows x64 `ReleaseOS` configuration.
+2. Capture Tracy data in a repeatable OpenSim scene during initial region arrival and steady-state viewing.
+3. Compare batch, decode-priority, and fetch-update costs under the same scene, camera, avatar count, resolution, and graphics settings.
+4. Only propose a scheduling optimization if captures identify a repeatable bottleneck.
+
 ## Existing profiling and optimization infrastructure
 
 The inspected source already contains Tracy/profile instrumentation in the rendering pipeline, spatial partitioning, texture processing, and draw pools. `llperfstats.cpp` also contains avatar timing and autotune metrics. Therefore the next optimization step should use these existing instruments rather than introduce a new profiler or blindly alter global quality defaults.
