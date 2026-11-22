@@ -9,7 +9,7 @@ on:
         options:
           - velopack
           - nsis
-        default: 'velopack'
+        default: 'nsis'
   pull_request:
   push:
     branches: ["main", "release/*", "project/*"]
@@ -31,7 +31,7 @@ jobs:
       # important to ensure it's the empty string when false. If you omit || '',
       # its value when false is "false", which is interpreted as true.
       RELEASE_RUN: ${{ (github.event.inputs.release_run || github.ref_type == 'tag' && startsWith(github.ref_name, 'Second_Life')) && 'Y' || '' }}
-      FROM_FORK: ${{ github.event.pull_request.head.repo.fork }}
+      FROM_FORK: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork }}
     steps:
       - name: Set Variables
         id: setvar
@@ -51,7 +51,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        runner: ${{ fromJson((github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/Second_Life')) && '["windows-large","macos-15-xlarge"]' || '["windows-2022","macos-15-xlarge"]') }}
+        runner: ${{ fromJson(github.event_name == 'workflow_dispatch' && '["windows-2022"]' || ((github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/Second_Life')) && '["windows-large","macos-15-xlarge"]' || '["windows-2022","macos-15-xlarge"]')) }}
         configuration: ${{ fromJson(needs.setup.outputs.configurations) }}
     runs-on: ${{ matrix.runner }}
     outputs:
@@ -107,7 +107,7 @@ jobs:
       # over variants, let GitHub distribute variants over multiple hosts.
       variants: ${{ matrix.configuration }}
       # Pass USE_VELOPACK to CMake when using Velopack installer (default) - Windows and macOS
-      autobuild_configure_parameters: ${{ (contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'velopack') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '' }}
+      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '--tracy' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -334,6 +334,7 @@ jobs:
             ${{ steps.build.outputs.physicstpv }}
 
   sign-and-package-windows:
+    if: github.event_name != 'workflow_dispatch'
     env:
       AZURE_KEY_VAULT_URI: ${{ secrets.AZURE_KEY_VAULT_URI }}
       AZURE_CERT_NAME:     ${{ secrets.AZURE_CERT_NAME }}
@@ -362,6 +363,7 @@ jobs:
           velopack_installer_base: "${{ needs.build.outputs.velopack_installer_base }}"
 
   sign-and-package-mac:
+    if: github.event_name != 'workflow_dispatch'
     env:
       NOTARIZE_CREDS_MACOS:        ${{ secrets.NOTARIZE_CREDS_MACOS }}
       SIGNING_CERT_MACOS:          ${{ secrets.SIGNING_CERT_MACOS }}
