@@ -9,20 +9,20 @@
 				<radio_item label="大" name="consradio3" />
 				<radio_item label="巨大" name="consradio4" />
 			</radio_group>
-			<check_box label="播放化身动畫（如尖叫）" name="play_avatar_animations" />
+			<check_box label="播放化身动画（如尖叫）" name="play_avatar_animations" />
 			<check_box name="FSIMSystemMessageBrackets" label="系统讯息用括号括起来" />
 			<check_box name="FSChatHistoryShowYou" label="在记录中显示「你」而不是你的名称" />
 			<check_box name="EmotesUseItalic" label="以斜体显示表情" />
 			<check_box name="FSEmphasizeShoutWhisper" label="将大声呼喊和窃窃私语加粗并以斜体显示" />
-			<check_box name="FSMarkObjects" label="将无名称的说话物件重新命名为「(无名称)」以避免混淆" />
-			<check_box label="将通过 llOwnerSay 发出的讯息重新導向到脚本调试视窗中" name="FSllOwnerSayToScriptDebugWindow_checkbox" />
+			<check_box name="FSMarkObjects" label="将无名称的说话对象重新命名为「(无名称)」以避免混淆" />
+			<check_box label="将通过 llOwnerSay 发出的讯息重定向到脚本调试视窗中" name="FSllOwnerSayToScriptDebugWindow_checkbox" />
 			<check_box label="显示聊天气泡" name="bubble_text_chat" />
-			<check_box label="不要在本地聊天控制台和提示框中显示对话" name="FSBubblesHideConsoleAndToasts" />
+			<check_box label="不要在附近聊天控制台和通知提示中显示对话" name="FSBubblesHideConsoleAndToasts" />
 			<check_box label="在聊天气泡中显示文字输入指示器" name="bubble_text_typing" />
 			<check_box label="在头顶标签中显示文字输入指示器" name="FSShowTypingStateInNameTag" />
 			<check_box name="FSSecondsinChatTimestamps" label="在时间戳中显示秒数 [HH:MM:SS]" />
 			<text name="show_timestamps_label">在以下时间戳中显示秒数：</text>
-			<check_box label="本地聊天" name="show_timestamps_nearby_chat" width="80" />
+			<check_box label="附近聊天" name="show_timestamps_nearby_chat" width="80" />
 			<check_box label="私聊" name="show_timestamps_im" width="50" />
 			<check_box label="记录" name="show_timestamps_transcripts" />
 			<check_box label="显示屏幕控制台" tool_tip="在聊天视窗未开启时，显示或隐藏聊天控制台文字" name="FSShowOnscreenConsole"/>
@@ -44,18 +44,18 @@
 			<check_box label="使用V1 样式的聊天头" name="plain_text_chat_history" />
 			<check_box label="当使用 [SHORT_VIEWER_GENERATION] 样式的聊天头时，在人名前显示图示" name="ShowChatMiniIcons" />
 			<check_box label="显示最后聊天的结尾" name="LogShowHistory" />
-			<check_box name="FSTypingChevronPrefix" label="在私聊中使用額外的大於符号 (&gt;) 作为输入指示器" />
+			<check_box name="FSTypingChevronPrefix" label="在私聊中使用额外的大于符号 (&gt;) 作为输入指示器" />
 			<text name="show_unread_messages_label">新讯息通知：</text>
-			<check_box name="FSNotifyUnreadChatMessages" label="本地聊天" tool_tip="如果捲动条未捲动到最大值，则在本地聊天中显示未读讯息数量通知。" />
+			<check_box name="FSNotifyUnreadChatMessages" label="附近聊天" tool_tip="如果捲动条未捲动到最大值，则在附近聊天中显示未读讯息数量通知。" />
 			<check_box name="FSNotifyUnreadIMMessages" label="私聊和群组讯息" tool_tip="如果捲动条未捲动到最大值，则在私聊或群组讯息中显示未读讯息数量通知。" />
 			<text name="show_ims_in_label" width="150">用以下方式显示私聊：</text>
-			<radio_group name="chat_window" tool_tip="将您的私聊显示在单独的视窗中，或在一个帶有多个索引标签的视窗中（需要重新启动）。">
+			<radio_group name="chat_window" tool_tip="将您的私聊显示在单独的视窗中，或在一个帶有多个选项卡的视窗中（需要重新启动）。">
 				<radio_item label="单独视窗" name="radio" />
-				<radio_item label="索引标签" name="radio2" />
+				<radio_item label="选项卡" name="radio2" />
 			</radio_group>
 			<text name="req_restart_ims" width="140">(需要重新启动)</text>
-			<text name="tab_direction_label">索引标签方向：</text>
-			<radio_group width="190" name="chat_tab_direction" tool_tip="当索引标签聊天合并启用时，更改聊天索引标签的水准和垂直布局。（需要重新启动）">
+			<text name="tab_direction_label">选项卡方向：</text>
+			<radio_group width="190" name="chat_tab_direction" tool_tip="当选项卡聊天合并启用时，更改聊天选项卡的水准和垂直布局。（需要重新启动）">
 				<radio_item label="水平" name="radio_horizontal" width="130" />
 				<radio_item label="垂直" name="radio_vertical" />
 			</radio_group>
@@ -70,7 +70,7 @@
 				<combo_box.item name="im_conf_group" label="私聊、会议、群组" />
 			</combo_box>
 			<check_box name="FSAutoOrderIMTabsAtTop" label="新分页置顶" tool_tip="在对应聊天类型群组中，将新的私聊分页新增为第一个。" />
-			<text name="FSIMTabNameFormat_label" width="180">索引标签名称格式：</text>
+			<text name="FSIMTabNameFormat_label" width="180">选项卡名称格式：</text>
 			<combo_box name="FSIMTabNameFormat">
 				<combo_box.item label="显示名" name="display_name" />
 				<combo_box.item label="用户名称" name="user_name" />
@@ -103,7 +103,7 @@
 			<check_box name="FSMuteAllGroups" label="禁用所有群组聊天" />
 			<check_box name="FSMuteGroupWhenNoticesDisabled" label="当群组通知被禁用时禁用群组聊天" />
 			<check_box name="FSIgnoreAdHocSessions" label="自动忽略任何私聊提议" />
-			<check_box name="FSReportIgnoredAdHocSession" label="在本地聊天中报告它們" />
+			<check_box name="FSReportIgnoredAdHocSession" label="在附近聊天中报告它們" />
 			<check_box name="FSDontIgnoreAdHocFromFriends" label="不要忽略来自我的朋友的私聊" />
 			<text name="group_snooze_time_label" tool_tip="按下「暂时休眠」按钮后，忽略群组聊天的时间。如果值为 0，则视窗将关闭，直到收到下一条讯息。">
 				休眠时间：
@@ -116,30 +116,30 @@
 			<button name="autoreplace_showgui" label="自动替换..." />
 			<button name="spellcheck_showgui" label="拼写检查..." />
 			<button name="translation_settings_btn" label="自动翻译..." />
-			<check_box label="当我聊天时播放输入动畫" name="play_typing_animation" />
-			<check_box label="当我使用 '/me' 时也播放输入动畫" name="play_typing_animation_emote" />
+			<check_box label="当我聊天时播放输入动画" name="play_typing_animation" />
+			<check_box label="当我使用 '/me' 时也播放输入动画" name="play_typing_animation_emote" />
 			<check_box label="当附近的人在输入时播放键盘声音" name="play_typing_sound" />
 			<check_box label="在私聊中指示我正在输入" name="FSSendTypingState" />
-			<check_box name="FSChatbarGestureAutoCompleteEnable" label="在本地聊天输入欄中启用手勢自动完成" />
-			<check_box name="FSChatbarNamePrediction" label="在本地聊天中启用名称自动完成" />
+			<check_box name="FSChatbarGestureAutoCompleteEnable" label="在附近聊天输入欄中启用手勢自动完成" />
+			<check_box name="FSChatbarNamePrediction" label="在附近聊天中启用名称自动完成" />
 			<check_box name="AllowMUpose" label="':' 为 '/me' 的同義詞" />
 			<check_box name="AutoCloseOOC" label="自动关闭双括号 ((OOC))" />
 			<check_box name="FSUseChatMentionAutoComplete" label="在聊天欄输入@时自动打开提及视窗"/>
 			<check_box name="FSEnableEmojiWindowPopupWhileTyping" label="在聊天欄输入时自动打开表情选择视窗" />
 			<check_box name="FSShowEmojiButton" label="在私聊和附近聊天中显示表情符号按钮" />
 			<check_box name="FSShowIMSendButton" label="在私聊中显示传送按钮" />
-			<check_box name="FSNearbyChatbar" label="在本地聊天视窗显示输入框" />
-			<check_box name="FSShowChatChannel" label="在本地聊天视窗中显示频道号选择" />
-			<check_box name="FSShowChatType" label="在本地聊天视窗中显示说话/窃窃私语/大声呼喊按钮" />
+			<check_box name="FSNearbyChatbar" label="在附近聊天视窗显示输入框" />
+			<check_box name="FSShowChatChannel" label="在附近聊天视窗中显示频道号选择" />
+			<check_box name="FSShowChatType" label="在附近聊天视窗中显示说话/窃窃私语/大声呼喊按钮" />
 			<check_box label="隐藏主聊天欄" name="AutohideChatBar" tool_tip="当鼠标悬停在该区域上方时，隐藏屏幕左下角的聊天欄，并在鼠标离开该区域时显示。" />
 			<check_box label="传送讯息后取消选取聊天框" name="CloseChatOnReturn"/>
 			<check_box label="僅在鼠标视角模式下" name="FSCloseChatOnReturnInMouselook" tool_tip="当启用「传送讯息后取消选取聊天框」时，僅在鼠标视角模式下取消选取聊天。"/>
 			<check_box label="僅適用於附近聊天欄" name="FSCloseChatOnReturnOnlyForNearbyChatControl" tool_tip="当启用「传送讯息后取消选取聊天框」时，僅对附近聊天欄生效。"/>
 			<check_box label="同时取消聊天记录选取" name="FSUnfocusChatHistoryOnReturn"/>
 			<text name="textUseKeyboardShortcuts">使用键盘快速键：</text>
-			<check_box name="FSUseCtrlShout" label="Ctrl+Enter (大声呼喊)" tool_tip="使用 Ctrl+Enter 快速键在本地聊天中喊话。" />
-			<check_box name="FSUseShiftWhisper" label="Shift+Enter (窃窃私语)" tool_tip="使用 Shift+Enter 快速键在本地聊天中窃窃私语。" />
-			<check_box name="FSUseAltOOC" label="Alt+Enter ((OOC))" tool_tip="使用 Alt+Enter 快速键在本地聊天中传送 OOC 讯息。" />
+			<check_box name="FSUseCtrlShout" label="Ctrl+Enter (大声呼喊)" tool_tip="使用 Ctrl+Enter 快速键在附近聊天中喊话。" />
+			<check_box name="FSUseShiftWhisper" label="Shift+Enter (窃窃私语)" tool_tip="使用 Shift+Enter 快速键在附近聊天中窃窃私语。" />
+			<check_box name="FSUseAltOOC" label="Alt+Enter ((OOC))" tool_tip="使用 Alt+Enter 快速键在附近聊天中传送 OOC 讯息。" />
 		</panel>
 		<panel label="通知" name="ChatNotices">
 			<text name="disable_toast_label">接收新讯息时彈出聊天提示：</text>
@@ -157,16 +157,16 @@
 			</text>
 			<check_box label="如果我离线，则通过电子郵件传送私聊 ([EMAIL])" name="send_im_to_email" />
 			<text name="email_settings_login_to_change">登入以更改离线私聊传送到电子郵件的设定</text>
-			<check_box name="FSShowIMInChatHistory" label="在本地聊天中显示私聊" />
-			<check_box name="FSLogIMInChatHistory" label="在本地聊天中儲存私聊" />
+			<check_box name="FSShowIMInChatHistory" label="在附近聊天中显示私聊" />
+			<check_box name="FSLogIMInChatHistory" label="在附近聊天中儲存私聊" />
 			<text name="FSIMChatHistoryFade_label">在聊天视窗底部漸变私聊文字</text>
 			<spinner tool_tip="设定範圍从0.25到1.0，0.25表示明显的漸变，1表示没有漸变" name="FSIMChatHistoryFade" />
 			<check_box name="FSShowMessageCountInWindowTitle" label="在 Firestorm 视窗标题列中显示未读私聊数量" />
 			<check_box name="FSAnnounceIncomingIM" label="当发件人开始输入时立即宣布接收到的私聊" />
-			<check_box name="FSIMChatFlashOnFriendStatusChange" label="当好友上线或下线时在私聊索引标签中閃爍" />
-			<check_box name="FSNotifyNearbyChatFlash" label="收到本地聊天时，聊天工具列按钮閃爍" tool_tip="当本地聊天中有人说话时，聊天工具按钮会閃爍。本地聊天视窗必須与聊天视窗合并，并且聊天视窗必須关闭才能觸发按钮閃爍。" />
-			<check_box name="FSNotifyIMFlash" label="收到私聊时，聊天工具列按钮閃爍" tool_tip="如果有新的（群组）私聊讯息到来，聊天工具列按钮就会閃爍。私聊视窗必須停靠在聊天视窗合并，并且聊天视窗必須关闭才能觸发按钮閃爍。该选项只有在私聊以标签页而非单独视窗显示时才可用（请參閱&quot;一般设定&quot;索引标签）。" />
-			<check_box name="FSReportMutedGroupChat" label="在本地聊天中报告被靜音的群组聊天" />
+			<check_box name="FSIMChatFlashOnFriendStatusChange" label="当好友上线或下线时在私聊选项卡中閃爍" />
+			<check_box name="FSNotifyNearbyChatFlash" label="收到附近聊天时，聊天工具列按钮閃爍" tool_tip="当附近聊天中有人说话时，聊天工具按钮会閃爍。附近聊天视窗必須与聊天视窗合并，并且聊天视窗必須关闭才能觸发按钮閃爍。" />
+			<check_box name="FSNotifyIMFlash" label="收到私聊时，聊天工具列按钮閃爍" tool_tip="如果有新的（群组）私聊讯息到来，聊天工具列按钮就会閃爍。私聊视窗必須停靠在聊天视窗合并，并且聊天视窗必須关闭才能觸发按钮閃爍。该选项只有在私聊以标签页而非单独视窗显示时才可用（请參閱&quot;一般设定&quot;选项卡）。" />
+			<check_box name="FSReportMutedGroupChat" label="在附近聊天中报告被靜音的群组聊天" />
 			<check_box name="FSGroupNoticesToIMLog" label="在群组聊天中显示群组公告" />
 			<check_box name="FSBetterGroupNoticesToIMLog" label="同时显示公告的主题和作者" />
 		</panel>
@@ -209,7 +209,7 @@
 		</panel>
 		<panel label="关键字警报" name="ChatKeywordAlerts">
 			<check_box name="FSKeywordOn" label="启用关键字警报" />
-			<check_box name="FSKeywordInChat" label="在本地聊天中检测关键字" />
+			<check_box name="FSKeywordInChat" label="在附近聊天中检测关键字" />
 			<check_box name="FSKeywordInIM" label="在私聊和群组聊天中检测关键字" />
 			<check_box name="FSKeywordSpeakersName" label="在关键字中检测发件人姓名" />
 			<check_box name="FSKeywordCaseSensitive" label="所有关键字区分大小写" />
