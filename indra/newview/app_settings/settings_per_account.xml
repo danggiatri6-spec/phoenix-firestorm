@@ -1010,7 +1010,29 @@
 		<key>Value</key>
 			<array/>
 	</map>
-	<key>FSGesturesEnabled</key>
+	    <key>FSRecentGestures</key>
+    <map>
+        <key>Comment</key>
+            <string>Most recently played gesture inventory UUIDs for this account, newest first.</string>
+        <key>Persist</key>
+            <integer>1</integer>
+        <key>Type</key>
+            <string>LLSD</string>
+        <key>Value</key>
+            <array/>
+    </map>
+    <key>FSShowRecentGestures</key>
+    <map>
+        <key>Comment</key>
+            <string>Show only recently played gestures in the gestures floater.</string>
+        <key>Persist</key>
+            <integer>1</integer>
+        <key>Type</key>
+            <string>Boolean</string>
+        <key>Value</key>
+            <integer>0</integer>
+    </map>
+<key>FSGesturesEnabled</key>
 	<map>
 		<key>Comment</key>
 			<string>Enable gesture playback and trigger handling viewer-wide - for your own gestures</string>
