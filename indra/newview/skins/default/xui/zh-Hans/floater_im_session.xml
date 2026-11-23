@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<floater name="panel_im">
+    <floater.string name="participant_added" value="[NAME] 已加入对话。" />
+    <floater.string name="multiple_participants_added" value="[NAME] 已加入对话。" />
+    <floater.string name="tooltip_to_separate_window" value="将此会话移至独立窗口" />
+    <floater.string name="tooltip_to_main_window" value="将此会话移回主窗口" />
+    <floater.string name="start_call_button_tooltip" value="开启语音连接" />
+    <floater.string name="end_call_button_tooltip" value="关闭语音连接" />
+    <floater.string name="expcol_button_not_tearoff_tooltip" value="折叠此面板" />
+    <floater.string name="expcol_button_tearoff_and_expanded_tooltip" value="折叠参与者列表" />
+    <floater.string name="expcol_button_tearoff_and_collapsed_tooltip" value="展开参与者列表" />
+</floater>
