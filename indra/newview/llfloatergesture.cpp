@@ -427,14 +427,10 @@ void LLFloaterGesture::buildGestureList()
 void LLFloaterGesture::addGesture(const LLUUID& item_id , LLMultiGesture* gesture,LLCtrlListInterface * list )
 {
     // Note: Can have NULL item if inventory hasn't arrived yet.
-    static std::string item_name = getString("loading");
+    // Keep these values local to avoid leaking one row's state into the next.
     LLInventoryItem* item = gInventory.getItem(item_id);
-    if (item)
-    {
-        item_name = item->getName();
-    }
-
-    static std::string font_style = "NORMAL";
+    std::string item_name = item ? item->getName() : getString("loading");
+    std::string font_style = "NORMAL";
     // If gesture is playing, bold it
 
     LLSD element;
