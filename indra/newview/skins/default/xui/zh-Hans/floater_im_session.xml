@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <floater name="panel_im">
-    <floater.string name="participant_added" value="[NAME] 已加入对话。" />
-    <floater.string name="multiple_participants_added" value="[NAME] 已加入对话。" />
+    <floater.string name="participant_added" value="已邀请 [NAME] 加入对话。" />
+    <floater.string name="multiple_participants_added" value="已邀请 [NAME] 等人加入对话。" />
     <floater.string name="tooltip_to_separate_window" value="将此会话移至独立窗口" />
     <floater.string name="tooltip_to_main_window" value="将此会话移回主窗口" />
     <floater.string name="start_call_button_tooltip" value="开启语音连接" />
@@ -9,4 +9,30 @@
     <floater.string name="expcol_button_not_tearoff_tooltip" value="折叠此面板" />
     <floater.string name="expcol_button_tearoff_and_expanded_tooltip" value="折叠参与者列表" />
     <floater.string name="expcol_button_tearoff_and_collapsed_tooltip" value="展开参与者列表" />
+    <view name="contents_view">
+        <layout_stack name="main_stack">
+            <layout_panel name="toolbar_panel">
+                <menu_button name="view_options_btn" tool_tip="查看/排序选项" />
+                <menu_button name="gear_btn" tool_tip="对所选人员执行操作" />
+                <button name="add_btn" tool_tip="邀请其他人加入此对话" />
+                <button name="voice_call_btn" tool_tip="开启语音连接" />
+                <button name="close_btn" tool_tip="结束此对话" />
+                <button name="expand_collapse_btn" tool_tip="折叠/展开此面板" />
+            </layout_panel>
+            <layout_panel name="chat_layout_panel">
+                <layout_stack name="input_panels">
+                    <layout_panel name="input_editor_layout_panel">
+                        <button name="emoji_recent_panel_toggle_btn" tool_tip="显示/隐藏最近使用的表情符号" />
+                    </layout_panel>
+                    <layout_panel name="input_button_layout_panel">
+                        <button name="minz_btn" tool_tip="显示/隐藏消息面板" />
+                    </layout_panel>
+                </layout_stack>
+            </layout_panel>
+            <layout_panel name="emoji_recent_layout_panel">
+                <text name="emoji_recent_empty_text">最近使用的表情符号会显示在这里</text>
+                <button name="emoji_picker_show_btn" label="更多" tool_tip="显示/隐藏表情符号选择器" />
+            </layout_panel>
+        </layout_stack>
+    </view>
 </floater>
