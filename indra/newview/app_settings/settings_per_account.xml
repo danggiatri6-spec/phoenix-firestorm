@@ -999,6 +999,17 @@
 		<key>Value</key>
 			<string>0</string>
 	</map>
+	<key>FSFavoriteGestures</key>
+	<map>
+		<key>Comment</key>
+			<string>Inventory UUIDs of gestures marked as favorites for this account.</string>
+		<key>Persist</key>
+			<integer>1</integer>
+		<key>Type</key>
+			<string>LLSD</string>
+		<key>Value</key>
+			<array/>
+	</map>
 	<key>FSGesturesEnabled</key>
 	<map>
 		<key>Comment</key>
