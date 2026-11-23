@@ -283,6 +283,20 @@ jobs:
 
           ./build.sh
 
+          # Manual Windows builds do not run the signing/installer jobs.
+          # Publish the complete viewer_manifest output directory as a portable
+          # test ZIP instead. The Windows ReleaseOS runner uses this build path.
+          if [[ "$RUNNER_OS" == "Windows" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            viewer_app="build-vc170-64/newview/Release"
+            if [[ -d "$viewer_app" && -f "$viewer_app/FirestormSecondLifeTest.exe" ]]; then
+              echo "viewer_app=$viewer_app" >> "$GITHUB_OUTPUT"
+              echo "Manual test package source: $viewer_app"
+            else
+              echo "::error::Viewer runtime directory or executable not found at $viewer_app"
+              exit 1
+            fi
+          fi
+
           # Each artifact is downloaded as a distinct .zip file. Multiple jobs
           # (per the matrix above) writing the same filepath to the same
           # artifact name will *overwrite* that file. Moreover, they can
