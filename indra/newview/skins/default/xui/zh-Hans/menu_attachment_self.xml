@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<context_menu
+ layout="topleft"
+ name="Attachment Pie">
+    <menu_item_call
+     enabled="false"
+     label="触碰"
+     layout="topleft"
+     name="Attachment Object Touch">
+        <menu_item_call.on_click
+         function="Object.Touch" />
+        <menu_item_call.on_enable
+         function="Object.EnableTouch"
+         name="EnableTouch"/>
+    </menu_item_call>
+    <menu_item_call
+     label="在库存中显示"
+     layout="topleft"
+     name="Show original">
+      <menu_item_call.on_click
+       function="Object.ShowOriginal" />
+      <menu_item_call.on_enable
+       function="Object.EnableShowOriginal" />
+    </menu_item_call>
+    <menu_item_call
+     label="添加到收藏夹"
+     layout="topleft"
+     name="Add to favorites">
+        <menu_item_call.on_click
+         function="Object.SetFavorite"
+         parameter="Add" />
+        <menu_item_call.on_visible
+         function="Object.EnableFavorites"
+         parameter="Add"/>
+    </menu_item_call>
+    <menu_item_call
+     label="从收藏夹移除"
+     layout="topleft"
+     name="Remove from favorites">
+        <menu_item_call.on_click
+         function="Object.SetFavorite"
+         parameter="Remove" />
+        <menu_item_call.on_visible
+         function="Object.EnableFavorites"
+         parameter="Remove" />
+    </menu_item_call>
+    <menu_item_call
+     enabled="false"
+     label="编辑"
+     layout="topleft"
+     name="Edit...">
+        <menu_item_call.on_click
+         function="Object.Edit" />
+        <menu_item_call.on_enable
+         function="EnableEdit" />
+    </menu_item_call>
+    <menu_item_call
+     label="编辑 PBR 材质"
+     name="EditGLTFMaterial">
+        <menu_item_call.on_click
+         function="Object.EditGLTFMaterial" />
+        <menu_item_call.on_enable
+         function="Object.EnableEditGLTFMaterial"/>
+    </menu_item_call>
+    <menu_item_call
+     enabled="false"
+     label="卸下"
+     layout="topleft"
+     name="Detach">
+        <menu_item_call.on_click
+         function="Attachment.Detach" />
+        <menu_item_call.on_enable
+         function="Attachment.EnableDetach" />
+    </menu_item_call>
+    <context_menu
+        label="另存为"
+        name="Export Menu">
+        <menu_item_call
+            label="备份"
+            name="Backup">
+            <menu_item_call.on_click
+            function="Object.Export" />
+            <menu_item_call.on_enable
+            function="Object.EnableExport" />
+        </menu_item_call>
+        <menu_item_call
+            label="Collada"
+            name="Collada">
+            <menu_item_call.on_click
+            function="Object.ExportCollada" />
+            <menu_item_call.on_enable
+            function="Object.EnableExport" />
+        </menu_item_call>
+    </context_menu>
+  <menu_item_separator
+    layout="topleft" />
+
+    <menu_item_call
+     label="坐下"
+     layout="topleft"
+     name="Sit Down Here">
+        <menu_item_call.on_click
+         function="Self.SitDown"
+         parameter="" />
+        <menu_item_call.on_enable
+         function="Self.EnableSitDown" />
+    </menu_item_call>
+
+  <menu_item_call
+label="站起"
+layout="topleft"
+name="Stand Up">
+    <menu_item_call.on_click
+     function="Self.StandUp"
+     parameter="" />
+    <menu_item_call.on_enable
+     function="Self.EnableStandUp" />
+  </menu_item_call>
+  <context_menu
+  label="外观"
+  layout="topleft"
+  name="AppearanceSubmenu">
+    <menu_item_call
+     label="当前穿着…"
+     name="NowWearing">
+      <menu_item_call.on_click
+       function="NowWearing" />
+      <menu_item_call.on_enable
+       function="Edit.EnableCustomizeAvatar" />
+    </menu_item_call>
+    <menu_item_call
+     label="更换服装"
+     name="Change Outfit">
+      <menu_item_call.on_click
+       function="CustomizeAvatar" />
+      <menu_item_call.on_enable
+       function="Edit.EnableCustomizeAvatar" />
+    </menu_item_call>
+    <menu_item_call
+     label="编辑体型"
+     layout="topleft"
+     name="Edit Shape">
+      <menu_item_call.on_click
+       function="EditShape" />
+      <menu_item_call.on_enable
+       function="Edit.EnableEditShape" />
+    </menu_item_call>
+    <menu_item_call
+     label="编辑服装"
+     layout="topleft"
+     name="Edit Outfit Parts">
+      <menu_item_call.on_click
+       function="EditOutfit" />
+      <menu_item_call.on_enable
+       function="Edit.EnableCustomizeAvatar" />
+    </menu_item_call>
+    <menu_item_call label="悬浮高度"
+     layout="topleft"
+     name="Hover Height">
+      <menu_item_call.on_click
+       function="HoverHeight" />
+      <menu_item_call.on_enable
+       function="Edit.EnableHoverHeight" />
+    </menu_item_call>
+    <menu_item_separator layout="topleft" />
+    <menu_item_call label="重置骨架"
+     layout="topleft"
+     name="Reset Skeleton">
+      <menu_item_call.on_click
+       function="Avatar.ResetSkeleton" />
+    </menu_item_call>
+    <menu_item_call label="重置骨架和动画"
+     layout="topleft"
+     name="Reset Skeleton And Animations">
+      <menu_item_call.on_click
+       function="Avatar.ResetSkeletonAndAnimations" />
+    </menu_item_call>
+    <menu_item_call label="重置网格 LOD"
+     layout="topleft"
+     name="Reset Mesh LOD">
+      <menu_item_call.on_click
+       function="Avatar.ResetMeshLOD" />
+    </menu_item_call>
+  </context_menu>
+  <context_menu
+  label="脱下"
+  layout="topleft"
+  name="Take Off &gt;">
+    <context_menu
+     label="服装"
+     layout="topleft"
+     name="Clothes &gt;">
+      <menu_item_call
+       enabled="false"
+       label="衬衫"
+       layout="topleft"
+       name="Shirt">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="shirt" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="shirt" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="裤子"
+       layout="topleft"
+       name="Pants">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="pants" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="pants" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="裙子"
+       layout="topleft"
+       name="Skirt">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="skirt" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="skirt" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="鞋子"
+       layout="topleft"
+       name="Shoes">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="shoes" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="shoes" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="袜子"
+       layout="topleft"
+       name="Socks">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="socks" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="socks" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="外套"
+       layout="topleft"
+       name="Jacket">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="jacket" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="jacket" />
+      </menu_item_call>
+      <menu_item_call
+       enabled="false"
+       label="手套"
+       layout="topleft"
+       name="Gloves">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="gloves" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="gloves" />
+      </menu_item_call>
+      <menu_item_call
+            enabled="false"
+            label="内衣"
+            layout="topleft"
+            name="Self Undershirt">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="undershirt" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="undershirt" />
+      </menu_item_call>
+      <menu_item_call
+        enabled="false"
+        label="内裤"
+        layout="topleft"
+        name="Self Underpants">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="underpants" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="underpants" />
+      </menu_item_call>
+      <menu_item_call
+        enabled="false"
+        label="纹身"
+        layout="topleft"
+        name="Self Tattoo">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="tattoo" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="tattoo" />
+      </menu_item_call>
+      <menu_item_call
+        enabled="false"
+        label="身体物理"
+        layout="topleft"
+        name="Self Physics">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="physics" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="physics" />
+      </menu_item_call>
+      <menu_item_call
+        enabled="false"
+        label="Alpha"
+        layout="topleft"
+        name="Self Alpha">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="alpha" />
+        <menu_item_call.on_enable
+         function="Edit.EnableTakeOff"
+         parameter="alpha" />
+      </menu_item_call>
+      <menu_item_separator
+       layout="topleft" />
+      <menu_item_call
+       label="全部服装"
+       layout="topleft"
+       name="All Clothes">
+        <menu_item_call.on_click
+         function="Edit.TakeOff"
+         parameter="all" />
+      </menu_item_call>
+    </context_menu>
+    <context_menu
+     label="HUD"
+     layout="topleft"
+     name="Detach Self HUD" />
+    <context_menu
+     label="卸下"
+     layout="topleft"
+     name="Detach Self" />
+    <menu_item_call
+     label="卸下全部附件"
+     layout="topleft"
+     name="Detach All">
+      <menu_item_call.on_click
+       function="Self.RemoveAllAttachments"
+       parameter="" />
+      <menu_item_call.on_enable
+       function="Self.EnableRemoveAllAttachments" />
+    </menu_item_call>
+  </context_menu>
+  <menu_item_separator/>
+  <menu_item_call
+    label="坐下 / 站起"
+    layout="topleft"
+    name="Sit stand">
+    <menu_item_call.on_click
+     function="Self.ToggleSitStand"/>
+    <menu_item_call.on_enable
+     function="Self.EnableSitStand" />
+  </menu_item_call>
+  <menu_item_call
+     label="飞行 / 着陆"
+     name="Fly land">
+    <menu_item_call.on_click
+     function="Agent.toggleFlying" />
+    <menu_item_call.on_enable
+     function="Agent.enableFlyLand" />
+  </menu_item_call>
+  <menu_item_call
+     label="停止动画"
+     name="Stop Animating My Avatar">
+    <menu_item_call.on_click
+     function="Tools.StopAllAnimations" />
+  </menu_item_call>
+  <menu_item_separator/>
+  <context_menu
+    label="社区"
+    layout="topleft"
+    name="CommunitySubmenu">
+      <menu_item_call
+        label="好友"
+        layout="topleft"
+        name="Friends...">
+        <menu_item_call.on_click
+         function="SideTray.PanelPeopleTab"
+         parameter="friends_panel" />
+      </menu_item_call>
+      <menu_item_call
+        label="群组"
+        layout="topleft"
+        name="Groups...">
+        <menu_item_call.on_click
+         function="SideTray.PanelPeopleTab"
+         parameter="groups_panel" />
+      </menu_item_call>
+      <menu_item_call
+        label="个人资料"
+        layout="topleft"
+        name="Profile...">
+        <menu_item_call.on_click
+         function="ShowAgentProfile"
+         parameter="agent" />
+      </menu_item_call>
+  </context_menu>
+    <menu_item_call
+         label="导出 XML"
+         name="Dump XML">
+            <menu_item_call.on_click
+             function="Advanced.AppearanceToXML" />
+            <menu_item_call.on_visible
+             function="Advanced.EnableAppearanceToXML"/>
+    </menu_item_call>
+   <menu_item_call
+       label="对象资料"
+       name="Object Inspect">
+         <menu_item_call.on_click
+          function="Object.Inspect" />
+         <menu_item_call.on_enable
+          function="Object.EnableInspect" />
+   </menu_item_call>
+   <menu_item_call
+         label="检查"
+         name="Object_Inspect_Floater">
+        <menu_item_call.on_click
+         function="Floater.Show"
+         parameter="inspect" />
+      </menu_item_call>
+  <menu_item_call 
+      enabled="true"
+      label="脚本信息"
+      name="ScriptInfo">
+      <menu_item_call.on_click
+       function="Tools.ScriptInfo" />
+      <menu_item_call.on_enable
+       function="Object.EnableScriptInfo" />
+  </menu_item_call>
+  <menu_item_call
+      enabled="true"
+      label="隐藏对象"
+      name="Derender">
+      <menu_item_call.on_click
+       function="Object.Derender" />
+      <menu_item_call.on_enable
+       function="Object.EnableDerender" />
+  </menu_item_call>
+   <menu_item_call
+      enabled="true"
+      label="隐藏对象并加入黑名单"
+      name="DerenderPermanent">
+    <menu_item_call.on_click
+      function="Object.DerenderPermanent" />
+    <menu_item_call.on_enable
+      function="Object.EnableDerender" />
+   </menu_item_call>
+  <menu_item_call
+ label="显示纹理"
+     name="Debug...">
+    <menu_item_call.on_click
+     function="Avatar.Debug" />
+  </menu_item_call>
+  <menu_item_call
+      enabled="true"
+      label="刷新纹理"
+      layout="topleft"
+      name="Texture Refresh">
+      <menu_item_call.on_click
+       function="Object.TexRefresh" />
+   </menu_item_call>
+  <menu_item_separator
+  layout="topleft" />
+  <menu_item_call
+ enabled="false"
+ label="放下"
+ layout="topleft"
+ name="Drop">
+    <menu_item_call.on_click
+     function="Attachment.Drop" />
+    <menu_item_call.on_enable
+     function="Attachment.EnableDrop" />
+  </menu_item_call>
+  <menu_item_separator
+       layout="topleft" />
+  <menu_item_call
+     enabled="false"
+     label="屏蔽粒子发射者"
+     name="Mute Particle">
+    <menu_item_call.on_click
+     function="Particle.Mute" />
+    <menu_item_call.on_enable
+     function="EnableMuteParticle" />
+  </menu_item_call>
+</context_menu>

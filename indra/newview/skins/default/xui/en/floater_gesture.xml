@@ -26,7 +26,7 @@
     <floater.string
      name="copy_name">Copy of [COPY_NAME]</floater.string>
     <scroll_list
-     bottom_delta="400"
+     bottom_delta="418"
      draw_heading="true"
      follows="all"
      layout="topleft"
@@ -60,7 +60,7 @@
              bevel_style="none"
              top_pad="0"
              follows="left|right|bottom"
-             height="50"
+             height="68"
              label="bottom_panel"
              layout="topleft"
              left="0"
@@ -142,13 +142,33 @@
                     function="Gesture.Action.RefreshList" />
               </check_box>
               <check_box
+                 control_name="FSShowFavoriteGestures"
+                 height="18"
+                 label="Favorites only"
+                 layout="topleft"
+                 follows="bottom|left"
+                 left="140"
+                 top="28"
+                 name="FSShowFavoriteGestures"
+                 width="150" />
+              <check_box
+                 control_name="FSShowRecentGestures"
+                 height="18"
+                 label="Recent only"
+                 layout="topleft"
+                 follows="bottom|left"
+                 left="10"
+                 top="47"
+                 name="FSShowRecentGestures"
+                 width="110" />
+              <check_box
                  control_name="FSGesturesEnabled"
                  height="18"
                  label="My gestures are enabled"
                  layout="topleft"
                  follows="bottom|left"
                  left_pad="5"
-                 top_delta="0"
+                 top="47"
                  name="FSGesturesEnabled"
                  width="160" />
             </panel>
@@ -181,4 +201,14 @@
      name="stop_btn"
      top_delta="0"
      width="83" />
+    <button
+     follows="left|bottom"
+     height="23"
+     label="Toggle Favorite"
+     tool_tip="Add or remove the selected gesture from your local favorites."
+     layout="topleft"
+     left="184"
+     name="favorite_btn"
+     top_delta="0"
+     width="110" />
 </floater>

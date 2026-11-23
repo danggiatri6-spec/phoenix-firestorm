@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<panel name="panel_edit_wearable" label="可穿戴物品">
+    <string name="edit_shape_title">正在编辑身形</string>
+    <string name="edit_skin_title">正在编辑皮肤</string>
+    <string name="edit_hair_title">正在编辑头发</string>
+    <string name="edit_eyes_title">正在编辑眼睛</string>
+    <string name="edit_shirt_title">正在编辑衬衫</string>
+    <string name="edit_pants_title">正在编辑裤子</string>
+    <string name="edit_shoes_title">正在编辑鞋子</string>
+    <string name="edit_socks_title">正在编辑袜子</string>
+    <string name="edit_jacket_title">正在编辑外套</string>
+    <string name="edit_skirt_title">正在编辑裙子</string>
+    <string name="edit_gloves_title">正在编辑手套</string>
+    <string name="edit_undershirt_title">正在编辑内衣</string>
+    <string name="edit_underpants_title">正在编辑内裤</string>
+    <string name="edit_alpha_title">正在编辑 Alpha 遮罩</string>
+    <string name="edit_tattoo_title">正在编辑纹身</string>
+    <string name="edit_universal_title">正在编辑通用层</string>
+    <string name="edit_physics_title">正在编辑物理层</string>
+    <string name="shape_desc_text">身形：</string>
+    <string name="skin_desc_text">皮肤：</string>
+    <string name="hair_desc_text">头发：</string>
+    <string name="eyes_desc_text">眼睛：</string>
+    <string name="shirt_desc_text">衬衫：</string>
+    <string name="pants_desc_text">裤子：</string>
+    <string name="shoes_desc_text">鞋子：</string>
+    <string name="socks_desc_text">袜子：</string>
+    <string name="jacket_desc_text">外套：</string>
+    <string name="skirt_desc_text">裙子：</string>
+    <string name="gloves_desc_text">手套：</string>
+    <string name="undershirt_desc_text">内衣：</string>
+    <string name="underpants_desc_text">内裤：</string>
+    <string name="alpha_desc_text">Alpha 遮罩：</string>
+    <string name="tattoo_desc_text">纹身：</string>
+    <string name="universal_desc_text">通用层：</string>
+    <string name="physics_desc_text">物理层：</string>
+    <labeled_back_button name="back_btn" label="保存" tool_tip="返回装扮编辑" />
+    <text name="edit_wearable_title" value="正在编辑身形" />
+    <panel name="wearable_type_panel" label="衬衫">
+        <text name="description_text" value="身形：" />
+        <radio_group name="sex_radio">
+            <radio_item name="sex_male" label="男性" />
+            <radio_item name="sex_female" label="女性" />
+        </radio_group>
+    </panel>
+    <text name="description" value="描述" />
+    <button name="save_as_button" label="另存为" />
+    <button name="revert_button" label="撤销更改" />
+    <button name="import_btn" label="导入" />
+</panel>

@@ -9,7 +9,7 @@ on:
         options:
           - velopack
           - nsis
-        default: 'velopack'
+        default: 'nsis'
   pull_request:
   push:
     branches: ["main", "release/*", "project/*"]
@@ -31,7 +31,7 @@ jobs:
       # important to ensure it's the empty string when false. If you omit || '',
       # its value when false is "false", which is interpreted as true.
       RELEASE_RUN: ${{ (github.event.inputs.release_run || github.ref_type == 'tag' && startsWith(github.ref_name, 'Second_Life')) && 'Y' || '' }}
-      FROM_FORK: ${{ github.event.pull_request.head.repo.fork }}
+      FROM_FORK: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork }}
     steps:
       - name: Set Variables
         id: setvar
@@ -51,7 +51,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        runner: ${{ fromJson((github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/Second_Life')) && '["windows-large","macos-15-xlarge"]' || '["windows-2022","macos-15-xlarge"]') }}
+        runner: ["windows-2022"]
         configuration: ${{ fromJson(needs.setup.outputs.configurations) }}
     runs-on: ${{ matrix.runner }}
     outputs:
@@ -93,6 +93,8 @@ jobs:
       build_coverity: false
       build_log_dir: ${{ github.workspace }}/.logs
       build_viewer: true
+      # Disable test targets for manual portable Viewer builds; PR validation keeps tests enabled.
+      LL_TESTS: ${{ github.event_name == 'workflow_dispatch' && 'OFF' || 'ON' }}
       BUILDSCRIPTS_SHARED: ${{ github.workspace }}/.shared
       # extracted and committed to viewer repo
       BUILDSCRIPTS_SUPPORT_FUNCTIONS: ${{ github.workspace }}/buildscripts_support_functions
@@ -107,7 +109,7 @@ jobs:
       # over variants, let GitHub distribute variants over multiple hosts.
       variants: ${{ matrix.configuration }}
       # Pass USE_VELOPACK to CMake when using Velopack installer (default) - Windows and macOS
-      autobuild_configure_parameters: ${{ (contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'velopack') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '' }}
+      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '-- -DUSE_TRACY:BOOL=ON' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -280,6 +282,20 @@ jobs:
 
           ./build.sh
 
+          # Manual Windows builds do not run the signing/installer jobs.
+          # Publish the complete viewer_manifest output directory as a portable
+          # test ZIP instead. The Windows ReleaseOS runner uses this build path.
+          if [[ "$RUNNER_OS" == "Windows" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            viewer_app="build-vc170-64/newview/Release"
+            if [[ -d "$viewer_app" && -f "$viewer_app/FirestormSecondLifeTest.exe" ]]; then
+              echo "viewer_app=$viewer_app" >> "$GITHUB_OUTPUT"
+              echo "Manual test package source: $viewer_app"
+            else
+              echo "::error::Viewer runtime directory or executable not found at $viewer_app"
+              exit 1
+            fi
+          fi
+
           # Each artifact is downloaded as a distinct .zip file. Multiple jobs
           # (per the matrix above) writing the same filepath to the same
           # artifact name will *overwrite* that file. Moreover, they can
@@ -302,9 +318,10 @@ jobs:
         if: steps.build.outputs.viewer_app
         uses: actions/upload-artifact@v7
         with:
-          name: "${{ steps.build.outputs.artifact }}-app"
+          name: "${{ github.event_name == 'workflow_dispatch' && 'OpenSim-next-Windows-x64-ReleaseOS-Tracy' || format('{0}-app', steps.build.outputs.artifact) }}"
           path: |
             ${{ steps.build.outputs.viewer_app }}
+          retention-days: 14
 
       # The other upload of nontrivial size is the symbol file. Use a distinct
       # artifact for that too.
@@ -334,6 +351,7 @@ jobs:
             ${{ steps.build.outputs.physicstpv }}
 
   sign-and-package-windows:
+    if: github.event_name != 'workflow_dispatch'
     env:
       AZURE_KEY_VAULT_URI: ${{ secrets.AZURE_KEY_VAULT_URI }}
       AZURE_CERT_NAME:     ${{ secrets.AZURE_CERT_NAME }}
@@ -362,6 +380,7 @@ jobs:
           velopack_installer_base: "${{ needs.build.outputs.velopack_installer_base }}"
 
   sign-and-package-mac:
+    if: false # OpenSim-next initial milestone is Windows-only; restore for macOS later
     env:
       NOTARIZE_CREDS_MACOS:        ${{ secrets.NOTARIZE_CREDS_MACOS }}
       SIGNING_CERT_MACOS:          ${{ secrets.SIGNING_CERT_MACOS }}
@@ -452,7 +471,7 @@ jobs:
       SYMBOL_UPLOAD_CLIENT_ID: "${{ secrets.BUGSPLAT_SYMBOL_UPLOAD_CLIENT_ID }}"
       SYMBOL_UPLOAD_CLIENT_SECRET: "${{ secrets.BUGSPLAT_SYMBOL_UPLOAD_CLIENT_SECRET }}"
     needs: build
-    if: needs.build.outputs.configuration == 'Release'
+    if: false # OpenSim-next initial milestone is Windows-only; restore for macOS later
     runs-on: ubuntu-latest
     steps:
       - name: Download Mac Symbols

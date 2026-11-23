@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<menu_bar name="Main Menu">
+    <menu label="我自己" name="Me">
+        <menu_item_call label="账户" name="Manage Account" />
+        <menu_item_call label="市场商品" name="MarketplaceListings" />
+        <menu_item_call label="购买 L$" name="Buy and Sell L$" />
+        <menu_item_check label="库存" name="Inventory" />
+        <menu_item_call label="新建库存窗口" name="NewInventoryWindow" />
+        <menu_item_check label="受保护的文件夹" name="Protected Folders" />
+        <menu_item_check label="服装收藏夹" name="WearableFavorites" />
+        <menu_item_call label="精选" name="Picks" />
+        <menu_item_call label="体验" name="Experiences" />
+        <menu_item_call label="个人资料" name="Profile" />
+        <menu_item_call label="当前穿着" name="NowWearing" />
+        <menu_item_check label="更换服装" name="ChangeOutfit" />
+        <menu label="脱下" name="Take Off &gt;">
+            <menu label="服装" name="Clothes &gt;">
+                <menu_item_call label="衬衫" name="Shirt" />
+                <menu_item_call label="裤子" name="Pants" />
+                <menu_item_call label="裙子" name="Skirt" />
+                <menu_item_call label="鞋子" name="Shoes" />
+                <menu_item_call label="袜子" name="Socks" />
+                <menu_item_call label="外套" name="Jacket" />
+                <menu_item_call label="手套" name="Gloves" />
+                <menu_item_call label="内衣" name="Self Undershirt" />
+                <menu_item_call label="内裤" name="Self Underpants" />
+                <menu_item_call label="纹身" name="Self Tattoo" />
+                <menu_item_call label="身体物理" name="Self Physics" />
+                <menu_item_call label="Alpha" name="Self Alpha" />
+                <menu_item_call label="全部服装" name="All Clothes" />
+            </menu>
+            <menu label="HUD" name="Avatar Detach HUD" />
+            <menu label="卸下附件" name="Avatar Detach" />
+            <menu_item_call label="卸下全部附件" name="Detach All" />
+        </menu>
+        <menu_item_call label="移除选中的附件" name="Remove Selected Attachments" />
+        <menu_item_call label="化身欢迎礼包" name="Avatar Welcome Pack" />
+        <menu_item_call label="悬浮高度" name="HoverHeight" />
+        <menu label="移动" name="Movement">
+            <menu_item_call label="坐下" name="Sit Down Here" />
+            <menu_item_call label="站起" name="Stand up" />
+            <menu_item_check label="飞行" name="Fly" />
+            <menu_item_call label="停止飞行" name="Stop flying" />
+            <menu_item_check label="始终跑步" name="Always Run" />
+            <menu_item_check label="强制坐下" name="Force Toggle Sitting" />
+            <menu_item_check label="移动锁定" name="Move Lock" />
+            <menu_item_check label="忽略起跳动画" name="Avatar Ignore Prejump" />
+            <menu_item_call label="转向最近的化身" name="AvatarFaceNearest" />
+            <menu_item_check label="化身对齐" name="AvatarAlign" />
+        </menu>
+        <menu_item_check label="移动控制" name="Movement Controls" />
+        <menu_item_check label="相机控制" name="Camera Controls" />
+        <menu label="化身状态" name="avhealth">
+            <menu_item_call label="停止化身动画" name="Stop Animating My Avatar" />
+            <menu_item_call label="停止化身动画并撤销脚本权限" name="Stop Animating My Avatar With Revoke" />
+            <menu_item_call label="修复化身变形" name="undeform_avatar" />
+            <menu_item_call label="重置骨架" name="Reset Skeleton" />
+            <menu_item_call label="重置骨架和动画" name="Reset Skeleton And Animations" />
+            <menu_item_call label="强制更新外观（烘焙）" name="Rebake Texture" />
+            <menu_item_call label="刷新附件" name="Refresh Attachments" />
+            <menu_item_call label="重置为默认男性化身" name="ResetDefaultAvM" />
+            <menu_item_call label="重置为默认女性化身" name="ResetDefaultAvF" />
+            <menu_item_check label="显示化身复杂度信息" name="Avatar Draw Info" />
+            <menu_item_call label="脚本" name="MyScripts" />
+            <menu_item_call label="延迟监视器" name="Lag Meter" />
+            <menu_item_call label="重建 LSL 桥接" name="Recreate LSL Bridge" />
+        </menu>
+        <menu_item_call label="拍摄快照" name="Take Snapshot" />
+        <menu_item_call label="360° 快照" name="Capture 360" />
+        <menu_item_call label="资金追踪" name="money_tracker" />
+        <menu_item_call label="站立姿势" name="pose_stand" />
+        <menu_item_check label="姿势编辑器" name="Poser" />
+        <menu_item_call label="偏好设置" name="Preferences" />
+        <menu_item_call label="工具栏按钮" name="Toolbar Buttons" />
+        <menu_item_check label="显示 HUD 附件" name="Show HUD Attachments" />
+        <menu_item_check label="显示用户界面" name="Show User Interface" />
+        <menu_item_call label="请求管理员权限" name="Request Admin Options" />
+        <menu_item_call label="退出管理员权限" name="Leave Admin Options" />
+        <menu_item_call label="退出 [APP_NAME]" name="Quit" />
+    </menu>
+    <menu label="通讯" name="Communicate">
+        <menu label="在线状态" name="Status">
+            <menu_item_check label="离开" name="Away" />
+            <menu_item_check label="请勿打扰" name="Do Not Disturb" />
+            <menu_item_check label="自动回复" name="Set Autorespond" />
+            <menu_item_check label="对非好友自动回复" name="Set Autorespond to non-friends" />
+            <menu_item_check label="自动拒绝传送邀请和请求" name="Automatically reject teleport offers" />
+            <menu_item_check label="拒绝所有群组邀请" name="Reject all group invites" />
+            <menu_item_check label="拒绝所有好友请求" name="Reject all friendship requests" />
+        </menu>
+        <menu_item_call label="好友" name="My Friends" />
+        <menu_item_check label="联系人" name="Contacts" />
+        <menu_item_call label="联系人分组" name="Contact Sets" />
+        <menu_item_call label="群组" name="My Groups" />
+        <menu_item_check label="附近聊天" name="Nearby Chat" />
+        <menu_item_check label="人员" name="People" />
+        <menu_item_check label="对话" name="Conversations" />
+        <menu_item_call label="万能过滤器" name="Omnifilter" />
+        <menu_item_check label="快捷手势" name="Gestures" />
+        <menu_item_check label="聊天记录" name="Conversation Log..." />
+        <menu_item_check label="附近语音" name="Nearby Voice" />
+        <menu_item_call label="黑名单" name="Block List" />
+        <menu_item_check label="显示屏幕控制台" name="Show On-screen Console" />
+    </menu>
+    <menu label="世界" name="World">
+        <menu_item_call label="重新同步动画" name="Resync Animations" />
+        <menu_item_call label="附近的化身" name="Active Speakers" />
+        <menu_item_check label="雷达" name="Radar" />
+        <menu_item_call label="传送历史" name="Teleport History" />
+        <menu_item_check label="地点" name="Places" />
+        <menu_item_call label="目的地…" name="Destinations" />
+        <menu_item_call label="活动" name="Events" />
+        <menu_item_check label="小地图" name="Mini-Map" />
+        <menu_item_check label="世界地图" name="World Map" />
+        <menu_item_check label="区域监视器" name="Region Tracker" />
+        <menu_item_check label="媒体流标题" name="Stream Title" />
+        <menu_item_call label="将此处设为地标" name="Create Landmark Here" />
+        <menu_item_call label="地点简介" name="Place Profile" />
+        <menu_item_call label="土地信息" name="About Land" />
+        <menu_item_call label="区域详情" name="RegionEstate" />
+        <menu_item_call label="将此处设为我的家" name="Set Home to Here" />
+        <menu_item_call label="购买这块土地" name="Buy Land" />
+        <menu_item_call label="我拥有的土地…" name="My Land" />
+        <menu_item_call label="我的 Linden Home" name="Linden Home" />
+        <menu label="显示更多" name="LandShow">
+            <menu_item_check label="隐藏禁行线" name="Hide Ban Lines" />
+            <menu_item_check label="碰撞时显示禁行线" name="Show Ban Lines On Collision" />
+            <menu_item_check label="靠近时显示禁行线" name="Show Ban Lines On Proximity" />
+            <menu_item_check label="信标" name="beacons" />
+            <menu_item_check label="土地边界" name="Property Lines" />
+            <menu_item_check label="土地所有者" name="Land Owners" />
+            <menu_item_check label="坐标" name="Coordinates" />
+            <menu_item_check label="地块属性" name="Parcel Properties" />
+            <menu_item_check label="高级选项" name="Show Advanced Menu" />
+        </menu>
+        <menu_item_check label="提高图形性能" name="Performance" />
+        <menu_item_call label="传送回家" name="Teleport Home" />
+        <menu label="环境编辑器" name="Environment">
+            <menu_item_check label="日出" name="Sunrise" />
+            <menu_item_check label="正午" name="Noon" />
+            <menu_item_check label="正午（旧版）" name="legacy noon" />
+            <menu_item_check label="日落" name="Sunset" />
+            <menu_item_check label="午夜" name="Midnight" />
+            <menu_item_check label="使用共享环境" name="Use Shared Environment" />
+            <menu_item_call label="我的环境" name="my_environs" />
+            <menu_item_call label="个人光照" name="adjustment_tool" />
+            <menu_item_check label="暂停云层" name="pause_clouds" />
+        </menu>
+        <menu label="照片和视频" name="photo_and_video">
+            <menu_item_call label="照片工具" name="phototools_item_call" />
+            <menu_item_call label="相机工具" name="cameratools_item_call" />
+            <menu_item_check label="锁定景深焦点" name="lock_focus_point" />
+            <menu_item_check label="显示景深焦点十字线" name="render_focus_point" />
+        </menu>
+        <menu_item_call label="区域搜索" name="area_search" />
+        <menu_item_call label="声音浏览器" name="Sound Explorer" />
+        <menu_item_call label="动画浏览器" name="Animation Explorer" />
+        <menu_item_call label="资产黑名单" name="asset_blacklist" />
+        <menu_item_call label="化身渲染设置" name="Avatar Render Settings" />
+        <menu label="化身显示模式" name="AvatarComplexityMode">
+            <menu_item_check label="按复杂度限制" name="complexity_limit_everone" />
+            <menu_item_check label="始终显示好友" name="complexity_always_show_friends" />
+            <menu_item_check label="仅显示好友" name="complexity_only_show_friends" />
+        </menu>
+        <menu_item_check label="仅渲染好友" name="Render Friends Only" />
+    </menu>
+    <menu label="建造" name="BuildTools">
+        <menu_item_check label="建造工具" name="Show Build Tools" />
+        <menu label="选择建造工具" name="Select Tool">
+            <menu_item_call label="聚焦工具" name="Focus" />
+            <menu_item_call label="移动工具" name="Move" />
+            <menu_item_call label="编辑工具" name="Edit" />
+            <menu_item_call label="创建工具" name="Create" />
+            <menu_item_call label="土地工具" name="Land" />
+        </menu>
+        <menu_item_call label="链接" name="Link" />
+        <menu_item_call label="取消链接" name="Unlink" />
+        <menu_item_check label="编辑链接部件" name="Edit Linked Parts" />
+        <menu label="选择内容" name="Select Elements">
+            <menu_item_call label="选择下一个部件或面" name="Select Next Part or Face" />
+            <menu_item_call label="选择上一个部件或面" name="Select Previous Part or Face" />
+            <menu_item_call label="包含下一个部件或面" name="Include Next Part or Face" />
+            <menu_item_call label="包含上一个部件或面" name="Include Previous Part or Face" />
+        </menu>
+        <menu_item_call label="聚焦所选部件" name="Focus on Selection" />
+        <menu_item_call label="缩放至所选部件" name="Zoom to Selection" />
+        <menu label="对象" name="Object">
+            <menu_item_call label="购买" name="Menu Object Buy" />
+            <menu_item_call label="获取" name="Menu Object Take" />
+            <menu_item_call label="获取副本" name="Take Copy" />
+            <menu_item_call label="复制" name="Duplicate" />
+            <menu_item_call label="编辑粒子" name="Menu Object Edit Particles" />
+            <menu_item_call label="保存回对象内容" name="Save Object Back to Object Contents" />
+            <menu_item_call label="退回对象" name="Return Object back to Owner" />
+        </menu>
+        <menu label="脚本" name="Scripts">
+            <menu_item_call label="脚本警告/错误…" name="Script Debug" />
+            <menu_item_call label="脚本信息（计数器）" name="Script Info" />
+            <menu_item_call label="重新编译脚本（Mono）" name="Mono" />
+            <menu_item_call label="重新编译脚本（LSL）" name="LSL" />
+            <menu_item_call label="重置脚本" name="Reset Scripts" />
+            <menu_item_call label="运行脚本" name="Set Scripts to Running" />
+            <menu_item_call label="停止脚本" name="Set Scripts to Not Running" />
+            <menu_item_call label="从选区中移除脚本" name="Remove Scripts From Selection" />
+        </menu>
+        <menu label="寻路" name="Pathfinding">
+            <menu_item_call label="区域对象" name="pathfinding_linksets_menu_item" />
+            <menu_item_call label="角色" name="pathfinding_characters_menu_item" />
+            <menu_item_call label="查看/测试" name="pathfinding_console_menu_item" />
+            <menu_item_call label="重新烘焙区域" name="pathfinding_rebake_navmesh_item" />
+        </menu>
+        <menu label="选项" name="Options">
+            <menu_item_check label="显示高级权限" name="DebugPermissions" />
+            <menu_item_check label="仅选择我的对象" name="Select Only My Objects" />
+            <menu_item_check label="仅选择可移动对象" name="Select Only Movable Objects" />
+            <menu_item_check label="仅选择锁定对象" name="Select Only Locked Objects" />
+            <menu_item_check label="仅选择可复制对象" name="Select Only Copyable Objects" />
+            <menu_item_check label="选择不可见对象" name="Select Invisible Objects" />
+            <menu_item_check label="选择反射探针" name="Select Reflection Probes" />
+            <menu_item_check label="按周围环境选择" name="Select By Surrounding" />
+            <menu_item_check label="包含群组拥有的对象" name="Include Group-Owned Objects" />
+            <menu_item_check label="编辑时显示物理形状" name="Show Physics Shape" />
+            <menu_item_check label="显示选区轮廓" name="Show Selection Outlines" />
+            <menu_item_check label="显示隐藏的选区" name="Show Hidden Selection" />
+            <menu_item_check label="显示选区的光照半径" name="Show Light Radius for Selection" />
+            <menu_item_check label="显示反射探针体积" name="Show Reflection Probe Volumes" />
+            <menu_item_check label="显示选择光束" name="Show Selection Beam" />
+            <menu_item_check label="突出显示透明对象" name="Highlight Transparent" />
+            <menu_item_check label="无后期处理" name="No Post" />
+            <menu label="选择细节层次" name="Selection level of detail">
+                <menu_item_check label="默认" name="Default lod setting" />
+                <menu_item_check label="高" name="High lod setting" />
+                <menu_item_check label="中" name="Medium lod setting" />
+                <menu_item_check label="低" name="Low lod setting" />
+                <menu_item_check label="最低" name="Lowest lod setting" />
+            </menu>
+            <menu_item_check label="对齐到网格" name="Snap to Grid" />
+            <menu_item_call label="将对象 XY 对齐到网格" name="Snap Object XY to Grid" />
+            <menu_item_call label="使用选区作为网格" name="Use Selection for Grid" />
+            <menu_item_call label="网格选项" name="Grid Options" />
+            <menu_item_call label="设置默认权限" name="Set default permissions" />
+        </menu>
+        <menu label="上传" name="Upload">
+            <menu_item_call label="图像" name="Upload Image" />
+            <menu_item_call label="声音（[COST] L$）" name="Upload Sound" />
+            <menu_item_call label="动画（[COST] L$）" name="Upload Animation" />
+            <menu_item_call label="网格模型" name="Upload Model" />
+            <menu_item_call label="材质" name="Upload Material" />
+            <menu_item_call label="批量上传" name="Bulk Upload" />
+            <menu_item_call label="导入链接集" name="import linkset" />
+        </menu>
+        <menu_item_call label="本地网格模型" name="local_mesh" />
+        <menu_item_call label="撤销" name="Undo" />
+        <menu_item_call label="重做" name="Redo" />
+    </menu>
+    <menu label="内容" name="Content">
+        <menu_item_check label="搜索" name="Search" />
+        <menu_item_call label="Second Life 市场" name="SL Marketplace" />
+        <menu_item_call label="L$ 汇率" name="LindenXchange" />
+        <menu_item_call label="脚本库" name="Script Library" />
+        <menu_item_call label="Second Life 社区（博客、论坛、新闻）" name="SL Community Pages" />
+        <menu_item_call label="今日消息" name="Firestorm MoTD" />
+    </menu>
+    <menu label="帮助" name="Help">
+        <menu_item_check label="启用浏览器界面提示" name="Enable Hints" />
+        <menu_item_call label="Firestorm 维基" name="Firestorm Wiki" />
+        <menu_item_call label="故障排除" name="Troubleshooting" />
+        <menu_item_call label="加入 Firestorm 支持群组" name="firestorm_support_group" />
+        <menu_item_call label="Firestorm 课程安排" name="Firestorm Classes Schedule" />
+        <menu_item_call label="Firestorm 活动日历" name="Firestorm Events Calendar" />
+        <menu_item_check label="使用指南" name="How To" />
+        <menu_item_call label="[CURRENT_GRID] 帮助" name="current_grid_help" />
+    </menu>
+</menu_bar>

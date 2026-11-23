@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<panel name="Outfits">
+    <accordion name="outfits_accordion">
+        <no_matched_tabs_text name="no_matched_outfits_msg" value="没有找到你要的内容？试试[secondlife:///app/search/all/[SEARCH_TERM]搜索]。" />
+        <no_visible_tabs_text name="no_outfits_msg" value="你还没有任何装扮。试试[secondlife:///app/search/all/搜索]" />
+    </accordion>
+    <panel name="bottom_panel">
+        <text name="OutfitcountText">
+            [COUNT] 套装扮
+        </text>
+        <text name="avatar_complexity_label">
+            复杂度：[WEIGHT]
+        </text>
+    </panel>
+</panel>

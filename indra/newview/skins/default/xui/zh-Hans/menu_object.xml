@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<context_menu
+    layout="topleft"
+    name="Object Pie">
+  <menu_item_call
+      enabled="false"
+      label="触碰"
+      name="Object Touch">
+    <menu_item_call.on_click
+        function="Object.Touch" />
+    <menu_item_call.on_enable
+        function="Object.EnableTouch"
+        name="EnableTouch"
+        parameter="Touch" />
+  </menu_item_call>
+  <menu_item_call
+      label="编辑"
+      name="Edit...">
+    <menu_item_call.on_click
+        function="Object.Edit" />
+    <menu_item_call.on_enable
+        function="EnableEdit"/>
+  </menu_item_call>
+  <menu_item_call
+      label="编辑 PBR 材质"
+      name="EditGLTFMaterial">
+    <menu_item_call.on_click
+        function="Object.EditGLTFMaterial" />
+    <menu_item_call.on_enable
+        function="Object.EnableEditGLTFMaterial"/>
+  </menu_item_call>
+  <menu_item_call
+      label="建造"
+      name="Build">
+    <menu_item_call.on_click
+        function="Object.Build" />
+    <menu_item_call.on_enable
+        function="EnableEdit"/>
+  </menu_item_call>
+  <menu_item_call
+      enabled="false"
+      label="打开"
+      name="Open">
+    <menu_item_call.on_click
+        function="Object.Open" />
+    <menu_item_call.on_enable
+        function="Object.EnableOpen" />
+  </menu_item_call>
+  <menu_item_separator layout="topleft" />
+  <menu_item_call
+      label="坐在这里"
+      name="Object Sit">
+    <menu_item_call.on_click
+        function="Object.SitOrStand" />
+    <menu_item_call.on_enable
+        function="Object.EnableSit" />
+  </menu_item_call>
+<menu_item_separator layout="topleft" />
+  <menu_item_call
+      label="站起"
+      name="Object Stand Up">
+    <menu_item_call.on_click
+        function="Object.SitOrStand" />
+    <menu_item_call.on_enable
+        function="Object.EnableStandUp" />
+  </menu_item_call>
+<menu_item_separator layout="topleft" />
+   <context_menu
+    label="对象"
+    name="Object Features">
+      <menu_item_call
+         label="个人资料"
+         name="Object Inspect">
+    <menu_item_call.on_click
+        function="Object.Inspect" />
+    <menu_item_call.on_enable
+        function="Object.EnableInspect" />
+      </menu_item_call>
+      <menu_item_call
+         label="检查"
+         name="Object_Inspect_Floater">
+        <menu_item_call.on_click
+         function="Floater.Show"
+         parameter="inspect" />
+      </menu_item_call>
+	   <menu_item_call
+	      enabled="true"
+	      label="脚本信息"
+	      name="ScriptInfo">
+	    <menu_item_call.on_click
+	      function="Tools.ScriptInfo" />
+        <menu_item_call.on_enable
+          function="Object.EnableScriptInfo" />
+	   </menu_item_call>
+<menu_item_separator layout="topleft" />
+      <menu_item_call
+         enabled="false"
+         label="链接"
+         name="Object Link">
+         <menu_item_call.on_click
+            function="Tools.Link" />
+         <menu_item_call.on_enable
+            function="Tools.EnableLink" />
+         </menu_item_call>
+      <menu_item_call
+         enabled="false"
+         label="取消链接"
+         name="Object Unlink">
+         <menu_item_call.on_click
+            function="Tools.Unlink" />
+         <menu_item_call.on_enable
+            function="Tools.EnableUnlink" />
+         </menu_item_call>
+      <menu_item_check label="编辑链接部件" name="Object Edit Linked Parts">
+         <menu_item_check.on_check control="EditLinkedParts" />
+         <menu_item_check.on_click function="Tools.EditLinkedParts" parameter="EditLinkedParts" />
+         <menu_item_check.on_enable function="Tools.EnableToolNotPie" />
+         </menu_item_check>
+   <menu_item_separator layout="topleft" />
+        <menu_item_call
+                label="编译（Mono）"
+                name="Mono">
+          <menu_item_call.on_click
+            function="Tools.SelectedScriptAction"
+            parameter="compile mono" />
+          <menu_item_call.on_enable
+            function="EditableSelectedMono" />
+        </menu_item_call>
+        <menu_item_call
+          label="编译（LSL）"
+          name="LSL">
+          <menu_item_call.on_click
+            function="Tools.SelectedScriptAction"
+            parameter="compile lsl" />
+          <menu_item_call.on_enable
+            function="EditableSelected" />
+        </menu_item_call>
+       <menu_item_call
+          label="重置脚本"
+          name="Object Reset Scripts">
+          <menu_item_call.on_click
+             function="Tools.SelectedScriptAction"
+             parameter="reset" />
+          <menu_item_call.on_enable
+             function="EditableSelected" />
+          </menu_item_call>
+       <menu_item_call
+          label="运行脚本"
+          name="Object Set Scripts to Running">
+          <menu_item_call.on_click
+             function="Tools.SelectedScriptAction"
+             parameter="start" />
+          <menu_item_call.on_enable
+             function="EditableSelected" />
+           </menu_item_call>
+        <menu_item_call
+           label="停止脚本"
+           name="Object Set Scripts to Not Running">
+           <menu_item_call.on_click
+              function="Tools.SelectedScriptAction"
+              parameter="stop" />
+           <menu_item_call.on_enable
+              function="EditableSelected" />
+           </menu_item_call>
+         <menu_item_call
+                 label="移除脚本"
+                 name="Remove Scripts From Selection">
+           <menu_item_call.on_click
+              function="Tools.SelectedScriptAction"
+              parameter="delete" />
+           <menu_item_call.on_enable
+              function="EditableSelected" />
+         </menu_item_call>
+    </context_menu>
+  <menu_item_call
+      label="放大"
+      name="Zoom In">
+    <menu_item_call.on_click
+        function="Object.ZoomIn" />
+  </menu_item_call>
+  <menu_item_call
+      label="在区域对象中显示"
+      name="show_in_linksets">
+    <menu_item_call.on_click
+        function="Pathfinding.Linksets.Select" />
+    <menu_item_call.on_enable
+        function="EnableSelectInPathfindingLinksets"/>
+    <menu_item_call.on_visible
+        function="VisibleSelectInPathfindingLinksets"/>
+  </menu_item_call>
+  <menu_item_call
+      label="在角色中显示"
+      name="show_in_characters">
+    <menu_item_call.on_click
+        function="Pathfinding.Characters.Select" />
+    <menu_item_call.on_enable
+        function="EnableSelectInPathfindingCharacters"/>
+    <menu_item_call.on_visible
+        function="EnableSelectInPathfindingCharacters"/>
+  </menu_item_call>
+  <menu_item_separator layout="topleft" />
+  <context_menu
+      label="穿上"
+      name="Put On" >
+    <menu_item_call
+        enabled="false"
+        label="穿戴"
+        name="Wear">
+      <menu_item_call.on_click
+          function="Object.AttachToAvatar" />
+      <menu_item_call.on_enable
+          function="Object.EnableWear" />
+    </menu_item_call>
+    <menu_item_call
+        enabled="false"
+        label="添加"
+        name="Add">
+      <menu_item_call.on_click
+          function="Object.AttachAddToAvatar" />
+      <menu_item_call.on_enable
+          function="Object.EnableWear" />
+    </menu_item_call>
+    <context_menu
+        label="附加"
+        name="Object Attach" />
+    <context_menu
+        label="附加到 HUD"
+        name="Object Attach HUD" />
+  </context_menu>
+  <context_menu
+         label="管理"
+      name="Remove">
+    <menu_item_call
+        enabled="false"
+        label="举报违规行为"
+        name="Report Abuse...">
+      <menu_item_call.on_click
+          function="Object.ReportAbuse" />
+      <menu_item_call.on_enable
+          function="Object.EnableReportAbuse" />
+    </menu_item_call>   
+    <menu_item_call
+   		  label="屏蔽"        
+          name="Object Mute">
+        <menu_item_call.on_click
+          function="Object.Mute" />
+        <menu_item_call.on_visible
+          function="Object.EnableMute" />
+    </menu_item_call>
+    <menu_item_call
+          label="取消屏蔽"   
+          name="Object Unmute">
+        <menu_item_call.on_click
+          function="Object.Mute" />
+        <menu_item_call.on_visible
+          function="Object.EnableUnmute" />
+    </menu_item_call>
+    </context_menu>
+   <menu_item_separator layout="topleft" />
+   	<menu_item_call
+	   enabled="true"
+	   label="刷新纹理"
+	   name="Texture Refresh">
+	<menu_item_call.on_click
+	  function="Object.TexRefresh" />
+   </menu_item_call>
+   <!-- Derender -->
+   <menu_item_call
+      enabled="true"
+      label="隐藏对象"
+      name="Derender">
+    <menu_item_call.on_click
+      function="Object.Derender" />
+   </menu_item_call>
+   <menu_item_call
+      enabled="true"
+      label="隐藏对象并加入黑名单"
+      name="DerenderPermanent">
+    <menu_item_call.on_click
+      function="Object.DerenderPermanent" />
+   </menu_item_call>
+   <!-- /Derender -->
+   
+    <menu_item_call
+        enabled="false"
+        label="退回"
+        name="Return...">
+      <menu_item_call.on_click
+          function="Object.Return" />
+      <menu_item_call.on_enable
+          function="Object.EnableReturn" />
+    </menu_item_call>
+  <menu_item_call
+      label="获取"
+      layout="topleft"
+      name="Pie Object Take">
+    <menu_item_call.on_click
+        function="Object.Take"/>
+    <menu_item_call.on_enable
+        function="Object.VisibleTake"/>
+    <menu_item_call.on_visible
+        function="Object.VisibleTakeSingle"/>
+  </menu_item_call>
+  <menu_item_call
+      enabled="false"
+      label="获取副本"
+      name="Take Copy">
+    <menu_item_call.on_click
+        function="Tools.TakeCopy" />
+    <menu_item_call.on_enable
+        function="Tools.EnableTakeCopy" />
+    <menu_item_call.on_visible
+        function="Object.VisibleTakeSingle"/>
+  </menu_item_call>
+  <context_menu
+    label="批量获取"
+    name="Take Multiple">
+    <menu_item_call
+      label="作为合并对象获取"
+      layout="topleft"
+      name="Take combined">
+      <menu_item_call.on_click
+        function="Object.Take"/>
+      <menu_item_call.on_enable
+        function="Object.VisibleTake"/>
+      <menu_item_call.on_visible
+        function="Object.VisibleTakeMultiple"/>
+    </menu_item_call>
+    <menu_item_call
+      enabled="false"
+      label="获取合并对象副本"
+      name="Take Copy combined">
+      <menu_item_call.on_click
+        function="Tools.TakeCopy" />
+      <menu_item_call.on_enable
+        function="Tools.EnableTakeCopy" />
+      <menu_item_call.on_visible
+        function="Object.VisibleTakeMultiple"/>
+    </menu_item_call>
+    <menu_item_call
+      label="分别获取对象"
+      layout="topleft"
+      name="Take Separate">
+      <menu_item_call.on_click
+        function="Object.TakeSeparate"/>
+      <menu_item_call.on_enable
+        function="Object.EnableTakeMultiple"/>
+      <menu_item_call.on_visible
+        function="Object.VisibleTakeMultiple"/>
+    </menu_item_call>
+    <menu_item_call
+      label="分别获取对象副本"
+      layout="topleft"
+       name="Take Copy Separate">
+       <menu_item_call.on_click
+        function="Object.TakeSeparateCopy"/>
+       <menu_item_call.on_enable
+        function="Tools.EnableCopySeparate"/>
+       <menu_item_call.on_visible
+        function="Object.VisibleTakeMultiple"/>
+    </menu_item_call>
+  </context_menu>
+  <menu_item_call
+      enabled="false"
+      label="支付"
+      name="Pay...">
+    <menu_item_call.on_click
+        function="PayObject" />
+    <menu_item_call.on_enable
+        function="EnablePayObject" />
+  </menu_item_call>
+  <menu_item_call
+      enabled="false"
+      label="购买"
+      name="Buy...">
+    <menu_item_call.on_click
+        function="Object.Buy" />
+    <menu_item_call.on_enable
+        function="Object.EnableBuy" />
+  </menu_item_call>
+  <context_menu
+    label="另存为"
+    name="Export Menu">
+    <menu_item_call
+      label="备份"
+      name="Backup">
+      <menu_item_call.on_click
+        function="Object.Export" />
+      <menu_item_call.on_enable
+        function="Object.EnableExport" />
+    </menu_item_call>
+    <menu_item_call
+      label="Collada"
+      name="Collada">
+      <menu_item_call.on_click
+        function="Object.ExportCollada" />
+      <menu_item_call.on_enable
+        function="Object.EnableExport" />
+    </menu_item_call>
+  </context_menu>
+   <menu_item_separator layout="topleft" />
+  <menu_item_call
+      enabled="false"
+      label="删除"
+      name="Delete">
+    <menu_item_call.on_click
+        function="Object.Delete" />
+    <menu_item_call.on_enable
+        function="Object.EnableDelete" />
+  </menu_item_call>
+  <menu_item_separator
+       layout="topleft" />
+  <menu_item_call
+     enabled="false"
+     label="屏蔽粒子发射者"
+     name="Mute Particle">
+    <menu_item_call.on_click
+     function="Particle.Mute" />
+    <menu_item_call.on_enable
+     function="EnableMuteParticle" />
+  </menu_item_call>
+    <menu_item_call
+		 label="导出 XML"
+         name="Dump XML">
+            <menu_item_call.on_click
+             function="Advanced.AppearanceToXML" />
+            <menu_item_call.on_visible
+             function="Advanced.EnableAppearanceToXML"/>
+    </menu_item_call>
+    <menu_item_call
+		 label="重置骨架"
+         name="Reset Skeleton">
+            <menu_item_call.on_click
+                function="Avatar.ResetSkeleton" />
+            <menu_item_call.on_visible
+             function="Avatar.EnableResetSkeleton"/>
+    </menu_item_call>
+</context_menu>

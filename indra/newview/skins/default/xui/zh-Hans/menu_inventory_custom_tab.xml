@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<menu name="menu_inventory_custom_tab">
+    <menu_item_call label="重命名…" name="rename_tab" />
+    <menu_item_call label="克隆" name="clone_tab" />
+    <menu_item_separator />
+    <menu_item_call label="隐藏" name="hide_tab" />
+    <menu_item_call label="关闭" name="close_tab" />
+</menu>

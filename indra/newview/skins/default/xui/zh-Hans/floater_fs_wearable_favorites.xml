@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<floater name="floater_fs_wearable_favorites" title="收藏的可穿戴物品">
+    <floater.string name="empty_list">
+        将可穿戴物品拖到此处，以添加到列表。
+    </floater.string>
+    <floater.string name="search_no_items">
+        找不到匹配的物品。
+    </floater.string>
+    <floater.string name="root_folder_label">
+        所有收藏
+    </floater.string>
+    <button name="new_folder_btn" tool_tip="创建收藏文件夹" />
+    <button name="rename_folder_btn" tool_tip="重命名所选收藏文件夹" />
+    <button name="delete_folder_btn" tool_tip="删除所选收藏文件夹" />
+    <filter_editor name="wearable_filter_input" label="筛选可穿戴物品" />
+    <menu_button name="options_btn" tool_tip="收藏物品选项" />
+    <button name="remove_btn" tool_tip="从收藏列表中移除物品" />
+</floater>

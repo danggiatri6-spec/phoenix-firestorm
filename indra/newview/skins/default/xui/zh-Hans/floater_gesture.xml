@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<floater
+ positioning="cascading"
+ save_rect="true"
+ legacy_header_height="18"
+ can_resize="true"
+ height="485"
+ name="gestures"
+ help_topic="gestures"
+ title="手势"
+ background_visible="true"
+ label="手势"
+ layout="topleft"
+ min_height="200"
+ min_width="330"
+ width="330">
+    <floater.string name="loading">正在加载...</floater.string>
+    <floater.string name="playing">（播放中）</floater.string>
+    <floater.string name="copy_name">[COPY_NAME] 的副本</floater.string>
+    <scroll_list
+     bottom_delta="418"
+     draw_heading="true"
+     follows="all"
+     layout="topleft"
+     left="0"
+     multi_select="true"
+     top="20"
+     name="gesture_list">
+        <scroll_list.columns label="" name="active" width="10" />
+        <scroll_list.columns label="名称" name="name" width="143" />
+        <scroll_list.columns label="聊天" name="trigger" width="80" />
+        <scroll_list.columns label="" name="key" width="-1" />
+        <scroll_list.columns label="快捷键" name="shortcut" width="80" />
+    </scroll_list>
+    <panel
+     background_visible="true"
+     bevel_style="none"
+     top_pad="0"
+     follows="left|right|bottom"
+     height="68"
+     label="bottom_panel"
+     layout="topleft"
+     left="0"
+     name="bottom_panel"
+     width="330">
+        <menu_button
+         follows="bottom|left"
+         height="18"
+         image_disabled="OptionsMenu_Disabled"
+         image_selected="OptionsMenu_Press"
+         image_unselected="OptionsMenu_Off"
+         layout="topleft"
+         left="10"
+         menu_filename="menu_gesture_gear.xml"
+         name="gear_btn"
+         top="5"
+         tool_tip="更多选项"
+         width="18" />
+        <button
+         follows="bottom|left"
+         font="SansSerifBigBold"
+         height="18"
+         image_selected="AddItem_Press"
+         image_unselected="AddItem_Off"
+         image_disabled="AddItem_Disabled"
+         layout="topleft"
+         left_pad="5"
+         name="new_gesture_btn"
+         tool_tip="创建新手势"
+         top_delta="0"
+         width="18" />
+        <button
+         follows="bottom|left"
+         font="SansSerifBigBold"
+         height="10"
+         image_hover_selected="Activate_Checkmark"
+         image_selected="Activate_Checkmark"
+         image_unselected="Activate_Checkmark"
+         layout="topleft"
+         left_pad="5"
+         name="activate_btn"
+         tool_tip="启用/停用所选手势"
+         top="10"
+         width="10" />
+        <filter_editor
+         follows="bottom|left|right"
+         height="23"
+         width="225"
+         layout="topleft"
+         left_pad="10"
+         top="5"
+         label="筛选手势"
+         max_length_bytes="100"
+         name="filter_input" />
+        <button
+         follows="bottom|right"
+         font="SansSerifBigBold"
+         height="18"
+         image_selected="TrashItem_Press"
+         image_unselected="TrashItem_Off"
+         image_disabled="TrashItem_Disabled"
+         layout="topleft"
+         name="del_btn"
+         right="-5"
+         tool_tip="删除此手势"
+         top="7"
+         width="18" />
+        <check_box
+         control_name="FSShowOnlyActiveGestures"
+         height="18"
+         label="仅显示已启用"
+         layout="topleft"
+         follows="bottom|left"
+         left="10"
+         top="28"
+         name="FSShowOnlyActiveGestures"
+         width="120">
+            <check_box.commit_callback function="Gesture.Action.RefreshList" />
+        </check_box>
+        <check_box
+         control_name="FSShowRecentGestures"
+         height="18"
+         label="仅显示最近使用"
+         layout="topleft"
+         follows="bottom|left"
+         left="10"
+         top="47"
+         name="FSShowRecentGestures"
+         width="110" />
+        <check_box
+         control_name="FSGesturesEnabled"
+         height="18"
+         label="启用我的手势"
+         layout="topleft"
+         follows="bottom|left"
+         left_pad="5"
+         top="47"
+         name="FSGesturesEnabled"
+         width="160" />
+    </panel>
+    <button
+     follows="left|bottom"
+     height="23"
+     label="编辑"
+     tool_tip="打开窗口以编辑所选手势。"
+     layout="topleft"
+     left="6"
+     name="edit_btn"
+     top_pad="5"
+     width="83" />
+    <button
+     follows="left|bottom"
+     height="23"
+     label="播放"
+     tool_tip="在虚拟世界中播放所选手势。"
+     layout="topleft"
+     left_pad="6"
+     name="play_btn"
+     top_delta="0"
+     width="83" />
+    <button
+     follows="left|bottom"
+     height="23"
+     label="停止"
+     layout="topleft"
+     left_delta="0"
+     name="stop_btn"
+     top_delta="0"
+     width="83" />
+    <button
+     follows="left|bottom"
+     height="23"
+     label="收藏/取消收藏"
+     tool_tip="将所选手势添加到本地收藏，或从收藏中移除。"
+     layout="topleft"
+     left="184"
+     name="favorite_btn"
+     top_delta="0"
+     width="110" />
+</floater>

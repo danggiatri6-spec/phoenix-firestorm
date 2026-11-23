@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<toggleable_menu name="menu_view_default">
+    <menu_item_check label="按名称排序" name="sort_by_name" />
+    <menu_item_check label="按最近使用排序" name="sort_by_recent" />
+    <menu_item_check label="文件夹始终按名称排序" name="sort_folders_by_name" />
+    <menu_item_check label="系统文件夹置顶" name="sort_system_folders_to_top" />
+    <menu_item_separator />
+    <menu_item_check label="列表视图" name="list_view" />
+    <menu_item_check label="图库视图" name="gallery_view" />
+    <menu_item_check label="组合视图" name="combination_view" />
+    <menu_item_check label="最近项目标签页" name="recent_tab" />
+    <menu_item_check label="已穿戴标签页" name="worn_tab" />
+    <menu_item_check label="收藏夹标签页" name="favorites_tab" />
+</toggleable_menu>

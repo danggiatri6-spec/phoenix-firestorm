@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<context_menu name="Outfit Wearable Context Menu">
+    <menu_item_call label="替换" name="wear_replace" />
+    <menu_item_call label="穿戴" name="wear_wear" />
+    <menu_item_call label="添加" name="wear_add" />
+    <context_menu label="附加到" name="wearable_attach_to" />
+    <context_menu label="附加到 HUD" name="wearable_attach_to_hud" />
+    <menu_item_call label="触碰" name="touch" />
+    <menu_item_call label="编辑" name="edit" />
+    <menu_item_call label="脱下/卸下" name="take_off_or_detach" />
+    <menu_item_call label="卸下" name="detach" />
+    <menu_item_call label="脱下" name="take_off" />
+    <menu_item_call label="物品资料" name="object_profile" />
+    <menu_item_call label="添加到收藏夹" name="favorites_add" />
+    <menu_item_call label="从收藏夹中移除" name="favorites_remove" />
+    <context_menu label="指定到文件夹" name="favorites_assign_folder" />
+    <menu_item_call label="显示原始物品" name="show_original" />
+    <menu_item_call label="从装扮中删除" name="delete_from_outfit" />
+    <menu_item_call label="新建" name="create_new" />
+    <menu_item_call label="没有可用选项" name="--no options--" />
+</context_menu>
