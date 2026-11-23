@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- *NOTE: See also menu_avatar_other.xml -->
+<context_menu
+ layout="topleft"
+ name="Avatar Pie">
+    <menu_item_call
+     label="查看个人资料"
+     name="Profile...">
+        <menu_item_call.on_click
+         function="ShowAgentProfile"
+         parameter="hit object" />
+        <menu_item_call.on_enable
+         function="RLV.CanShowName" />
+    </menu_item_call>
+   <menu_item_call
+     enabled="false"
+     label="添加好友"
+     name="Add Friend">
+        <menu_item_call.on_click
+         function="Avatar.AddFriend" />
+        <menu_item_call.on_enable
+         function="Avatar.EnableAddFriend" />
+    </menu_item_call>
+	<menu_item_call
+	 label="添加到联系人分组"
+	 layout="topleft"
+	 name="Add to Set">
+		<menu_item_call.on_click
+		 function="Avatar.AddToContactSet" />
+		<menu_item_call.on_enable
+		 function="RLV.CanShowName" />
+	</menu_item_call>
+    <menu_item_call
+     label="发送即时消息"
+     name="Send IM...">
+        <menu_item_call.on_click
+         function="Avatar.SendIM" />
+        <menu_item_call.on_enable
+         function="RLV.CanShowName" />
+    </menu_item_call>
+    <menu_item_call
+     label="赠送名片"
+     name="Give Calling Card">
+        <menu_item_call.on_click
+         function="Avatar.GiveCard" />
+        <menu_item_call.on_enable
+         function="RLV.CanShowName" />
+    </menu_item_call>
+    <menu_item_call
+     label="语音通话"
+     name="Call">
+        <menu_item_call.on_click
+         function="Avatar.Call" />
+        <menu_item_call.on_enable
+         function="Avatar.EnableCall" />
+    </menu_item_call>
+      <menu_item_call
+         label="邀请加入群组"
+         name="Invite...">
+        <menu_item_call.on_click
+         function="Avatar.InviteToGroup" />
+        <menu_item_call.on_enable
+         function="RLV.CanShowName" />
+      </menu_item_call>
+<!-- [FS:Chanayane] Compass floater - face towards avatar from attachment context menu -->
+    <menu_item_call label="面向化身"
+      layout="topleft"
+      name="Face towards avatar">
+      <menu_item_call.on_click function="Avatar.FaceTowards" />
+      <menu_item_call.on_enable function="Avatar.CanFaceTowards" />
+    </menu_item_call>
+<!-- [/FS:Chanayane] -->
+   <menu_item_separator />
+
+     <menu_item_call label="重置骨架"
+       layout="topleft"
+       name="Reset Skeleton">
+       <menu_item_call.on_click
+        function="Avatar.ResetSkeleton" />
+     </menu_item_call>
+
+     <menu_item_call label="重置骨架和动画"
+       layout="topleft"
+       name="Reset Skeleton And Animations">
+       <menu_item_call.on_click
+        function="Avatar.ResetSkeletonAndAnimations" />
+     </menu_item_call>
+
+     <menu_item_call label="重置网格 LOD"
+       layout="topleft"
+       name="Reset Mesh LOD">
+       <menu_item_call.on_click
+        function="Avatar.ResetMeshLOD" />
+     </menu_item_call>
+
+   <menu_item_separator />
+  <context_menu
+         label="管理"
+         name="Annoyance">
+    <menu_item_call
+     enabled="true"
+     label="屏蔽"
+     name="Avatar Mute">
+        <menu_item_call.on_click
+         function="Avatar.Mute" />
+        <menu_item_call.on_visible
+         function="Object.EnableMute" />
+    </menu_item_call>
+    <!-- <FS:Zi> Add unblock menu entry since renaming the context menu item doesn't seem to work -->
+    <menu_item_call
+     enabled="true"
+     label="取消屏蔽"
+     name="Avatar Unmute">
+        <menu_item_call.on_click
+         function="Avatar.Mute" />
+        <menu_item_call.on_visible
+         function="Object.EnableUnmute" />
+    </menu_item_call>
+    <!-- </FS:Zi> -->
+    <menu_item_call
+     label="Report"
+     name="abuse">
+        <menu_item_call.on_click
+         function="Avatar.ReportAbuse" />
+    </menu_item_call>
+        <menu_item_call
+         label="冻结"
+         name="Freeze...">
+            <menu_item_call.on_click
+             function="Avatar.Freeze" />
+            <menu_item_call.on_visible
+             function="Avatar.EnableFreezeEject"/>
+    </menu_item_call>
+    <menu_item_call
+         label="驱逐"
+         name="Eject...">
+            <menu_item_call.on_click
+             function="Avatar.Eject" />
+            <menu_item_call.on_visible
+             function="Avatar.EnableFreezeEject"/>
+    </menu_item_call>
+   </context_menu>	
+    <menu_item_call
+		 label="导出 XML"
+         name="Dump XML">
+            <menu_item_call.on_click
+             function="Advanced.AppearanceToXML" />
+            <menu_item_call.on_visible
+             function="Advanced.EnableAppearanceToXML"/>
+    </menu_item_call>
+	    <menu_item_call
+         label="放大"
+          name="Zoom In">
+        <menu_item_call.on_click
+           function="Tools.LookAtSelection"
+           parameter="zoom" />
+    </menu_item_call>
+   <menu_item_call
+     enabled="false"
+     label="支付"
+     name="Pay...">
+        <menu_item_call.on_click
+         function="PayObject" />
+        <menu_item_call.on_enable
+         function="EnablePayAvatar" />
+    </menu_item_call>
+   <menu_item_separator />
+   <menu_item_call
+       label="对象资料"
+       name="Object Inspect">
+         <menu_item_call.on_click
+          function="Object.Inspect" />
+         <menu_item_call.on_enable
+          function="Object.EnableInspect" />
+   </menu_item_call>
+
+   <menu_item_separator />
+    
+      <menu_item_check
+        name="AlwaysRenderFully"
+        label="始终显示完整细节">
+        <menu_item_check.on_check
+          function="Avatar.CheckImpostorMode"
+          parameter="2" />
+	    <menu_item_check.on_click
+	      function="Avatar.SetImpostorMode"
+	      parameter="2" />
+      </menu_item_check>
+      <menu_item_check
+        name="DoNotRender"
+        label="从不显示完整细节">
+        <menu_item_check.on_check
+          function="Avatar.CheckImpostorMode"
+          parameter="1" />
+	    <menu_item_check.on_click
+	      function="Avatar.SetImpostorMode"
+	      parameter="1" />
+      </menu_item_check>
+      <menu_item_check
+        name="RenderNormally"
+        label="从显示例外中移除">
+        <menu_item_check.on_visible
+          function="Avatar.CheckImpostorMode"
+          parameter="4" />
+	    <menu_item_check.on_click
+	      function="Avatar.SetImpostorMode"
+	      parameter="0" />
+      </menu_item_check>
+
+  <menu_item_call
+     enabled="false"
+     label="屏蔽粒子发射者"
+     name="Mute Particle">
+    <menu_item_call.on_click
+     function="Particle.Mute" />
+    <menu_item_call.on_visible
+     function="EnableMuteParticle" />
+  </menu_item_call>
+   <menu_item_call
+         label="检查"
+         name="Object_Inspect_Floater">
+        <menu_item_call.on_click
+         function="Floater.Show"
+         parameter="inspect" />
+      </menu_item_call>
+  <menu_item_call 
+      enabled="true"
+      label="脚本信息"
+      name="ScriptInfo">
+      <menu_item_call.on_click
+       function="Tools.ScriptInfo" />
+      <menu_item_call.on_enable
+       function="Object.EnableScriptInfo" />
+  </menu_item_call>
+    <menu_item_call 
+    enabled="true"
+    label="隐藏对象"
+    name="Derender">
+    <menu_item_call.on_click
+       function="Object.Derender" />
+    </menu_item_call>
+   <menu_item_call
+      enabled="true"
+      label="隐藏对象并加入黑名单"
+      name="DerenderPermanent">
+    <menu_item_call.on_click
+      function="Object.DerenderPermanent" />
+   </menu_item_call>
+    <menu_item_call
+         label="显示纹理"
+         name="Debug...">
+            <menu_item_call.on_click
+             function="Avatar.Debug" />
+    </menu_item_call>
+    <menu_item_call 
+    enabled="true"
+    label="刷新纹理"
+    name="Texture Refresh">
+  <menu_item_call.on_click
+       function="Object.TexRefresh" />
+    </menu_item_call>
+    <context_menu
+		label="另存为"
+		name="Export Menu">
+		<menu_item_call
+			label="备份"
+			name="Backup">
+			<menu_item_call.on_click
+			function="Object.Export" />
+			<menu_item_call.on_enable
+			function="Object.EnableExport" />
+		</menu_item_call>
+		<menu_item_call
+			label="Collada"
+			name="Collada">
+			<menu_item_call.on_click
+			function="Object.ExportCollada" />
+			<menu_item_call.on_enable
+			function="Object.EnableExport" />
+		</menu_item_call>
+	</context_menu>
+</context_menu>
