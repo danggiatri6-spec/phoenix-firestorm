@@ -107,7 +107,7 @@
     </menu_item_call>
 
   <menu_item_call
-label="Stand Up"
+label="站起"
 layout="topleft"
 name="Stand Up">
     <menu_item_call.on_click
@@ -390,11 +390,11 @@ name="Stand Up">
   </menu_item_call>
   <menu_item_separator/>
   <context_menu
-    label="Community"
+    label="社区"
     layout="topleft"
     name="CommunitySubmenu">
       <menu_item_call
-        label="Friends"
+        label="好友"
         layout="topleft"
         name="Friends...">
         <menu_item_call.on_click
@@ -402,7 +402,7 @@ name="Stand Up">
          parameter="friends_panel" />
       </menu_item_call>
       <menu_item_call
-        label="Groups"
+        label="群组"
         layout="topleft"
         name="Groups...">
         <menu_item_call.on_click
@@ -486,7 +486,7 @@ name="Stand Up">
   layout="topleft" />
   <menu_item_call
  enabled="false"
- label="Drop"
+ label="放下"
  layout="topleft"
  name="Drop">
     <menu_item_call.on_click
