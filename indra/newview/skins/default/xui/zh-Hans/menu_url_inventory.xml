@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<context_menu name="Url Popup">
+    <menu_item_call label="显示库存物品" name="show_item" />
+    <menu_item_separator />
+    <menu_item_call label="复制名称到剪贴板" name="url_copy_label" />
+    <menu_item_call label="复制 SLurl 到剪贴板" name="url_copy" />
+</context_menu>
