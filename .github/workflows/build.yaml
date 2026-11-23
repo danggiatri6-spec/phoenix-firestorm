@@ -107,7 +107,7 @@ jobs:
       # over variants, let GitHub distribute variants over multiple hosts.
       variants: ${{ matrix.configuration }}
       # Pass USE_VELOPACK to CMake when using Velopack installer (default) - Windows and macOS
-      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '-- --tracy' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
+      autobuild_configure_parameters: ${{ github.event_name == 'workflow_dispatch' && '-- -DUSE_TRACY:BOOL=ON' || ((contains(matrix.runner, 'windows') || contains(matrix.runner, 'macos')) && (github.event.inputs.installer_type || 'nsis') == 'velopack' && '-- -DUSE_VELOPACK:BOOL=ON' || '') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
