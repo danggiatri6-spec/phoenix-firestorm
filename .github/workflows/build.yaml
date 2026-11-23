@@ -96,6 +96,8 @@ jobs:
       # Build a runnable viewer artifact without compiling unrelated test targets.
       # PR validation continues to compile tests; only manual package builds skip them.
       LL_TESTS: ${{ github.event_name == 'workflow_dispatch' && 'OFF' || 'ON' }}
+      # Build only the Viewer target for manual test packages; avoid unrelated test executables in ALL_BUILD.
+      autobuild_build_parameters: ${{ github.event_name == 'workflow_dispatch' && '-- --target viewer' || '' }}
       BUILDSCRIPTS_SHARED: ${{ github.workspace }}/.shared
       # extracted and committed to viewer repo
       BUILDSCRIPTS_SUPPORT_FUNCTIONS: ${{ github.workspace }}/buildscripts_support_functions
