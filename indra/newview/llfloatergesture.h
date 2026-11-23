@@ -61,6 +61,7 @@ public:
     virtual void done ();
     void refreshAll();
     void refreshForActiveSort(); // <FS:PP> FIRE-5646: Option to show only active gestures
+    void refreshForRecentSort();
     /**
      * @brief Add new scrolllistitem into gesture_list.
      * @param  item_id inventory id of gesture
