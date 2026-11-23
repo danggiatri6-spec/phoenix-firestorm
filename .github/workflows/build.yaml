@@ -93,6 +93,9 @@ jobs:
       build_coverity: false
       build_log_dir: ${{ github.workspace }}/.logs
       build_viewer: true
+      # Build a runnable viewer artifact without compiling unrelated test targets.
+      # PR validation continues to compile tests; only manual package builds skip them.
+      LL_TESTS: ${{ github.event_name == 'workflow_dispatch' && 'OFF' || 'ON' }}
       BUILDSCRIPTS_SHARED: ${{ github.workspace }}/.shared
       # extracted and committed to viewer repo
       BUILDSCRIPTS_SUPPORT_FUNCTIONS: ${{ github.workspace }}/buildscripts_support_functions
