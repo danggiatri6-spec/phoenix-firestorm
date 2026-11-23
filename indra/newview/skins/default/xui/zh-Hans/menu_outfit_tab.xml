@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<context_menu name="Outfit">
+    <menu_item_call name="wear_replace" label="替换当前装扮" />
+    <menu_item_call name="wear_add" label="添加到当前装扮" />
+    <menu_item_call name="take_off" label="从当前装扮中移除" />
+    <menu_item_separator />
+    <menu_item_call name="thumbnail" label="图片…" />
+    <menu_item_call name="favorites_add" label="添加到收藏夹" />
+    <menu_item_call name="favorites_remove" label="从收藏夹中移除" />
+    <menu_item_call name="edit" label="编辑装扮" />
+    <menu_item_call name="rename" label="重命名装扮" />
+    <menu_item_call name="save" label="保存到此装扮" />
+    <menu_item_separator />
+    <menu_item_call name="delete" label="删除装扮" />
+</context_menu>
