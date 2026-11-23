@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<panel name="panel_outfit_snapshot_inventory">
+    <text name="title">物品</text>
+    <text name="hint_lbl">
+        将图片上传到物品库存需要支付 L$[UPLOAD_COST]。
+
+        费用取决于您的订阅等级。订阅等级越高，费用越低。
+    </text>
+    <button name="cancel_btn" label="取消" />
+    <button name="save_btn" label="保存" />
+</panel>
