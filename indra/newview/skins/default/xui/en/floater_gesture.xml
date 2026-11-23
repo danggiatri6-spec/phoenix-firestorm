@@ -181,4 +181,14 @@
      name="stop_btn"
      top_delta="0"
      width="83" />
+    <button
+     follows="left|bottom"
+     height="23"
+     label="Toggle Favorite"
+     tool_tip="Add or remove the selected gesture from your local favorites."
+     layout="topleft"
+     left="184"
+     name="favorite_btn"
+     top_delta="0"
+     width="110" />
 </floater>
