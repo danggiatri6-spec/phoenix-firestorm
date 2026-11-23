@@ -63,6 +63,46 @@ static bool are_gestures_enabled()
     static LLCachedControl<bool> gestures_enabled(gSavedPerAccountSettings, "FSGesturesEnabled", true);
     return gestures_enabled;
 }
+
+static bool is_favorite_gesture(const LLUUID& item_id)
+{
+    const LLSD favorites = gSavedPerAccountSettings.getLLSD("FSFavoriteGestures");
+    for (LLSD::array_const_iterator it = favorites.beginArray(); it != favorites.endArray(); ++it)
+    {
+        if (it->asUUID() == item_id)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void toggle_favorite_gesture(const LLUUID& item_id)
+{
+    const LLSD current = gSavedPerAccountSettings.getLLSD("FSFavoriteGestures");
+    LLSD updated = LLSD::emptyArray();
+    bool was_favorite = false;
+
+    for (LLSD::array_const_iterator it = current.beginArray(); it != current.endArray(); ++it)
+    {
+        const LLUUID favorite_id = it->asUUID();
+        if (favorite_id == item_id)
+        {
+            was_favorite = true;
+        }
+        else
+        {
+            updated.append(favorite_id);
+        }
+    }
+
+    if (!was_favorite)
+    {
+        updated.append(item_id);
+    }
+
+    gSavedPerAccountSettings.setLLSD("FSFavoriteGestures", updated);
+}
 // </FS:PP>
 
 class LLFloaterGestureObserver : public LLGestureManagerObserver
@@ -226,6 +266,7 @@ bool LLFloaterGesture::postBuild()
 
     getChild<LLUICtrl>("new_gesture_btn")->setCommitCallback(boost::bind(&LLFloaterGesture::onClickNew, this));
     getChild<LLButton>("del_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onDeleteSelected, this));
+    getChild<LLButton>("favorite_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onClickFavorite, this));
 
     getChildView("play_btn")->setVisible( true);
     getChildView("stop_btn")->setVisible( false);
@@ -446,6 +487,11 @@ void LLFloaterGesture::addGesture(const LLUUID& item_id , LLMultiGesture* gestur
         element["columns"][4]["font"]["style"] = font_style;
     }
 
+    if (is_favorite_gesture(item_id))
+    {
+        element["columns"][1]["value"] = "* " + element["columns"][1]["value"].asString();
+    }
+
     LL_DEBUGS("Gesture") << "Added gesture [" << item_name << "]" << LL_ENDL;
 
     LLScrollListItem* sl_item(0);
@@ -555,6 +601,21 @@ void LLFloaterGesture::onClickPlay()
     {
         playGesture(item_id);
     }
+}
+
+void LLFloaterGesture::onClickFavorite()
+{
+    if (!are_gestures_enabled()) return;
+
+    const LLUUID& item_id = mGestureList->getCurrentID();
+    LLInventoryItem* item = gInventory.getItem(item_id);
+    if (item_id.isNull() || !item || item->getInventoryType() != LLInventoryType::IT_GESTURE)
+    {
+        return;
+    }
+
+    toggle_favorite_gesture(item_id);
+    refreshAll();
 }
 
 void LLFloaterGesture::onClickNew()
@@ -758,6 +819,7 @@ void LLFloaterGesture::updateGesturesEnabledState()
     getChildView("new_gesture_btn")->setEnabled(gestures_enabled);
     getChildView("del_btn")->setEnabled(gestures_enabled);
     getChildView("activate_btn")->setEnabled(gestures_enabled);
+    getChildView("favorite_btn")->setEnabled(gestures_enabled && !mGestureList->getCurrentID().isNull());
     getChildView("filter_input")->setEnabled(gestures_enabled);
     getChildView("gear_btn")->setEnabled(gestures_enabled);
     getChildView("FSShowOnlyActiveGestures")->setEnabled(gestures_enabled);
