@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<panel name="outfit_edit">
+    <string name="No Outfit" value="没有装扮" />
+    <string name="unsaved_changes" value="未保存的更改" />
+    <string name="now_editing" value="正在编辑" />
+    <panel.string name="not_available">
+        （不可用）
+    </panel.string>
+    <panel.string name="unknown">
+        （未知）
+    </panel.string>
+    <string name="Filter.All" value="全部" />
+    <string name="Filter.Clothes/Body" value="服装/身体" />
+    <string name="Filter.Objects" value="物体" />
+    <string name="Filter.Clothing" value="服装" />
+    <string name="Filter.Bodyparts" value="身体部件" />
+    <string name="replace_body_part" value="点击以替换现有的身体形状" />
+    <text name="title" value="编辑装扮部件" />
+    <panel name="outfit_name_and_status">
+        <text name="status" value="正在编辑…" />
+    </panel>
+    <button name="show_add_wearables_btn" label="添加更多…" tool_tip="打开/关闭" />
+    <button name="plus_btn" label="穿戴物品" />
+    <text name="avatar_complexity_label">
+        复杂度：[WEIGHT]
+    </text>
+    <text name="avatar_complexity_adding_label">
+        添加后的复杂度：[WEIGHT]
+    </text>
+    <button name="save_btn" label="保存" />
+    <button name="save_as_btn" label="另存为…" />
+    <button name="revert_btn" label="撤销更改" tool_tip="恢复到上次保存的版本" />
+</panel>
