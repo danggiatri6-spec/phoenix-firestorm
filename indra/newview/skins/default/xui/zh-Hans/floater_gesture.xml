@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<floater label="地点" name="gestures" title="手势">
+	<floater.string name="loading">正在加载...</floater.string>
+	<floater.string name="playing">（播放中）</floater.string>
+	<floater.string name="copy_name">[COPY_NAME] 的副本</floater.string>
+	<scroll_list name="gesture_list">
+		<scroll_list.columns label="名称" name="name" />
+		<scroll_list.columns label="聊天" name="trigger" />
+		<scroll_list.columns label="快捷键" name="shortcut" />
+	</scroll_list>
+	<panel label="bottom_panel" name="bottom_panel">
+		<menu_button name="gear_btn" tool_tip="更多选项" />
+		<button name="new_gesture_btn" tool_tip="创建新手势" />
+		<button name="activate_btn" tool_tip="启用/停用所选手势" />
+		<filter_editor label="筛选手势" name="filter_input"/>
+		<check_box label="仅显示已启用" name="FSShowOnlyActiveGestures" />
+		<check_box label="仅显示最近使用" name="FSShowRecentGestures" />
+		<check_box label="启用我的手势" name="FSGesturesEnabled" />
+		<button name="del_btn" tool_tip="删除此手势" />
+	</panel>
+	<button label="编辑" name="edit_btn" tool_tip="打开窗口以编辑所选手势。" />
+	<button label="播放" name="play_btn" tool_tip="在虚拟世界中播放所选手势。" />
+	<button label="停止" name="stop_btn" />
+	<button label="收藏/取消收藏" name="favorite_btn" tool_tip="将所选手势添加到本地收藏，或从收藏中移除。" />
+</floater>
