@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<floater name="Preferences" title="偏好设置">
+    <button label="确定" label_selected="确定" name="OK" />
+    <button label="取消" label_selected="取消" name="Cancel" />
+    <panel name="search_panel">
+        <search_editor label="搜索设置" name="search_prefs_edit" tool_tip="输入要搜索的关键词。系统将在设置名称和说明中查找匹配内容。" />
+        <button name="copy_search_slurl_btn" tool_tip="将搜索内容复制为 SLURL" />
+    </panel>
+    <tab_container name="pref core">
+        <panel label="常规" name="general" />
+        <panel label="聊天" name="chat" />
+        <panel label="颜色" name="colors" />
+        <panel label="图形" name="display" />
+        <panel label="声音和媒体" name="audio" />
+        <panel label="网络和文件" name="input" />
+        <panel label="移动和视角" name="move" />
+        <panel label="控制" name="controls" />
+        <panel label="通知" name="msgs" />
+        <panel label="隐私" name="im" />
+        <panel label="高级" name="advanced1" />
+        <panel label="用户界面" name="ui" />
+        <panel label="外观主题" name="skins" />
+        <panel label="崩溃报告" name="crashreports" />
+        <panel label="Firestorm" name="firestorm" />
+        <panel label="OpenSim" name="opensim" />
+        <panel label="备份和恢复" name="backup" />
+    </tab_container>
+</floater>
