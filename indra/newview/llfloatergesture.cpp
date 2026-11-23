@@ -82,26 +82,38 @@ static void toggle_favorite_gesture(const LLUUID& item_id)
     const LLSD current = gSavedPerAccountSettings.getLLSD("FSFavoriteGestures");
     LLSD updated = LLSD::emptyArray();
     bool was_favorite = false;
-
     for (LLSD::array_const_iterator it = current.beginArray(); it != current.endArray(); ++it)
     {
         const LLUUID favorite_id = it->asUUID();
-        if (favorite_id == item_id)
-        {
-            was_favorite = true;
-        }
-        else
-        {
-            updated.append(favorite_id);
-        }
+        if (favorite_id == item_id) was_favorite = true;
+        else updated.append(favorite_id);
     }
-
-    if (!was_favorite)
-    {
-        updated.append(item_id);
-    }
-
+    if (!was_favorite) updated.append(item_id);
     gSavedPerAccountSettings.setLLSD("FSFavoriteGestures", updated);
+}
+
+static bool is_recent_gesture(const LLUUID& item_id)
+{
+    const LLSD recent = gSavedPerAccountSettings.getLLSD("FSRecentGestures");
+    for (LLSD::array_const_iterator it = recent.beginArray(); it != recent.endArray(); ++it)
+        if (it->asUUID() == item_id) return true;
+    return false;
+}
+
+static void record_recent_gesture(const LLUUID& item_id)
+{
+    LLInventoryItem* item = gInventory.getItem(item_id);
+    if (!item || item->getInventoryType() != LLInventoryType::IT_GESTURE) return;
+    const LLSD current = gSavedPerAccountSettings.getLLSD("FSRecentGestures");
+    LLSD updated = LLSD::emptyArray();
+    updated.append(item_id);
+    for (LLSD::array_const_iterator it = current.beginArray(); it != current.endArray(); ++it)
+    {
+        const LLUUID recent_id = it->asUUID();
+        if (recent_id != item_id && gInventory.getItem(recent_id) && updated.size() < 10)
+            updated.append(recent_id);
+    }
+    gSavedPerAccountSettings.setLLSD("FSRecentGestures", updated);
 }
 // </FS:PP>
 
@@ -262,6 +274,7 @@ bool LLFloaterGesture::postBuild()
     getChild<LLButton>("activate_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onActivateBtnClick, this));
 
     getChild<LLUICtrl>("FSShowOnlyActiveGestures")->setCommitCallback(boost::bind(&LLFloaterGesture::refreshForActiveSort, this)); // <FS:PP> FIRE-5646: Option to show only active gestures
+    getChild<LLUICtrl>("FSShowRecentGestures")->setCommitCallback(boost::bind(&LLFloaterGesture::refreshForRecentSort, this));
     getChild<LLUICtrl>("FSGesturesEnabled")->setCommitCallback(boost::bind(&LLFloaterGesture::onGesturesEnabledChanged, this)); // <FS:PP> FIRE-36169 Gestures enable/disable switch
 
     getChild<LLUICtrl>("new_gesture_btn")->setCommitCallback(boost::bind(&LLFloaterGesture::onClickNew, this));
@@ -308,6 +321,16 @@ void LLFloaterGesture::refreshForActiveSort()
     }
     refreshAll();
 }
+
+void LLFloaterGesture::refreshForRecentSort()
+{
+    if (gSavedPerAccountSettings.getBOOL("FSShowRecentGestures"))
+    {
+        mItems.clear();
+        mGestureList->deleteAllItems();
+    }
+    refreshAll();
+}
 // </FS:PP> FIRE-5646: Option to show only active gestures
 
 void LLFloaterGesture::refreshAll()
@@ -343,10 +366,14 @@ void LLFloaterGesture::buildGestureList()
 
     LLGestureMgr::item_map_t::const_iterator it;
     const LLGestureMgr::item_map_t& active_gestures = LLGestureMgr::instance().getActiveGestures();
+    const bool show_recent_only = gSavedPerAccountSettings.getBOOL("FSShowRecentGestures");
     for (it = active_gestures.begin(); it != active_gestures.end(); ++it)
     {
-        addGesture(it->first,it->second, mGestureList);
-        added_items.insert(it->first); // <FS:Ansariel> FIRE-5939: Deleted gestures not removed from gestures floater
+        if (!show_recent_only || is_recent_gesture(it->first))
+        {
+            addGesture(it->first,it->second, mGestureList);
+            added_items.insert(it->first); // <FS:Ansariel> FIRE-5939: Deleted gestures not removed from gestures floater
+        }
     }
     // <FS:PP> FIRE-5646: Option to show only active gestures
     // if (gInventory.isCategoryComplete(mGestureFolderID))
@@ -362,7 +389,8 @@ void LLFloaterGesture::buildGestureList()
         for (LLInventoryModel::item_array_t::iterator it = items.begin(); it!= items.end(); ++it)
         {
             LLInventoryItem* item = it->get();
-            if (active_gestures.find(item->getUUID()) == active_gestures.end())
+            if (active_gestures.find(item->getUUID()) == active_gestures.end()
+                && (!show_recent_only || is_recent_gesture(item->getUUID())))
             {
                 // if gesture wasn't loaded yet, we can display only name
                 addGesture(item->getUUID(), NULL, mGestureList);
@@ -823,6 +851,7 @@ void LLFloaterGesture::updateGesturesEnabledState()
     getChildView("filter_input")->setEnabled(gestures_enabled);
     getChildView("gear_btn")->setEnabled(gestures_enabled);
     getChildView("FSShowOnlyActiveGestures")->setEnabled(gestures_enabled);
+    getChildView("FSShowRecentGestures")->setEnabled(gestures_enabled);
 }
 // </FS:PP>
 
@@ -904,6 +933,8 @@ void LLFloaterGesture::playGesture(LLUUID item_id)
     else
     {
         LLGestureMgr::instance().playGesture(item_id);
+        record_recent_gesture(item_id);
+        refreshAll();
     }
 }
 
