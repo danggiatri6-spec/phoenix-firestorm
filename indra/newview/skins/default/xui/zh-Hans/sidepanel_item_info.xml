@@ -299,7 +299,7 @@ TestString PleaseIgnore
         label="修改"
         layout="topleft"
         left="20"
-        name="CheckOwner修改"
+        name="CheckOwnerModify"
         top_pad="4"
         width="90" />
       <check_box
@@ -307,14 +307,14 @@ TestString PleaseIgnore
         label="复制"
         layout="topleft"
         left_pad="0"
-        name="CheckOwner复制"
+        name="CheckOwnerCopy"
         width="90" />
       <check_box
         height="18"
         label="转移"
         layout="topleft"
         left_pad="0"
-        name="CheckOwner转移"
+        name="CheckOwnerTransfer"
         width="106" />
       <text
         type="string"
@@ -333,7 +333,7 @@ TestString PleaseIgnore
         label="复制"
         layout="topleft"
         left_pad="0"
-        name="CheckEveryone复制"
+        name="CheckEveryoneCopy"
         tool_tip="任何人都可以复制此物体。物体及其全部内容必须同时具有复制和转移权限。"
         top_delta="0"
         width="150" />
@@ -355,7 +355,7 @@ TestString PleaseIgnore
         layout="topleft"
         left_pad="0"
         top_delta="0"
-        name="Check共享WithGroup"
+        name="CheckShareWithGroup"
         tool_tip="允许指定群组的所有成员共享你对此物体的修改权限。必须先将物体转让给群组，才能启用角色限制。"
         width="150" />
       <text
@@ -377,7 +377,7 @@ TestString PleaseIgnore
         layout="topleft"
         left="20"
         top_pad="4"
-        name="CheckNextOwner修改"
+        name="CheckNextOwnerModify"
         tool_tip="下一位所有者可以编辑此物体的名称、大小等属性。"
         width="90" />
       <check_box
@@ -385,7 +385,7 @@ TestString PleaseIgnore
         label="复制"
         layout="topleft"
         left_pad="0"
-        name="CheckNextOwner复制"
+        name="CheckNextOwnerCopy"
         tool_tip="下一位所有者可以无限次复制此物体。副本会保留创建者信息，且权限不会高于被复制的原物体。"
         width="90" />
       <check_box
@@ -393,7 +393,7 @@ TestString PleaseIgnore
         label="转移"
         layout="topleft"
         left_pad="0"
-        name="CheckNextOwner转移"
+        name="CheckNextOwnerTransfer"
         tool_tip="下一位所有者可以赠送或转售此物体。"
         width="106" />
         
@@ -424,15 +424,15 @@ TestString PleaseIgnore
         width="170"
         tool_tip="选择购买者将获得物体副本、内容副本还是物体原件。" >
         <combo_box.item
-             name="复制"
+             name="Copy"
              label="复制"
              value="2" />
         <combo_box.item
-             name="内容"
+             name="Contents"
              label="内容"
              value="3" />
         <combo_box.item
-             name="原件"
+             name="Original"
              label="原件"
              value="1" />
       </combo_box>
