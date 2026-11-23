@@ -94,6 +94,7 @@ private:
     void onClickEdit();
     void onClickPlay();
     void onClickNew();
+    void onClickFavorite();
     void onCommitList();
     void onCopyPasteAction(const LLSD& command);
     void onDeleteSelected();
