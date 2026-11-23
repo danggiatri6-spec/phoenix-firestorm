@@ -93,10 +93,8 @@ jobs:
       build_coverity: false
       build_log_dir: ${{ github.workspace }}/.logs
       build_viewer: true
-      # Keep test targets available in the generated solution, but build the Viewer target only.
-      # This avoids unrelated test executable failures blocking the Windows Viewer build.
-      LL_TESTS: 'ON'
-      autobuild_build_parameters: '-- --target viewer'
+      # Disable test targets for manual portable Viewer builds; PR validation keeps tests enabled.
+      LL_TESTS: ${{ github.event_name == 'workflow_dispatch' && 'OFF' || 'ON' }}
       BUILDSCRIPTS_SHARED: ${{ github.workspace }}/.shared
       # extracted and committed to viewer repo
       BUILDSCRIPTS_SUPPORT_FUNCTIONS: ${{ github.workspace }}/buildscripts_support_functions
