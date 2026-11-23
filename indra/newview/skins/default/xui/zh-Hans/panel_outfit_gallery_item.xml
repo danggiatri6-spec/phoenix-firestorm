@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<panel name="gallery_item_panel">
+    <string name="worn_string" value="（已穿戴）" />
+    <panel name="text_bg_panel">
+        <text name="outfit_worn_text">
+            （已穿戴）
+        </text>
+    </panel>
+</panel>
