@@ -142,6 +142,16 @@
                     function="Gesture.Action.RefreshList" />
               </check_box>
               <check_box
+                 control_name="FSShowFavoriteGestures"
+                 height="18"
+                 label="Favorites only"
+                 layout="topleft"
+                 follows="bottom|left"
+                 left="140"
+                 top="28"
+                 name="FSShowFavoriteGestures"
+                 width="150" />
+              <check_box
                  control_name="FSShowRecentGestures"
                  height="18"
                  label="Recent only"
