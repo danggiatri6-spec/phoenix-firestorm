@@ -562,22 +562,18 @@ void LLEyeMotion::onDeactivate()
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
-    joint = mAltLeftEyeState->getJoint();
-    if (joint)
-    {
-        joint->setRotation(LLQuaternion::DEFAULT);
-    }
-
     joint = mRightEyeState->getJoint();
     if (joint)
     {
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
-    joint = mAltRightEyeState->getJoint();
-    if (joint)
+    // Alternate joints are animated only as a complete pair; leave a
+    // partially exposed alternate rig untouched during deactivation.
+    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
     {
-        joint->setRotation(LLQuaternion::DEFAULT);
+        mAltLeftEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
     }
 }
 
