@@ -199,3 +199,24 @@ The consent policy is per-presence and resets with the server-side presence. The
 **Remaining gaps:** outgoing POST response/error feedback; invitation cancellation from the requester UI (requires tracking the server-returned `request_id`); timeout feedback when the server lazily prunes an invitation; and paired animation/session lifecycle.
 
 **Verification status:** source changes and XML edits are committed. No C++ build, XUI runtime load, or simulator integration test has been performed.
+
+
+## Server session lifecycle and Viewer session bridge (2026-11-24)
+
+This section supersedes the earlier statements above that the server does not create sessions or that accepted events lack a session identifier.
+
+The server branch `danggiatri6-spec/opensim` / `opensim-next/avatar-modernization` now implements:
+
+- A new UUID `session_id` on acceptance, distinct from the invitation `request_id`.
+- Session records containing requester, target, interaction kind, request ID, and a 120-second expiry.
+- A maximum of 128 active sessions per region and one active session per participant.
+- `AvatarInteractionAccepted` events to both participants, carrying `session_id` and the shared participant/action metadata.
+- `action=end` with `session_id`; only either participant may end the session.
+- `AvatarInteractionEnded` events to both participants on explicit end or when an expired session is pruned.
+- Session-table cleanup when the region module is removed.
+
+The Viewer feature branch now records the accepted `session_id`, clears only the matching ID when an end/expiry event arrives, and exposes `LLAvatarActions::endAvatarInteraction(session_id)` to POST the explicit end action. The Viewer stores one active session ID, matching the server's one-session-per-participant rule.
+
+**Important remaining limitations:** expiry pruning is lazy and occurs on a later session operation; if no subsequent request reaches the region, the timeout event is delayed. The Viewer helper is not yet exposed as a visible End Interaction control. No paired animation or interaction-owned gaze target is started yet. There is no role-specific animation metadata in the server event.
+
+**Verification status:** source-level checks confirm the new server session fields, participant authorization, explicit end event delivery, region cleanup, Viewer session capture/clear, and the end request payload. Neither C# nor C++ has been compiled, and no simulator or two-viewer runtime test has been performed.
