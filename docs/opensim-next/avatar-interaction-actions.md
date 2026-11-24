@@ -182,3 +182,20 @@ The first outbound Viewer path has now been added on `opensim-next/avatar-intera
 This is an outbound invitation UI only. It does not yet handle the HTTP response in the UI, offer a local pending state, play animations, or create a paired session. Incoming invitation acceptance/rejection remains wired through the existing generic-message callback.
 
 **Verification status:** source edits are committed to the feature branch, but no C++ build, XUI load test, simulator runtime test, or end-to-end invitation test has been run. In particular, the menu listener and XML integration need compile/runtime verification before this is called complete.
+
+
+## Viewer consent controls and event feedback (2026-11-24)
+
+Additional Viewer changes committed after the first invite menu:
+
+- `LLFloaterGesture` now cycles through all four server-supported policies: `off → friends → ask → everyone → off`.
+- The policy button displays the current local selection (`Interactions: Off/Friends/Ask/Everyone`). The server still applies the authoritative policy; the Viewer does not locally grant permission.
+- Incoming invitation text now renders readable interaction names (handshake, high-five, shoulder tap).
+- Accepted/rejected/cancelled/expired event statuses now produce distinct human-readable messages, including the interaction type.
+- The other-avatar pie menu now uses direct native menu items for the three interactions rather than nesting an unsupported `context_menu` element.
+
+The consent policy is per-presence and resets with the server-side presence. The Viewer currently tracks the selection in the floater instance; no policy GET/persistence endpoint exists yet, so do not assume a value can be recovered after a viewer restart.
+
+**Remaining gaps:** outgoing POST response/error feedback; invitation cancellation from the requester UI (requires tracking the server-returned `request_id`); timeout feedback when the server lazily prunes an invitation; and paired animation/session lifecycle.
+
+**Verification status:** source changes and XML edits are committed. No C++ build, XUI runtime load, or simulator integration test has been performed.
