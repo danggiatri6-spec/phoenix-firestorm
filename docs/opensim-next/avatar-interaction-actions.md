@@ -319,3 +319,12 @@ If one role starts and the other does not, the first role is immediately stopped
 This retry is local Viewer scheduling only. It does not alter the server session contract, move either participant, or fabricate animation UUIDs. If either animation cannot be started within the retry window, the interaction session, gaze, and consent state remain intact without claiming that the animation played.
 
 **Verification status:** the three changed Viewer files were re-fetched from the branch and passed 10/10 targeted source checks covering the queue, both-avatar gate, partial-start rollback, 10-second timeout, session guard, end cleanup, public update declaration, and per-frame invocation. No C++ build or in-world two-viewer test has been run.
+
+
+## Paired-motion distance guard (2026-11-24)
+
+The paired-motion start path now checks the current 3D separation of the requester and target Avatar objects before starting either role. The bundled handshake motion is allowed to start only when the participants are between 0.45 m and 2.0 m apart. If they are outside that range, the existing pending queue keeps the animation request alive and retries for the remainder of its 10-second window.
+
+This prevents an accepted invitation from triggering a visibly disconnected handshake after either participant has moved away. The Viewer does not reposition either participant and does not weaken the server's consent, presence, or invitation-range checks. A user may still use the explicit local approach action to close the distance.
+
+**Verification status:** the source edit was committed. This is a source-level change only; no C++ build, animation asset playback test, or two-viewer in-world test has been run. The distance thresholds still need visual tuning with different avatar shapes and viewer camera conditions.
