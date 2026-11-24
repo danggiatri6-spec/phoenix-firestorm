@@ -248,6 +248,7 @@ namespace
                         const LLUUID partner = requester == gAgent.getID() ? target : requester;
                         LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
                         gAgentCamera.requestSocialEmotion(LLAgentCamera::ESocialEmotion::GREETING);
+                        gAgentCamera.requestSocialGreetingGesture();
                         avatar_interaction_start_paired_motions(body, requester, target, session_id);
                         LLViewerObject* partner_object = gObjectList.findObject(partner);
                         if (partner_object && partner_object->isAvatar())
@@ -256,6 +257,7 @@ namespace
                     else if (status == "ended" || status == "expired")
                     {
                         avatar_interaction_stop_paired_motions(session_id);
+                        gAgentCamera.cancelSocialGreetingGesture();
                         LLAvatarActions::clearActiveAvatarInteraction(session_id);
                         gAgentCamera.clearInteractionLookAt();
                     }
