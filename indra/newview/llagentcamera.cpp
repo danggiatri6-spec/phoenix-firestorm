@@ -1314,6 +1314,9 @@ static void update_local_social_gaze()
     static F64 last_scan = 0.0;
     static F64 target_since = 0.0;
     static F64 challenger_since = 0.0;
+    static F64 next_look_away = 0.0;
+    static F64 resume_look_at = 0.0;
+    static bool looking_away = false;
     static LLUUID last_target;
     static LLUUID challenger_target;
     const F64 now = LLTimer::getTotalSeconds();
@@ -1329,6 +1332,9 @@ static void update_local_social_gaze()
             challenger_target.setNull();
             target_since = 0.0;
             challenger_since = 0.0;
+            looking_away = false;
+            next_look_away = 0.0;
+            resume_look_at = 0.0;
         }
         return;
     }
@@ -1386,6 +1392,52 @@ static void update_local_social_gaze()
         }
     }
 
+    // Briefly glance toward a nearby world point, then return to the current
+    // conversational target. This is a local-only point target; no look-at packet
+    // or legacy attention type is changed.
+    if (looking_away)
+    {
+        if (now < resume_look_at)
+            return;
+
+        LLVOAvatar* return_target = current_avatar ? current_avatar : best_avatar;
+        if (return_target)
+        {
+            gAgentCamera.setInteractionLookAt(return_target);
+            last_target = return_target->getID();
+            target_since = now;
+            next_look_away = now + 9.0 + ll_frand(7.0f);
+        }
+        else
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+            next_look_away = 0.0;
+        }
+        looking_away = false;
+        resume_look_at = 0.0;
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    if (last_target.notNull() && best_avatar->getID() == last_target &&
+        next_look_away > 0.0 && now >= next_look_away)
+    {
+        LLVector3 glance_direction = LLVector3::y_axis * gAgentAvatarp->getRotation();
+        glance_direction.mV[VZ] = 0.f;
+        if (glance_direction.normalize() < 0.001f)
+            glance_direction = LLVector3::y_axis;
+        LLVector3 glance_position = gAgentAvatarp->getPositionAgent() +
+            (glance_direction * (ll_frand(0.8f) + 0.6f)) +
+            (forward * (1.0f + ll_frand(0.5f)));
+        glance_position.mV[VZ] += 0.25f;
+        gAgentCamera.setInteractionLookAtPoint(gAgent.getPosGlobalFromAgent(glance_position));
+        looking_away = true;
+        resume_look_at = now + 0.8 + ll_frand(0.8f);
+        return;
+    }
+
     if (!best_avatar)
     {
         if (last_target.notNull())
@@ -1413,6 +1465,7 @@ static void update_local_social_gaze()
         gAgentCamera.setInteractionLookAt(best_avatar);
         last_target = best_avatar->getID();
         target_since = now;
+        next_look_away = now + 9.0 + ll_frand(7.0f);
         challenger_target.setNull();
         challenger_since = 0.0;
         return;
@@ -1440,6 +1493,7 @@ static void update_local_social_gaze()
     gAgentCamera.setInteractionLookAt(best_avatar);
     last_target = best_avatar->getID();
     target_since = now;
+    next_look_away = now + 9.0 + ll_frand(7.0f);
     challenger_target.setNull();
     challenger_since = 0.0;
 }
