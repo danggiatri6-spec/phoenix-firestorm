@@ -87,3 +87,10 @@ A feature is not complete until it has:
 - regression checks for legacy SL login, AO, gestures, LSL animations and low-end performance.
 
 A source commit or static check is not a build or runtime validation.
+
+
+## Initial code increment
+
+The Gestures floater now has a desktop quick-expression row for Smile, Laugh, Sad, Frown, Surprise, and Wink, plus Clear. It sends the existing legacy expression animation IDs through the normal Viewer animation request path. It does not add a new wire protocol or replace inventory gestures.
+
+This is source-level work only. It has not yet been compiled or runtime-tested.
