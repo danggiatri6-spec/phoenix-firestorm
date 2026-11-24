@@ -9859,6 +9859,33 @@ class LLAvatarInteractionInvite : public view_listener_t
     }
 };
 
+class LLAvatarEndInteraction : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            avatar->getID() == partner_id && session_id.notNull())
+        {
+            LLAvatarActions::endAvatarInteraction(session_id);
+        }
+        return true;
+    }
+};
+
+bool can_end_avatar_interaction()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    return avatar && !avatar->isSelf() && !avatar->isDead() && avatar->getID() == partner_id;
+}
+
 bool can_invite_avatar_interaction()
 {
     LLViewerRegion* region = gAgent.getRegion();
@@ -13327,7 +13354,9 @@ void initialize_menus()
     view_listener_t::addMenu(new LLAvatarSendIM(), "Avatar.SendIM");
     view_listener_t::addMenu(new LLAvatarCall(), "Avatar.Call");
     view_listener_t::addMenu(new LLAvatarInteractionInvite(), "Avatar.InteractionInvite");
+    view_listener_t::addMenu(new LLAvatarEndInteraction(), "Avatar.EndInteraction");
     enable.add("Avatar.CanInviteInteraction", boost::bind(&can_invite_avatar_interaction));
+    enable.add("Avatar.CanEndInteraction", boost::bind(&can_end_avatar_interaction));
 //  enable.add("Avatar.EnableCall", boost::bind(&LLAvatarActions::canCall));
 // [RLVa:KB] - Checked: 2010-08-25 (RLVa-1.2.1b) | Added: RLVa-1.2.1b
     enable.add("Avatar.EnableCall", boost::bind(&enable_avatar_call));
