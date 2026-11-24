@@ -33,6 +33,7 @@
 #include "llagent.h"
 #include "llavataractions.h"
 #include "llanimationstates.h"
+#include "llstring.h"
 
 // Only standard Second Life facial expression animations may be requested by
 // the local social-emotion layer. Never invent animation IDs here.
