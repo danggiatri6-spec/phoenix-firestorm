@@ -77,7 +77,8 @@ public:
     static void requestInteractionInvite(const LLUUID& target_id, const std::string& interaction);
 
     /** Record, clear, or end the server-authoritative interaction session. */
-    static void setActiveAvatarInteraction(const LLUUID& session_id);
+    static void setActiveAvatarInteraction(const LLUUID& session_id, const LLUUID& partner_id);
+    static const LLUUID& getActiveAvatarInteractionPartner();
     static void clearActiveAvatarInteraction(const LLUUID& session_id);
     static void endAvatarInteraction(const LLUUID& session_id);
 
