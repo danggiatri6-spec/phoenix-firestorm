@@ -297,3 +297,14 @@ Firestorm already exposes `LLAgent::startAutoPilotGlobal()`, `stopAutoPilot()`, 
 The interaction feature must not call this automatically on `AvatarInteractionAccepted`. Acceptance authorizes the named interaction, not relocation. A future `Approach Interaction Partner` action must be explicitly invoked by the local user, move only the local avatar to a safe stand-off point, pass `allow_flying=false`, and never send a transform or movement command for the remote participant. It must also stop its own autopilot on user cancellation, session end/expiry, partner disappearance, or region change. The current 3 m invitation radius means this action should be optional convenience rather than a prerequisite for handshake.
 
 The API was inspected in `llagent.h` and `llagent.cpp`; no movement behavior has been implemented or tested in this change.
+
+
+## Explicit local approach action (2026-11-24)
+
+The Viewer now exposes `Approach Interaction Partner` in the selected active partner's context menu. It is available only for the active server-issued session, a live selected partner, a local avatar that is not already using autopilot or flying, and a partner 1.6–20 m away.
+
+When explicitly invoked, the local Viewer computes a horizontal stand-off point 1.25 m from the partner and starts Firestorm's existing `LLAgent::startAutoPilotGlobal()` for the local avatar only. It requests no flying, stops at a 0.35 m arrival tolerance, and supplies a facing rotation so the local avatar faces the partner on arrival. It does not send a transform or movement command for the remote avatar and does not change the server session. It is optional; the server's invite range remains 3 m.
+
+The action refuses to take over an existing autopilot or start while the local avatar is flying. The feature records ownership by the dedicated autopilot behavior name `AvatarInteractionApproach`. Session end clears the active session through `clearActiveAvatarInteraction()`, which stops only this owned autopilot. The camera update also cancels this approach if the partner disappears or moves beyond 20 m. If the user replaces the autopilot with another movement action, cleanup checks the behavior name and leaves that unrelated action untouched.
+
+**Verification status:** Viewer source, menu wiring, and lifecycle hooks were committed. Source-level inspection is still required after the latest edits; no C++ build or in-world two-viewer test has been run. Pathfinding, collision avoidance, parcel restrictions, and actual arrival/facing behavior remain runtime tests.
