@@ -82,6 +82,10 @@ public:
     static const LLUUID& getActiveAvatarInteractionSession();
     static void clearActiveAvatarInteraction(const LLUUID& session_id);
     static void endAvatarInteraction(const LLUUID& session_id);
+    /** Move only the local avatar to a safe stand-off point, on explicit user action. */
+    static bool approachActiveAvatarInteractionPartner();
+    /** Stop only the autopilot instance owned by the interaction approach action. */
+    static void cancelAvatarInteractionApproach();
 
     /**
      * End instant messaging session.
