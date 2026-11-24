@@ -664,6 +664,18 @@ bool LLHUDEffectLookAt::setLookAt(ELookAtType target_type, LLViewerObject *objec
     return true;
 }
 
+void LLHUDEffectLookAt::setInteractionTarget(LLViewerObject* target)
+{
+    if (!target || !target->isAvatar() || target->isDead() || target->getID() == gAgent.getID())
+        return;
+    mInteractionTarget = target;
+}
+
+void LLHUDEffectLookAt::clearInteractionTarget()
+{
+    mInteractionTarget = NULL;
+}
+
 //-----------------------------------------------------------------------------
 // clearLookAtTarget()
 //-----------------------------------------------------------------------------
@@ -852,6 +864,34 @@ void LLHUDEffectLookAt::update()
         }
     }
 
+    // Local interaction overlay: do not modify mTargetType or network state.
+    if (mInteractionTarget.notNull())
+    {
+        if (mInteractionTarget->isDead())
+        {
+            clearInteractionTarget();
+            if (mTargetType == LOOKAT_TARGET_NONE)
+            {
+                source_avatar->removeAnimationData("LookAtPoint");
+                source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
+            }
+        }
+        else if (mInteractionTarget->mDrawable.notNull() &&
+                 (*mAttentions)[mTargetType].mPriority < (*mAttentions)[LOOKAT_TARGET_FOCUS].mPriority &&
+                 calcTargetPosition(true))
+        {
+            static LLCachedControl<bool> disable_look_at(gSavedSettings, "DisableLookAtAnimation", true);
+            LLMotion* head_motion = source_avatar->findMotion(ANIM_AGENT_HEAD_ROT);
+            if (disable_look_at())
+            {
+                if (head_motion)
+                    source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
+            }
+            else if (!head_motion || head_motion->isStopped())
+                source_avatar->startMotion(ANIM_AGENT_HEAD_ROT);
+        }
+    }
+
     // <FS:Ansariel> FIRE-12878: Don't render debug text for lookats
     //if (mDebugLookAt)
     //{
@@ -870,9 +910,11 @@ void LLHUDEffectLookAt::update()
  *
  * Returns whether we successfully calculated a finite target position.
  */
-bool LLHUDEffectLookAt::calcTargetPosition()
+bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
 {
-    LLViewerObject *target_obj = (LLViewerObject *)mTargetObject;
+    LLViewerObject *target_obj = use_interaction_target && mInteractionTarget.notNull()
+        ? (LLViewerObject*)mInteractionTarget
+        : (LLViewerObject*)mTargetObject;
     LLVector3 local_offset;
 
     if (target_obj)
