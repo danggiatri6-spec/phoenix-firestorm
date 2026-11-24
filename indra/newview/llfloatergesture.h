@@ -99,6 +99,7 @@ private:
     void onClickFavorite();
     void onQuickExpression(const LLUUID& expression_id);
     void onClearQuickExpression();
+    void onToggleInteractionPolicy();
     void onCommitList();
     void onCopyPasteAction(const LLSD& command);
     void onDeleteSelected();
@@ -113,6 +114,7 @@ private:
 
     LLUUID mSelectedID;
     LLUUID mQuickExpression; // Expression started by the quick expression row
+    bool mAllowAvatarInteractions = false;
     LLUUID mGestureFolderID;
     LLScrollListCtrl* mGestureList;
 
