@@ -76,6 +76,11 @@ public:
     /** Send an invitation through the optional AvatarInteraction capability. */
     static void requestInteractionInvite(const LLUUID& target_id, const std::string& interaction);
 
+    /** Record, clear, or end the server-authoritative interaction session. */
+    static void setActiveAvatarInteraction(const LLUUID& session_id);
+    static void clearActiveAvatarInteraction(const LLUUID& session_id);
+    static void endAvatarInteraction(const LLUUID& session_id);
+
     /**
      * End instant messaging session.
      */
