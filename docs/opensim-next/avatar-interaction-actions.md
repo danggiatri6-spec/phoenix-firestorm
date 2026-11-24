@@ -288,3 +288,12 @@ The existing alignment helper locally snaps the remote avatar render root back t
 The Viewer now disables the three invitation menu actions unless the selected avatar is within 3 m of the local avatar, in addition to the existing checks for a live non-self avatar, visible name under RLVa, and an available `AvatarInteraction` capability. This matches the server-side interaction range and avoids presenting an action that would predictably fail for a distant avatar. The server remains authoritative and rechecks presence, policy, and range when the invitation is submitted and accepted.
 
 **Verification status:** the menu predicate was updated and committed; source-level inspection only. No C++ build or simulator test has been performed.
+
+
+## Local-only approach movement research (2026-11-24)
+
+Firestorm already exposes `LLAgent::startAutoPilotGlobal()`, `stopAutoPilot()`, and a completion callback. The API can optionally set a target rotation and has an `allow_flying` parameter (which defaults to true). This is sufficient infrastructure for a future explicit local approach action; a new movement system is not required.
+
+The interaction feature must not call this automatically on `AvatarInteractionAccepted`. Acceptance authorizes the named interaction, not relocation. A future `Approach Interaction Partner` action must be explicitly invoked by the local user, move only the local avatar to a safe stand-off point, pass `allow_flying=false`, and never send a transform or movement command for the remote participant. It must also stop its own autopilot on user cancellation, session end/expiry, partner disappearance, or region change. The current 3 m invitation radius means this action should be optional convenience rather than a prerequisite for handshake.
+
+The API was inspected in `llagent.h` and `llagent.cpp`; no movement behavior has been implemented or tested in this change.
