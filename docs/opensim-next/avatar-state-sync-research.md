@@ -324,3 +324,19 @@ Implemented in `indra/newview/llagentcamera.cpp` and registered in `indra/newvie
 - This is a first-pass deterministic target selector, not yet a conversational turn-taking model. It does not yet use voice activity, chat speaker history, gaze dwell, random look-away intervals, or multi-person group attention.
 - It does not implement new blink timing or new head/eye animation; existing `LLEyeMotion` and `LLHeadRotMotion` remain responsible for motion.
 - The feature is source-implemented but has not been compiled or tested in-world. Performance, forward-axis assumptions, target stability, and behavior with custom rigs require Viewer runtime testing.
+
+
+## Social gaze target dwell and switching hysteresis (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Updated `update_local_social_gaze()` in `indra/newview/llagentcamera.cpp`:
+
+- Retains a valid current target instead of switching whenever another avatar's instantaneous score becomes marginally better.
+- Enforces a 2.5-second minimum target dwell.
+- A challenger must score at least 0.8 points better and remain the best candidate for 1.2 seconds before attention switches.
+- Clears challenger state when the current target remains best or the challenger is no longer sufficiently better.
+- Acquires a target immediately when there is no valid current target; releases the target when no eligible avatar remains.
+- The selection scan remains throttled to approximately 3 Hz; head and eye motion remain driven by the existing animation system.
+
+This is deterministic anti-jitter logic, not yet randomized natural gaze. Deliberate look-away behavior, speech-aware turn-taking, and multi-person conversation attention remain future work. No new network messages are sent. Source-level checks only; no C++ build or in-world test has been performed.
