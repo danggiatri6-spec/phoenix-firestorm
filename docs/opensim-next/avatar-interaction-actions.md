@@ -428,3 +428,27 @@ This is safer than a timer-only approach because the sequence ID is supplied by 
 The next code increment should implement the lease state machine and hook it into the existing animation-state update path. It should not alter `LLEmote`, standard expression UUIDs, Gesture Manager behavior, LSL semantics, or face Visual Parameters directly. Expression choices should map only to existing standard `ANIM_AGENT_EXPRESS_*` IDs. This remains a local Viewer enhancement using normal animation requests, not a new simulator protocol.
 
 **Verification status:** source inspection only; no controller code, C++ build, gesture/LSL race test, or in-world runtime test has been added in this checkpoint.
+
+
+## Sequence-aware social expression lease: first Viewer implementation (2026-11-24)
+
+Implemented the first local Viewer-side lease primitive in `llagentcamera.h/.cpp`.
+
+### API and behavior
+
+- `LLAgentCamera::requestSocialExpression(animation_id, duration)` accepts only the existing standard `ANIM_AGENT_EXPRESS_*` IDs; duration is clamped to 0.5–12 seconds.
+- It refuses to claim an expression that is already present in the local avatar's `mSignaledAnimations`, refuses object/attachment-sourced instances, and allows only one pending/owned social expression at a time.
+- It sends the normal `AgentAnimation START` request and waits for the next authoritative local avatar animation-state update.
+- When the requested expression appears, it records the server-provided Animation Sequence ID as the lease generation.
+- The per-frame Viewer update releases the lease after its duration only if the same animation is still signaled with the same sequence ID and no object/attachment animation source is recorded.
+- If the animation is not confirmed within 3 seconds, disappears, changes sequence, or gains an external object source, the controller fails closed and relinquishes ownership without sending STOP.
+- `cancelSocialExpression()` performs the same sequence/source check before sending STOP for an owned lease. Pending requests are simply relinquished; no speculative STOP is sent.
+- No direct face morph or joint writes were added. `LLEmote` remains responsible for rendering the standard expression and lip-sync remains independent.
+
+### Important limitation
+
+The simulator's sequence ID is an animation-generation signal, not a cryptographic per-origin ownership token. Gesture/LSL and Viewer requests can race before the next authoritative state update; a same-expression request that wins that race cannot always be distinguished from the Viewer request. The implementation therefore blocks pre-existing expressions, tracks sequence changes, checks object/attachment sources, and fails closed when ownership evidence is lost, but it does not claim perfect per-source arbitration. A future simulator-side source token would be needed for that guarantee.
+
+### Verification status
+
+Static source checks confirmed: all 19 standard expression IDs are whitelisted; non-expression IDs are rejected; pre-existing signals and object sources block acquisition; request confirmation captures sequence ID; timeout/mismatch/source conflict relinquish without STOP; expiry and explicit cancel re-check the lease; no direct Visual Parameter writes were introduced. No C++ build, simulator test, gesture/LSL race test, or in-world test has been run. This is an API primitive only; no automatic emotion-to-expression policy calls it yet.
