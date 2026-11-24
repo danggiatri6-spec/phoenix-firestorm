@@ -163,6 +163,17 @@ No tutorial is currently available.
 
   <notification
    icon="alertmodal.tga"
+   name="AvatarInteractionInvite"
+   type="alertmodal">
+[REQUESTER] invites you to [INTERACTION].
+    <usetemplate
+     name="okcancelbuttons"
+     yestext="Accept"
+     notext="Decline"/>
+  </notification>
+
+  <notification
+   icon="alertmodal.tga"
    name="GenericAlert"
    type="alertmodal">
 [MESSAGE]
