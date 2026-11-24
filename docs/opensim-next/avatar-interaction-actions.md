@@ -29,10 +29,10 @@ Implement the outbound action path without changing legacy LSL animation behavio
 The Viewer should send an LLSD map:
 
 - `action`: `invite`
-- `target_id`: target avatar UUID
-- `interaction`: stable action key, e.g. `handshake`, `high_five`, or `shoulder_pat`
+- `target`: target avatar UUID (verified server field)
+- `interaction`: `handshake`, `high_five`, or `shoulder_tap` (verified server values)
 
-The simulator response must be treated as authoritative. It should include a stable `request_id` on success and a machine-readable error code on failure. The Viewer must not invent a request ID or optimistically play an animation.
+The simulator response is an LLSD map containing `ok` and `status`; a successful invite also returns the simulator-issued `request_id`. The Viewer must not invent a request ID or optimistically play an animation.
 
 The existing accept/reject callback remains:
 
@@ -99,7 +99,7 @@ The Viewer repository paths have now been confirmed on `opensim-next/avatar-mode
 - `indra/newview/lltoolpie.cpp` — should be inspected for the precise clicked-avatar context and menu dispatch before wiring the action.
 - `indra/newview/llviewergenericmessage.cpp` — existing interaction invite/accepted/ended LLSD event receiver.
 
-The simulator repository is `danggiatri6-spec/opensim`, branch `opensim-next/avatar-modernization`. Its `OpenSim/Region/Framework/Scenes/Scene.cs` and `ScenePresence.cs` are present, but the expected Linden Caps path `OpenSim/Region/ClientStack/Linden/Caps/` was not found at that path. No authoritative `AvatarInteraction` server handler or request schema has yet been located in the accessible branch.
+The simulator repository is `danggiatri6-spec/opensim`, branch `opensim-next/avatar-modernization`. The authoritative handler is `OpenSim/Region/ClientStack/Linden/Caps/AvatarInteractionModule.cs`; the exact request and event schema is documented below.
 
 **Implementation gate:** do not add an outbound Viewer POST using guessed field names. First locate the server capability registration and handler in the active server branch. Then implement the Viewer action using that exact contract. This prevents a UI that appears to send invitations but can never be handled by the simulator.
 
@@ -113,9 +113,9 @@ The active OpenSim server development branch `opensim-next-dev` exposes the regi
 - `ICapabilitiesModule.GetCapsPath(agentId)`
 - `ICapabilitiesModule.CreateCaps(agentId, circuitCode)` / `ActivateCaps(circuitCode)`
 
-This confirms capability handling is per-agent/per-circuit and attached to the viewer's CAPS seed lifecycle. The concrete `ICapabilitiesModule` implementation and its handler-registration API have not yet been located in the repository snapshot, so the new handler must be integrated there rather than added as an unrelated HTTP listener.
+This confirms capability handling is per-agent/per-circuit and attached to the viewer's CAPS seed lifecycle. The concrete implementation is `OpenSim/Region/CoreModules/Framework/Caps/CapabilitiesModule.cs`; feature modules subscribe to `Scene.EventManager.OnRegisterCaps` and register per-agent handlers on the supplied `Caps` object.
 
-The branch check also confirms that the server's current public working branch is `opensim-next-dev`; the earlier guessed `OpenSim/Region/ClientStack/Linden/Caps/...` path is not present. Do not use that guessed path in implementation.
+The `AvatarInteraction` feature is present on `opensim-next/avatar-modernization`. It was not present on `opensim-next-dev`; keep the server and viewer integration branches aligned when building a test grid.
 
 **Viewer integration point confirmed:** `menu_avatar_other.xml` is the right-click context menu for another avatar; `lltoolpie.cpp` selects and displays it. A menu item can therefore use the exact clicked avatar UUID, but it must remain capability-gated and must not be wired to a guessed LLSD payload.
 
@@ -169,3 +169,16 @@ The server implementation is present on `opensim-next/avatar-modernization`; it 
 2. Wire the helper to the clicked Avatar UUID from the existing avatar context menu.
 3. Expand the policy UI from the current `everyone/off` toggle to all four server-supported values.
 4. Keep accepted/ended handling notification-only until the simulator gains a real paired session contract. Do not invent `session_id` or animation UUID fields.
+
+
+## Viewer invite UI implementation update (2026-11-24)
+
+The first outbound Viewer path has now been added on `opensim-next/avatar-interaction-actions`:
+
+- `indra/newview/llavataractions.h/.cpp`: `LLAvatarActions::requestInteractionInvite(target, interaction)` sends the verified LLSD fields to the `AvatarInteraction` capability and rejects self-targets, null targets, unsupported action keys, or unavailable capabilities.
+- `indra/newview/llviewermenu.cpp`: adds a context-menu listener using the selected Avatar and a capability-aware enable check.
+- `indra/newview/skins/default/xui/en/menu_avatar_other.xml`: adds an **Interact** submenu with Handshake, High-five, and Shoulder tap.
+
+This is an outbound invitation UI only. It does not yet handle the HTTP response in the UI, offer a local pending state, play animations, or create a paired session. Incoming invitation acceptance/rejection remains wired through the existing generic-message callback.
+
+**Verification status:** source edits are committed to the feature branch, but no C++ build, XUI load test, simulator runtime test, or end-to-end invitation test has been run. In particular, the menu listener and XML integration need compile/runtime verification before this is called complete.
