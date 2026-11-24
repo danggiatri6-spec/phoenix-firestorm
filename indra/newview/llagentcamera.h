@@ -120,6 +120,7 @@ public:
         SURPRISED
     };
     bool            requestSocialEmotion(ESocialEmotion emotion);
+    void            observeSocialChat(const LLUUID& speaker_id, const std::string& message);
     bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
     void            cancelSocialExpression();
     void            resetCamera();                  // Slam camera into its default position
@@ -136,6 +137,7 @@ private:
     F64             mSocialExpressionDeadline = 0.0;
     bool            mSocialExpressionPending = false;
     bool            mSocialExpressionOwned = false;
+    F64             mLastSocialEmotionReaction = 0.0;
 
     //--------------------------------------------------------------------
     // Preset
