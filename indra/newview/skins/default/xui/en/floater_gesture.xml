@@ -4,7 +4,7 @@
  save_rect="true"
  legacy_header_height="18"
  can_resize="true"
- height="485"
+ height="515"
  name="gestures"
  help_topic="gestures"
  title="Gestures"
@@ -25,6 +25,21 @@
     <!-- It's used to build new name for gesture created by "Copy" menu item -->
     <floater.string
      name="copy_name">Copy of [COPY_NAME]</floater.string>
+    <panel
+     follows="left|right|top"
+     height="27"
+     left="4"
+     name="quick_expression_panel"
+     top="20"
+     width="322">
+        <button label="Smile" name="expression_smile" left="0" top="2" width="48" height="22" />
+        <button label="Laugh" name="expression_laugh" left="46" top="2" width="48" height="22" />
+        <button label="Sad" name="expression_sad" left="92" top="2" width="42" height="22" />
+        <button label="Frown" name="expression_frown" left="132" top="2" width="48" height="22" />
+        <button label="Wow" name="expression_surprise" left="178" top="2" width="42" height="22" />
+        <button label="Wink" name="expression_wink" left="218" top="2" width="45" height="22" />
+        <button label="Clear" name="expression_clear" left="261" top="2" width="55" height="22" />
+    </panel>
     <scroll_list
      bottom_delta="418"
      draw_heading="true"
@@ -32,7 +47,7 @@
      layout="topleft"
      left="0"
      multi_select="true"
-     top="20"
+     top="52"
      name="gesture_list">
         <scroll_list.columns
          label=""
