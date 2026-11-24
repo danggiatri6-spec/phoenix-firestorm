@@ -244,3 +244,26 @@ Further inspection of `indra/newview/llhudeffectlookat.cpp` shows that the Viewe
 This means the next gaze feature should be a **target-selection/arbitration layer**, not a second eye-rotation implementation. Candidate target sources can be ranked and blended into the existing LookAtPoint input: explicit user focus, interaction partner, selected object, then ambient idle behavior. Keep the existing privacy setting effective, retain the current HUD effect path, and do not alter legacy look-at packet semantics.
 
 The existing eye motion already supplies random jitter, occasional look-away, return-to-target, vergence, and blinking. The gap is chiefly richer target selection, configurable naturalness, interaction-aware attention, and better rig fallbacks—not basic blink or eye rotation.
+
+
+## Avatar Attention System: existing arbitration and interaction integration (2026-11-24)
+
+A further source trace of `indra/newview/llhudeffectlookat.h/.cpp` and `indra/newview/llagentcamera.cpp` establishes the following implementation constraints:
+
+- `LLAgentCamera::setLookAt(...)` is the public Viewer entry point. It creates/reuses the self-avatar `LLHUDEffectLookAt` and delegates to `LLHUDEffectLookAt::setLookAt(...)`.
+- `LLHUDEffectLookAt::setLookAt(...)` already arbitrates requests by comparing the configured priority of the incoming `ELookAtType` with the current target type. Lower-priority requests are rejected. Each attention type also has a configured timeout.
+- Existing callers include idle camera/head behavior, camera focus, customize-avatar mode, and chat response/auto-listen. The same target is then resolved by `calcTargetPosition()` and published as `LookAtPoint` for the existing head and eye motions.
+- The legacy look-at effect has a 4-per-second send throttle and existing privacy behavior. Interaction attention must not bypass those controls or add a competing high-frequency network stream.
+- `LOOKAT_TARGET_CONVERSATION` exists in the legacy enum, but its default priority is 0 in the inspected built-in masculine/feminine tables. It is therefore not automatically a high-priority interaction focus; simply calling it would often lose to idle attention. Do not silently change legacy priorities or append new enum values to the network packet without a compatibility design.
+- The AvatarInteraction event handler in `llviewergenericmessage.cpp` currently turns invitation events into accept/reject notifications and accepted/ended events into generic alerts. It does not yet establish or clear a local interaction-partner attention target.
+
+### Safe next implementation sequence
+
+1. Add a Viewer-local interaction-attention controller with explicit start/stop lifecycle, keyed by the server-issued interaction/session identifier once the server contract provides one. Until session identity exists, do not infer a long-lived session from a one-off accepted notification.
+2. On accepted interaction, resolve the other Avatar UUID to a live `LLVOAvatar`, then request attention through `gAgentCamera.setLookAt(...)`; never write eye/head joint rotations directly.
+3. Use a dedicated, documented attention policy that respects existing focus/mouselook priorities, privacy controls, RLVa name/visibility constraints, and `DisableLookAtAnimation`. Avoid changing the legacy enum or packet layout. A narrowly scoped use of an existing attention type is acceptable only if its timeout and priority semantics are explicitly handled.
+4. On interaction end, rejection, cancellation, teleport, region departure, avatar disappearance, or timeout, release only the interaction-owned attention request. Do not clear a higher-priority user focus or another system's target.
+5. Keep partner attention local initially. Replicate only through the existing look-at effect if/when the privacy setting and simulator capability permit it; no new pose packet is required for this feature.
+6. Add deterministic tests for priority conflicts and cleanup ownership before any full Viewer build. No code was changed in this inspection pass.
+
+Current limitation: the interaction event contract does not yet include a stable paired-session identifier or role-specific animation metadata. The server lifecycle work must supply those before the Viewer can safely manage paired animation and attention over the full interaction duration.
