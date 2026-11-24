@@ -452,3 +452,21 @@ The simulator's sequence ID is an animation-generation signal, not a cryptograph
 ### Verification status
 
 Static source checks confirmed: all 19 standard expression IDs are whitelisted; non-expression IDs are rejected; pre-existing signals and object sources block acquisition; request confirmation captures sequence ID; timeout/mismatch/source conflict relinquish without STOP; expiry and explicit cancel re-check the lease; no direct Visual Parameter writes were introduced. No C++ build, simulator test, gesture/LSL race test, or in-world test has been run. This is an API primitive only; no automatic emotion-to-expression policy calls it yet.
+
+
+## Semantic social-emotion request API (2026-11-24)
+
+Added `LLAgentCamera::ESocialEmotion` and `requestSocialEmotion()` as a small semantic layer over the sequence-aware expression lease:
+
+| Intent | Existing SL expression | Default duration |
+|---|---|---:|
+| `GREETING` | `EXPRESS_SMILE` | 2.8 s |
+| `FRIENDLY` | `EXPRESS_TOOTHSMILE` | 2.5 s |
+| `AMUSED` | `EXPRESS_LAUGH` | 2.0 s |
+| `CONCERNED` | `EXPRESS_WORRY` | 3.2 s |
+| `SAD` | `EXPRESS_SAD` | 3.5 s |
+| `SURPRISED` | `EXPRESS_SURPRISE` | 1.8 s |
+
+The semantic method delegates to `requestSocialExpression()`, so the same pre-existing-animation guard, source check, server confirmation, sequence-aware release, and fail-closed behavior apply. It does not parse chat, infer emotion from text/voice, or automatically trigger expressions. That separation is intentional: first expose a stable intent API; later connect it to interaction events or a configurable conversation policy without treating every message as an emotion cue.
+
+Static verification only; no C++ build or live avatar test has been run.
