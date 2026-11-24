@@ -73,6 +73,9 @@ public:
      */
     static void startIM(const LLUUID& id);
 
+    /** Send an invitation through the optional AvatarInteraction capability. */
+    static void requestInteractionInvite(const LLUUID& target_id, const std::string& interaction);
+
     /**
      * End instant messaging session.
      */
