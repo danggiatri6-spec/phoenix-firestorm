@@ -91,6 +91,42 @@
         <menu_item_call.on_enable
          function="Avatar.CanInviteInteraction" />
       </menu_item_call>
+      <menu_item_call
+         label="Hug"
+         name="Interaction Hug">
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="hug" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
+      <menu_item_call
+         label="Kiss"
+         name="Interaction Kiss">
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="kiss" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
+      <menu_item_call
+         label="Hold Hands"
+         name="Interaction Hold Hands">
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="holding_hands" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
+      <menu_item_call
+         label="Affectionate Pose"
+         name="Interaction Affection">
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="affection" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
       <menu_item_separator />
       <menu_item_call
          label="End Interaction"
