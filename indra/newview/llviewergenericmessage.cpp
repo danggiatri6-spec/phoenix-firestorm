@@ -38,6 +38,7 @@
 #include "llviewerregion.h"
 
 #include "llagent.h"
+#include "llavataractions.h"
 #include "llgltfmateriallist.h"
 
 LLDispatcher gGenericDispatcher;
@@ -101,6 +102,16 @@ namespace
             }
             else if (body.has("status"))
             {
+                const std::string status = body["status"].asString();
+                if (body.has("session_id"))
+                {
+                    const LLUUID session_id = body["session_id"].asUUID();
+                    if (status == "accepted")
+                        LLAvatarActions::setActiveAvatarInteraction(session_id);
+                    else if (status == "ended" || status == "expired")
+                        LLAvatarActions::clearActiveAvatarInteraction(session_id);
+                }
+
                 LLSD substitutions;
                 substitutions["MESSAGE"] = avatar_interaction_status_message(body);
                 LLNotificationsUtil::add("GenericAlert", substitutions);
