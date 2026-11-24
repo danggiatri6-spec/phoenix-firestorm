@@ -281,3 +281,10 @@ The action reuses `FSAvatarAlignBase::faceAvatar()` rather than introducing anot
 The existing alignment helper locally snaps the remote avatar render root back to its server-reported transform after changing the local heading; this is a visual correction, not a remote transform command. The action is limited to the active interaction partner and cannot be used from this menu against unrelated avatars.
 
 **Verification status:** source checks confirm active-session/partner matching, 20 m range gating, existing alignment helper reuse, and menu registration. No C++ build or in-world two-viewer test has been run. The animation itself still requires runtime verification for hand contact and avatar orientation.
+
+
+## Invitation menu range gating (2026-11-24)
+
+The Viewer now disables the three invitation menu actions unless the selected avatar is within 3 m of the local avatar, in addition to the existing checks for a live non-self avatar, visible name under RLVa, and an available `AvatarInteraction` capability. This matches the server-side interaction range and avoids presenting an action that would predictably fail for a distant avatar. The server remains authoritative and rechecks presence, policy, and range when the invitation is submitted and accepted.
+
+**Verification status:** the menu predicate was updated and committed; source-level inspection only. No C++ build or simulator test has been performed.
