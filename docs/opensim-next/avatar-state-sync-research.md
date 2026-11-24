@@ -340,3 +340,18 @@ Updated `update_local_social_gaze()` in `indra/newview/llagentcamera.cpp`:
 - The selection scan remains throttled to approximately 3 Hz; head and eye motion remain driven by the existing animation system.
 
 This is deterministic anti-jitter logic, not yet randomized natural gaze. Deliberate look-away behavior, speech-aware turn-taking, and multi-person conversation attention remain future work. No new network messages are sent. Source-level checks only; no C++ build or in-world test has been performed.
+
+
+## Local social gaze look-away and return (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Added a local world-point target path to `LLHUDEffectLookAt` and `LLAgentCamera`:
+
+- `setInteractionLookAtPoint()` and `setInteractionTargetPoint()` allow the existing local interaction overlay to aim at a finite world-space point without changing the legacy look-at target type or sending a look-at packet.
+- When a social target remains stable, the local avatar now occasionally glances toward a nearby point slightly to the side and ahead, then returns to the current eligible avatar.
+- The glance interval is randomized between approximately 9 and 16 seconds; the glance lasts approximately 0.8–1.6 seconds.
+- Returning prefers the previous target if it remains eligible; otherwise it uses the current best candidate.
+- Explicit AvatarInteraction sessions, first-person camera mode, and the opt-out setting continue to suppress automatic social gaze.
+
+This provides a brief local glance-away, not a full conversational gaze model. The point is in agent/world space and uses the existing head/eye motion path. No new network traffic is introduced. Source-level review only; no C++ build or in-world test has been performed. Verify the point coordinate conversion and visual motion with standard and custom avatar rigs before treating the behavior as production-ready.
