@@ -1655,10 +1655,17 @@ void LLAgentCamera::updateSocialSpeechGesture()
     {
         mSocialTalkSequence = 0;
         mSocialTalkRequestTime = 0.0;
+        mSocialTalkLastActiveTime = 0.0;
         mSocialTalkPending = false;
         mSocialTalkOwned = false;
         return;
     }
+
+    if (speaking)
+        mSocialTalkLastActiveTime = now;
+    // Briefly hold the gesture across voice-activity packet gaps to avoid flicker.
+    const bool speech_active = speaking || (mSocialTalkOwned &&
+        now - mSocialTalkLastActiveTime < 0.65);
 
     LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
     if (speaking && !mSocialTalkPending && !mSocialTalkOwned &&
@@ -1668,6 +1675,7 @@ void LLAgentCamera::updateSocialSpeechGesture()
         // Acquire the standard SL TALK animation only during actual local voice activity.
         gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_START);
         mSocialTalkRequestTime = now;
+        mSocialTalkLastActiveTime = now;
         mSocialTalkPending = true;
     }
 
@@ -1699,10 +1707,11 @@ void LLAgentCamera::updateSocialSpeechGesture()
             return;
         }
 
-        if (!speaking)
+        if (!speech_active)
         {
             gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_STOP);
             mSocialTalkSequence = 0;
+            mSocialTalkLastActiveTime = 0.0;
             mSocialTalkOwned = false;
         }
     }
