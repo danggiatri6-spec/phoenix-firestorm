@@ -535,3 +535,10 @@ Inspected `LLMotionController`, `LLMotion`, and `LLKeyframeMotion`. The Viewer e
 This means a single animation-level priority check is not sufficient to decide whether a social arm/torso gesture is safe: two motions can affect different joints, while two apparently compatible motions can compete on the same joint at different priorities. The active-motion list alone does not identify whether a motion is user/AO/attachment-owned in a way that permits safely stopping it. Gesture Manager also owns user inventory gestures and their multi-step execution; social automation must not take over that pathway.
 
 Decision: do not stack `point_you`, `shrug`, or other full-body gestures over `TALK` based only on animation names. Before adding automatic upper-body gestures, implement a non-invasive arbitration layer that observes loaded motion joint coverage/priorities and relinquishes on conflicts, without stopping or rewriting AO, LSL, inventory gestures, or user-started animations. Preserve standard SL animation IDs and existing gesture semantics.
+
+
+### Conservative upper-body motion conflict gate (2026-11-25)
+
+The local voice-driven TALK controller now inspects the local avatar's active motion poses before acquiring TALK. It scans active motions' joint states and treats medium-or-higher-priority motion affecting shoulder, collar, elbow, wrist, hand, chest, torso, or spine joints as a conflict. Joint-state priority is used when specified; otherwise the motion's base priority is used. Existing TALK itself is excluded.
+
+When a conflict is present, the social layer simply does not acquire TALK; it does not stop, reprioritize, rewrite, or fade any existing motion. This is deliberately conservative and read-only. It protects many AO, LSL, and user gesture overlaps, but does not yet prove source ownership for every local motion or provide per-joint blending guarantees. The check may suppress social TALK during legitimate upper-body idle motions; this requires live testing and tuning. No C++ build or runtime test has been run.
