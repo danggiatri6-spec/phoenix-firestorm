@@ -270,6 +270,8 @@ private:
 public:
     void            updateLookAt(const S32 mouse_x, const S32 mouse_y);
     bool            setLookAt(ELookAtType target_type, LLViewerObject *object = NULL, LLVector3 position = LLVector3::zero);
+    void            setInteractionLookAt(LLViewerObject* avatar);
+    void            clearInteractionLookAt();
     ELookAtType     getLookAtType();
     void            lookAtLastChat();
     void            slamLookAt(const LLVector3 &look_at); // Set the physics data
