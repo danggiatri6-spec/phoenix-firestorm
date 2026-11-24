@@ -110,6 +110,16 @@ public:
     ECameraMode     getCameraMode() const           { return mCameraMode; }
     ECameraMode     getLastCameraMode() const       { return mLastCameraMode; }
     void            updateCamera();                 // Call once per frame to update camera location/orientation
+    enum class ESocialEmotion
+    {
+        GREETING,
+        FRIENDLY,
+        AMUSED,
+        CONCERNED,
+        SAD,
+        SURPRISED
+    };
+    bool            requestSocialEmotion(ESocialEmotion emotion);
     bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
     void            cancelSocialExpression();
     void            resetCamera();                  // Slam camera into its default position
