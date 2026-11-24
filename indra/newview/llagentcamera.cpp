@@ -31,6 +31,7 @@
 
 #include "aoengine.h"           // ## Zi: Animation Overrider
 #include "llagent.h"
+#include "llavataractions.h"
 #include "llanimationstates.h"
 #include "llfloatercamera.h"
 #include "llfloaterreg.h"
@@ -1311,6 +1312,25 @@ void LLAgentCamera::updateCamera()
     if (gCubeSnapshot)
     {
         return;
+    }
+
+    // Resolve the interaction partner every camera frame. The accepted event can
+    // arrive before the remote avatar has been added to the local object list.
+    // Retrying here avoids a timer and naturally handles late object creation.
+    const LLUUID& interaction_partner = LLAvatarActions::getActiveAvatarInteractionPartner();
+    if (interaction_partner.notNull())
+    {
+        LLViewerObject* partner_object = gObjectList.findObject(interaction_partner);
+        if (partner_object && partner_object->isAvatar() && !partner_object->isDead())
+        {
+            setInteractionLookAt(partner_object);
+        }
+        else
+        {
+            // Drop only the local interaction overlay; retain the server session
+            // so the next frame can reacquire the avatar if it appears later.
+            clearInteractionLookAt();
+        }
     }
 
     // - changed camera_skyward to the new global "mCameraUpVector"
