@@ -92,6 +92,28 @@ namespace
             separation > MAX_PAIRED_MOTION_DISTANCE)
             return false;
 
+        // Firestorm's avatar alignment code uses the rotated local X axis as
+        // the avatar's forward direction. Require both participants to face
+        // one another before playing a contact animation.
+        LLVector3 requester_to_target = target_avatar->getPositionAgent() -
+            requester_avatar->getPositionAgent();
+        requester_to_target.mV[VZ] = 0.f;
+        if (requester_to_target.normalize() < 0.001f)
+            return false;
+
+        LLVector3 requester_forward = LLVector3::x_axis * requester_avatar->getRotation();
+        LLVector3 target_forward = LLVector3::x_axis * target_avatar->getRotation();
+        requester_forward.mV[VZ] = 0.f;
+        target_forward.mV[VZ] = 0.f;
+        if (requester_forward.normalize() < 0.001f ||
+            target_forward.normalize() < 0.001f)
+            return false;
+
+        constexpr F32 MIN_FACING_DOT = 0.5f; // within 60 degrees of face-to-face
+        if ((requester_forward * requester_to_target) < MIN_FACING_DOT ||
+            (target_forward * -requester_to_target) < MIN_FACING_DOT)
+            return false;
+
         const bool requester_started = requester_avatar->startMotion(motions.requester_motion);
         const bool target_started = target_avatar->startMotion(motions.target_motion);
         if (requester_started && target_started)
