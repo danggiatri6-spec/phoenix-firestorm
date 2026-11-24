@@ -232,3 +232,19 @@ The `opensim-next/avatar-interaction-actions` Viewer branch now exposes the exis
 - The Viewer does not clear local session/gaze state on click. It continues to wait for the server's `AvatarInteractionEnded` event, so UI state remains server-authoritative.
 
 No new protocol fields or animation behavior were introduced. Source changes are committed below; no C++ build, XUI runtime load, or simulator test has been run.
+
+
+## Viewer animation API and paired-asset audit (2026-11-24)
+
+The Viewer already exposes the correct local animation entry points through `LLVOAvatar` / `LLCharacter`:
+
+- `LLVOAvatar::startMotion(const LLUUID&, F32 time_offset = 0.f)` starts a registered/fetchable motion on that avatar instance.
+- `LLVOAvatar::stopMotion(const LLUUID&, bool stop_immediate = false)` requests its ease-out/stop path.
+- The underlying `LLCharacter::getMotionController()` exposes the motion controller, but interaction code should use the avatar's public start/stop methods rather than manipulating controller internals.
+- Each Viewer has local avatar objects for both participants. A future paired controller can therefore apply the requester-role motion to one avatar and the target-role motion to the other in each Viewer, keyed by the same server `session_id`; this is local rendering, not a new simulator animation broadcast.
+
+The standard animation registry in `indra/llcharacter/llanimationstates.cpp` was inspected. It contains general gestures and poses such as `hello`, `bow`, `clap`, `salute`, `blowkiss`, and `express_kiss`, but no standard paired `handshake`, `high_five`, or `shoulder_tap` animation constants or role-specific pairs. These general gestures are not valid substitutes for synchronized two-person contact animations.
+
+**Implementation decision:** do not invent animation UUIDs or start arbitrary standard gestures as if they were paired interactions. The next animation milestone needs a verified two-role asset pair per interaction (asset UUIDs, duration, loop/ease behavior, role assignment, and optional root/hand alignment metadata). The controller should start both roles only after both assets are available, track the exact motions it owns per session, and stop only those motions when the matching server end event arrives. If an asset is unavailable, the session and gaze interaction must still work without falsely claiming an animation played.
+
+**Verification:** inspected the Viewer headers/implementation and standard animation registry on this branch. This was source inspection only; no files outside this document were changed in this audit, and no build or runtime test was performed.
