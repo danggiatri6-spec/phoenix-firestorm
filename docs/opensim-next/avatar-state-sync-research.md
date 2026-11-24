@@ -302,3 +302,25 @@ This is intentionally a local presentation layer only; it does not replicate the
 ## Late avatar-object resolution retry (2026-11-24)
 
 The interaction partner is now resolved from the active session UUID during the regular Viewer camera update. This covers the ordering race where `AvatarInteractionAccepted` is received before the remote avatar object is present in `gObjectList`: the Viewer retries on subsequent camera frames and acquires the existing local-only gaze overlay as soon as a live avatar object appears. If the object is temporarily absent or not yet an avatar, only the local overlay is released; the server-issued session and partner UUID remain intact for retry. The implementation adds no timer, network packet, or server request. It has not been compiled or runtime-tested.
+
+
+## Local proximity-based social gaze prototype (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Implemented in `indra/newview/llagentcamera.cpp` and registered in `indra/newview/app_settings/settings.xml`:
+
+- Adds the opt-out setting `FSAvatarSocialGaze` (default enabled).
+- When there is no explicit AvatarInteraction session and the camera is in third-person mode, scans the current region's Viewer object list at approximately 3 Hz.
+- Candidate avatars must be alive, visible, unmuted, not visually muted, have a loaded head joint, and be within 1–7 metres.
+- Uses the local avatar's horizontal forward direction to limit candidates to the forward field of view.
+- Nearby typing avatars receive a small selection preference; distance remains the main score.
+- Reuses the existing local look-at overlay and existing head/eye motion path. It does not alter legacy look-at target types, send additional packets, or override higher-priority Focus/Mouselook attention.
+- Explicit AvatarInteraction partners take precedence over automatic social gaze.
+- Automatic target selection is local presentation only; it does not tell other viewers where this avatar is looking.
+
+### Limitations and verification
+
+- This is a first-pass deterministic target selector, not yet a conversational turn-taking model. It does not yet use voice activity, chat speaker history, gaze dwell, random look-away intervals, or multi-person group attention.
+- It does not implement new blink timing or new head/eye animation; existing `LLEyeMotion` and `LLHeadRotMotion` remain responsible for motion.
+- The feature is source-implemented but has not been compiled or tested in-world. Performance, forward-axis assumptions, target stability, and behavior with custom rigs require Viewer runtime testing.
