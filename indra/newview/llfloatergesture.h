@@ -30,6 +30,7 @@
 
 #ifndef LL_LLFLOATERGESTURE_H
 #define LL_LLFLOATERGESTURE_H
+#include <string>
 #include <vector>
 
 #include "llfloater.h"
@@ -114,7 +115,7 @@ private:
 
     LLUUID mSelectedID;
     LLUUID mQuickExpression; // Expression started by the quick expression row
-    bool mAllowAvatarInteractions = false;
+    std::string mInteractionPolicy = "off";
     LLUUID mGestureFolderID;
     LLScrollListCtrl* mGestureList;
 
