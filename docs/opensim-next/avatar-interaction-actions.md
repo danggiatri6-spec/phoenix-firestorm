@@ -220,3 +220,15 @@ The Viewer feature branch now records the accepted `session_id`, clears only the
 **Important remaining limitations:** expiry pruning is lazy and occurs on a later session operation; if no subsequent request reaches the region, the timeout event is delayed. The Viewer helper is not yet exposed as a visible End Interaction control. No paired animation or interaction-owned gaze target is started yet. There is no role-specific animation metadata in the server event.
 
 **Verification status:** source-level checks confirm the new server session fields, participant authorization, explicit end event delivery, region cleanup, Viewer session capture/clear, and the end request payload. Neither C# nor C++ has been compiled, and no simulator or two-viewer runtime test has been performed.
+
+
+## Viewer End Interaction context action (2026-11-24)
+
+The `opensim-next/avatar-interaction-actions` Viewer branch now exposes the existing server `action=end` request in the right-click menu for the active interaction partner:
+
+- `LLAvatarActions::getActiveAvatarInteractionSession()` exposes the locally recorded server-issued session UUID.
+- `LLAvatarEndInteraction` posts the end request only when the selected avatar matches the recorded partner and the session UUID is non-null.
+- `Avatar.CanEndInteraction` enables the menu item only for that same partner; unrelated avatars do not get an active End Interaction command.
+- The Viewer does not clear local session/gaze state on click. It continues to wait for the server's `AvatarInteractionEnded` event, so UI state remains server-authoritative.
+
+No new protocol fields or animation behavior were introduced. Source changes are committed below; no C++ build, XUI runtime load, or simulator test has been run.
