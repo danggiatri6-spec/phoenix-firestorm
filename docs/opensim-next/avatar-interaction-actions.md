@@ -353,3 +353,18 @@ The existing capability invitation flow, server-side policy checks, request expi
 **Important implementation boundary:** this increment adds protocol and UI support only. It does not claim these actions already have paired animation assets. The official OpenSim animation asset index currently exposes a solo `blowkiss` animation, not a synchronized two-avatar kiss; no verified paired hug, kiss, hand-holding, or affection-pose animation pair has been selected. The existing Viewer paired-motion handler only starts animations when the server supplies explicit role-specific animation UUIDs, so these new interaction sessions currently remain animation-neutral rather than playing an incorrect solo animation on both avatars.
 
 Next implementation work is to source or create licensed role-specific animation pairs, then add per-action alignment metadata (relative position, facing, height offsets, and allowed seated/standing states) to the server event contract. No C# or C++ build, simulator test, or two-viewer runtime test has been run for this increment.
+
+
+## Voice lip-sync stale-pose cleanup (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Reviewed the existing voice pipeline before adding a parallel facial system. Firestorm already has an amplitude-driven Ooh/Aah lip-sync path through `LLVoiceVisualizer::lipSyncOohAah()` and `LLVOAvatar::idleUpdateLipSync()`, with fallback morphs for rigs that lack the dedicated lip-sync morphs.
+
+Fixed a stale-mouth-pose edge case in `LLVOAvatar::idleUpdateLipSync()`:
+
+- If voice becomes unavailable/disabled, or the LipSyncEnabled preference is switched off while the avatar is speaking, an already active lip-sync pose is reset to each morph's minimum weight.
+- Visual parameters are updated and the avatar mesh dirtied after cleanup.
+- Existing voice amplitude sampling, Ooh/Aah curves, fallback morphs, and legacy gesture/animation behavior are unchanged.
+
+This is a correctness fix to the existing amplitude-based two-morph lip-sync path, not phoneme/viseme recognition. It does not infer speech content and does not add new network traffic. Static source review only; no C++ build or live voice test has been performed.
