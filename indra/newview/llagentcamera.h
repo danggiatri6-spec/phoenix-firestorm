@@ -122,6 +122,8 @@ public:
         SURPRISED
     };
     bool            requestSocialEmotion(ESocialEmotion emotion);
+    bool            requestSocialGreetingGesture();
+    void            cancelSocialGreetingGesture();
     void            observeSocialChat(const LLUUID& speaker_id, const std::string& message);
     bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
     void            cancelSocialExpression();
@@ -140,6 +142,13 @@ private:
     bool            mSocialExpressionPending = false;
     bool            mSocialExpressionOwned = false;
     F64             mLastSocialEmotionReaction = 0.0;
+
+    // Short sequence-aware lease for the Viewer-generated greeting wave.
+    S32             mSocialGestureSequence = 0;
+    F64             mSocialGestureRequestTime = 0.0;
+    F64             mSocialGestureDeadline = 0.0;
+    bool            mSocialGesturePending = false;
+    bool            mSocialGestureOwned = false;
 
     //--------------------------------------------------------------------
     // Preset
