@@ -66,6 +66,7 @@
 #include "lltrans.h"
 #include "llviewercontrol.h"
 #include "llviewerobjectlist.h"
+#include "llvoavatar.h"
 #include "llviewermessage.h"    // for handle_lure
 #include "llviewernetwork.h" //LLGridManager
 #include "llviewerparcelmgr.h"
@@ -107,6 +108,7 @@ namespace
 {
     LLUUID sActiveAvatarInteractionSession;
     LLUUID sActiveAvatarInteractionPartner;
+    LLUUID sAvatarInteractionApproachSession;
 }
 
 // Flags for kick message
@@ -349,8 +351,71 @@ void LLAvatarActions::setActiveAvatarInteraction(const LLUUID& session_id, const
     if (session_id.isNull() || partner_id.isNull() || partner_id == gAgent.getID())
         return;
 
+    if (sActiveAvatarInteractionSession.notNull() && sActiveAvatarInteractionSession != session_id)
+        cancelAvatarInteractionApproach();
+
     sActiveAvatarInteractionSession = session_id;
     sActiveAvatarInteractionPartner = partner_id;
+}
+
+bool LLAvatarActions::approachActiveAvatarInteractionPartner()
+{
+    const LLUUID session_id = sActiveAvatarInteractionSession;
+    const LLUUID partner_id = sActiveAvatarInteractionPartner;
+    if (session_id.isNull() || partner_id.isNull() || !isAgentAvatarValid() ||
+        gAgent.getAutoPilot() || gAgent.getFlying())
+        return false;
+
+    LLViewerObject* object = gObjectList.findObject(partner_id);
+    LLVOAvatar* partner = object && object->isAvatar() ? (LLVOAvatar*)object : nullptr;
+    if (!partner || partner->isDead())
+        return false;
+
+    // This is a local convenience movement only. Never change the remote avatar.
+    LLVector3 direction = partner->getPositionAgent() - gAgent.getPositionAgent();
+    direction.mV[VZ] = 0.f;
+    const F32 distance = direction.normalize();
+    if (distance < 1.6f || distance > 20.f)
+        return false;
+
+    constexpr F32 STANDOFF_DISTANCE = 1.25f;
+    LLVector3 target_agent = partner->getPositionAgent() - direction * STANDOFF_DISTANCE;
+    target_agent.mV[VZ] = gAgent.getPositionAgent().mV[VZ];
+
+    // Face the partner when the local autopilot reaches the stand-off point.
+    LLVector3 at = partner->getPositionAgent() - target_agent;
+    at.mV[VZ] = 0.f;
+    if (at.normalize() < 0.001f)
+        return false;
+    LLVector3 up(0.f, 0.f, 1.f);
+    LLVector3 left = up % at;
+    if (left.normalize() < 0.001f)
+        return false;
+    at = left % up;
+    LLQuaternion target_rotation(at, left, up);
+
+    gAgent.startAutoPilotGlobal(gAgent.getPosGlobalFromAgent(target_agent),
+        "AvatarInteractionApproach", &target_rotation, nullptr, nullptr,
+        0.35f, 0.03f, false);
+    if (!gAgent.getAutoPilot())
+        return false;
+
+    sAvatarInteractionApproachSession = session_id;
+    return true;
+}
+
+void LLAvatarActions::cancelAvatarInteractionApproach()
+{
+    if (sAvatarInteractionApproachSession.isNull())
+        return;
+
+    // Only stop the autopilot instance owned by this feature. If the user has
+    // replaced it with another movement action, leave that action untouched.
+    if (gAgent.getAutoPilot() &&
+        gAgent.getAutoPilotBehaviorName() == "AvatarInteractionApproach")
+        gAgent.stopAutoPilot(false);
+
+    sAvatarInteractionApproachSession.setNull();
 }
 
 const LLUUID& LLAvatarActions::getActiveAvatarInteractionPartner()
@@ -367,6 +432,7 @@ void LLAvatarActions::clearActiveAvatarInteraction(const LLUUID& session_id)
 {
     if (session_id.isNull() || sActiveAvatarInteractionSession == session_id)
     {
+        cancelAvatarInteractionApproach();
         sActiveAvatarInteractionSession.setNull();
         sActiveAvatarInteractionPartner.setNull();
     }
@@ -377,6 +443,7 @@ void LLAvatarActions::endAvatarInteraction(const LLUUID& session_id)
     if (session_id.isNull() || session_id != sActiveAvatarInteractionSession)
         return;
 
+    cancelAvatarInteractionApproach();
     LLViewerRegion* region = gAgent.getRegion();
     if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
         return;
