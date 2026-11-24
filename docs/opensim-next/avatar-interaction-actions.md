@@ -400,3 +400,31 @@ Source inspection covered `llemote.cpp/.h`, `llgesturemgr.cpp/.h`, `llanimations
 ### Animation ownership finding
 
 The local Avatar path exposes source-aware cleanup for attachment/object animation sources (`LLVOAvatarSelf::hasMotionFromSource()` and `stopMotionFromSource()`), while standard face-expression motions are registered and activated by the avatar's signaled animation state. Gesture stop sends an animation STOP for the gesture's animation UUID; it does not provide a distinct ownership token for a particular expression instance. Consequently, an emotion layer must not issue a STOP for a standard expression UUID merely because its own timer expired: the same UUID may have been activated by a user gesture, LSL, or another source. The next implementation should first introduce a source/lease-aware arbitration boundary, or limit itself to observing and recommending expression intents without taking over existing animation state.
+
+
+## Expression lease ownership design (2026-11-24)
+
+A further inspection of `process_avatar_animation()` in `llviewermessage.cpp` found a practical ownership signal for a future local emotion-expression controller:
+
+- The simulator sends the complete current animation list for an avatar; the Viewer clears and rebuilds `mSignaledAnimations` for each update.
+- Each animation entry includes an `AnimSequenceID`, stored as the value in `LLVOAvatar::mSignaledAnimations[animation_id]`.
+- For the local avatar, the same update may include `AnimationSourceList` entries. The Viewer records attachment/object-originated animations in `mAnimationSources`.
+- Gesture playback uses normal animation start/stop requests; it does not carry a unique gesture ownership token into the face-expression motion.
+
+### Proposed lease protocol
+
+1. The emotion controller may request a standard expression only when that expression is not already signaled and is not currently attributed to an attachment/object animation source.
+2. It marks the expression request as pending, then waits for the next authoritative animation-state update rather than assuming the request succeeded.
+3. Once the expression appears, it records the server-provided sequence ID as its lease generation.
+4. Before expiring the expression, it checks that the same expression is still signaled with the same sequence ID and has no external animation source. If any condition differs, it relinquishes control without sending STOP.
+5. If a competing gesture/LSL source reasserts the same expression and the sequence ID changes, the emotion controller must not stop it.
+6. If the expression was already active before the controller requested it, the controller never claims ownership and never stops it.
+7. Session end, logout, region change, and controller disable clear pending leases; cleanup sends STOP only for a still-valid lease.
+
+This is safer than a timer-only approach because the sequence ID is supplied by the simulator's authoritative animation state. It is still not a perfect per-origin token: two same-ID requests can race before the next state update, and the protocol does not expose a unique owner for every agent-originated gesture. The controller must fail closed (drop ownership) whenever it cannot prove its lease is still current.
+
+### Implementation boundary
+
+The next code increment should implement the lease state machine and hook it into the existing animation-state update path. It should not alter `LLEmote`, standard expression UUIDs, Gesture Manager behavior, LSL semantics, or face Visual Parameters directly. Expression choices should map only to existing standard `ANIM_AGENT_EXPRESS_*` IDs. This remains a local Viewer enhancement using normal animation requests, not a new simulator protocol.
+
+**Verification status:** source inspection only; no controller code, C++ build, gesture/LSL race test, or in-world runtime test has been added in this checkpoint.
