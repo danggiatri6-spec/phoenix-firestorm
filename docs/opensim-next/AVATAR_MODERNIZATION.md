@@ -101,3 +101,10 @@ This is source-level work only. It has not yet been compiled or runtime-tested.
 The Gestures floater now includes a desktop toggle that posts `set_policy` (`everyone` / `off`) to the optional `AvatarInteraction` capability when the current region advertises it. Regions without the capability are ignored safely. This is an initial control only: the toggle is local to the open floater session, and the Viewer does not yet expose Friends or Ask settings or a paired-interaction request UI.
 
 Quick-expression controls and the interaction-policy toggle are source changes only; compile and runtime validation remain outstanding.
+
+
+## Viewer invitation event increment
+
+The Viewer now registers LLSD message-dispatch routes for `AvatarInteractionInvite`, `AvatarInteractionAccepted`, and `AvatarInteractionEnded`. The message names are declared in `app_settings/message.xml` so the existing EventQueueGet dispatch path accepts them. An incoming invitation displays a confirmation notification with Accept and Decline actions; the selected response is posted back to the current region's `AvatarInteraction` capability using the invitation request ID. Accepted/ended events currently produce a simple status notification.
+
+This wires the first end-to-end invitation decision path at source level. It does not yet start paired animations, expose a target-selection UI, or handle automatic cancellation on teleport/disconnect. The Viewer and server changes remain uncompiled and untested at runtime.
