@@ -332,7 +332,8 @@ void LLAvatarActions::requestInteractionInvite(const LLUUID& target_id, const st
     if (target_id.isNull() || target_id == gAgent.getID())
         return;
 
-    if (interaction != "handshake" && interaction != "high_five" && interaction != "shoulder_tap")
+    if (interaction != "handshake" && interaction != "high_five" && interaction != "shoulder_tap" &&
+        interaction != "hug" && interaction != "kiss" && interaction != "holding_hands" && interaction != "affection")
         return;
 
     LLViewerRegion* region = gAgent.getRegion();
