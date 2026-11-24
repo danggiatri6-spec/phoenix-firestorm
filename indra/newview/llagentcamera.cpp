@@ -1545,6 +1545,101 @@ static void update_local_social_gaze()
 // updateCamera()
 //-----------------------------------------------------------------------------
 
+bool LLAgentCamera::requestSocialGreetingGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->isSelf() ||
+        mSocialGesturePending || mSocialGestureOwned)
+        return false;
+
+    // HELLO is an established Second Life animation state (the standard wave).
+    // Do not interrupt an existing gesture, AO, LSL animation, or attachment source.
+    if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO) !=
+            gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+        return false;
+
+    mSocialGestureSequence = 0;
+    mSocialGestureRequestTime = LLTimer::getTotalSeconds();
+    mSocialGestureDeadline = mSocialGestureRequestTime + 2.8;
+    mSocialGesturePending = true;
+    gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialGreetingGesture()
+{
+    if (mSocialGestureOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current =
+            gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialGestureSequence &&
+            !has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialGestureSequence = 0;
+    mSocialGestureRequestTime = 0.0;
+    mSocialGestureDeadline = 0.0;
+    mSocialGesturePending = false;
+    mSocialGestureOwned = false;
+}
+
+static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    if (!avatar || !avatar->isSelf())
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    const F64 now = LLTimer::getTotalSeconds();
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_HELLO);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            sequence = 0;
+            pending = owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_expression_source(avatar, ANIM_AGENT_HELLO))
+    {
+        // A competing gesture or animation source took over; never stop it.
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
 bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
 {
     static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
@@ -1779,6 +1874,8 @@ void LLAgentCamera::updateCamera()
     update_social_expression_lease(gAgentAvatarp, mSocialExpressionAnimation,
         mSocialExpressionSequence, mSocialExpressionRequestTime, mSocialExpressionDeadline,
         mSocialExpressionPending, mSocialExpressionOwned);
+    update_social_greeting_gesture_lease(gAgentAvatarp, mSocialGestureSequence,
+        mSocialGestureRequestTime, mSocialGestureDeadline, mSocialGesturePending, mSocialGestureOwned);
     if (gCubeSnapshot)
     {
         return;
