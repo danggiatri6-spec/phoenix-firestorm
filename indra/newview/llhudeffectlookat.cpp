@@ -669,11 +669,22 @@ void LLHUDEffectLookAt::setInteractionTarget(LLViewerObject* target)
     if (!target || !target->isAvatar() || target->isDead() || target->getID() == gAgent.getID())
         return;
     mInteractionTarget = target;
+    mInteractionTargetIsPoint = false;
+}
+
+void LLHUDEffectLookAt::setInteractionTargetPoint(const LLVector3d& global_position)
+{
+    if (!global_position.isFinite())
+        return;
+    mInteractionTarget = NULL;
+    mInteractionTargetPointGlobal = global_position;
+    mInteractionTargetIsPoint = true;
 }
 
 void LLHUDEffectLookAt::clearInteractionTarget()
 {
     mInteractionTarget = NULL;
+    mInteractionTargetIsPoint = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -912,12 +923,18 @@ void LLHUDEffectLookAt::update()
  */
 bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
 {
-    LLViewerObject *target_obj = use_interaction_target && mInteractionTarget.notNull()
+    LLViewerObject *target_obj = use_interaction_target && !mInteractionTargetIsPoint && mInteractionTarget.notNull()
         ? (LLViewerObject*)mInteractionTarget
         : (LLViewerObject*)mTargetObject;
     LLVector3 local_offset;
 
-    if (use_interaction_target)
+    if (use_interaction_target && mInteractionTargetIsPoint)
+    {
+        mTargetPos = gAgent.getPosAgentFromGlobal(mInteractionTargetPointGlobal);
+        target_obj = nullptr;
+        local_offset.clearVec();
+    }
+    else if (use_interaction_target)
     {
         // Interaction attention aims at the partner's head, independent of
         // offsets left behind by the previous legacy look-at target.
@@ -990,7 +1007,7 @@ bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
 
         mTargetPos += (local_offset * target_rot);
     }
-    else // no target obj or it's not drawable
+    else if (!(use_interaction_target && mInteractionTargetIsPoint)) // no target obj or it's not drawable
     {
         mTargetPos = local_offset;
     }
