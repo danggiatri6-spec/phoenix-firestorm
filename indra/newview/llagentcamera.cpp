@@ -1551,6 +1551,21 @@ bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
     if (!enabled)
         return false;
 
+    // Coordinate the facial reaction with the existing local gaze system.
+    // This only refreshes the interaction attention target; LLHUDEffectLookAt
+    // continues to arbitrate against camera, Mouselook, AO and legacy attention.
+    const LLUUID& partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    if (partner_id.notNull())
+    {
+        LLViewerObject* partner = gObjectList.findObject(partner_id);
+        if (partner && partner->isAvatar() && !partner->isDead() &&
+            partner->getRegion() == gAgent.getRegion() &&
+            dist_vec(partner->getPositionAgent(), gAgent.getPositionAgent()) <= 12.f)
+        {
+            setInteractionLookAt(partner);
+        }
+    }
+
     // Map high-level social intent to established SL facial expression assets.
     // This is deliberately conservative: no emotion is inferred from chat yet.
     switch (emotion)
