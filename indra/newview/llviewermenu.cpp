@@ -9844,6 +9844,32 @@ class LLAvatarCall : public view_listener_t
     }
 };
 
+
+class LLAvatarInteractionInvite : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID()))
+        {
+            LLAvatarActions::requestInteractionInvite(avatar->getID(), userdata.asString());
+        }
+        return true;
+    }
+};
+
+bool can_invite_avatar_interaction()
+{
+    LLViewerRegion* region = gAgent.getRegion();
+    if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    return avatar && !avatar->isSelf() && !avatar->isDead() &&
+        RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID());
+}
+
 // [RLVa:KB] - Checked: RLVa-1.2.1
 bool enable_avatar_call()
 {
@@ -13300,6 +13326,8 @@ void initialize_menus()
     commit.add("Avatar.ShowInspector", boost::bind(&handle_avatar_show_inspector));
     view_listener_t::addMenu(new LLAvatarSendIM(), "Avatar.SendIM");
     view_listener_t::addMenu(new LLAvatarCall(), "Avatar.Call");
+    view_listener_t::addMenu(new LLAvatarInteractionInvite(), "Avatar.InteractionInvite");
+    enable.add("Avatar.CanInviteInteraction", boost::bind(&can_invite_avatar_interaction));
 //  enable.add("Avatar.EnableCall", boost::bind(&LLAvatarActions::canCall));
 // [RLVa:KB] - Checked: 2010-08-25 (RLVa-1.2.1b) | Added: RLVa-1.2.1b
     enable.add("Avatar.EnableCall", boost::bind(&enable_avatar_call));
