@@ -526,3 +526,12 @@ This is an initial voice-activity gesture, not a full gesture vocabulary or pros
 ### Speaking gesture continuity refinement (2026-11-25)
 
 The local TALK controller now keeps the animation alive for a short 0.65-second grace period after voice activity drops. This is intended to absorb brief voice-activity detection/network gaps between syllables and prevent repeated start/stop flicker. The grace period applies only to a TALK lease acquired by this controller; it does not extend an AO/manual animation. The lease is reset when the local avatar is unavailable or the controller releases its animation.
+
+
+### Body-gesture arbitration research (2026-11-25)
+
+Inspected `LLMotionController`, `LLMotion`, and `LLKeyframeMotion`. The Viewer exposes the active-motion list, and motions expose a base priority; keyframe assets additionally carry per-joint priorities and ease-in/ease-out durations. The pose blender resolves joint-level priority while applying motion output.
+
+This means a single animation-level priority check is not sufficient to decide whether a social arm/torso gesture is safe: two motions can affect different joints, while two apparently compatible motions can compete on the same joint at different priorities. The active-motion list alone does not identify whether a motion is user/AO/attachment-owned in a way that permits safely stopping it. Gesture Manager also owns user inventory gestures and their multi-step execution; social automation must not take over that pathway.
+
+Decision: do not stack `point_you`, `shrug`, or other full-body gestures over `TALK` based only on animation names. Before adding automatic upper-body gestures, implement a non-invasive arbitration layer that observes loaded motion joint coverage/priorities and relinquishes on conflicts, without stopping or rewriting AO, LSL, inventory gestures, or user-started animations. Preserve standard SL animation IDs and existing gesture semantics.
