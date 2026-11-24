@@ -270,3 +270,14 @@ This UUID is not guessed: it is the bundled OpenSim `Handshake` asset in `bin/as
 No animation fields are emitted for `high_five` or `shoulder_tap`; those actions continue to use the consent/session/gaze flow without a fabricated animation. The separate `give_and_handshake` asset is not used as a counterpart because its inventory description describes a different one-avatar hand sequence, not a verified partner role.
 
 **Verification status:** source and inventory metadata were inspected and the server change was committed. No C# build, C++ build, simulator runtime test, asset-fetch test, or two-viewer visual test has been performed. In particular, successful simultaneous playback and visual hand contact still require runtime verification.
+
+
+## Consent-scoped face-to-face heading action (2026-11-24)
+
+The right-click menu for the currently active interaction partner now exposes `Face Interaction Partner`. It is enabled only when the selected avatar matches the active server-issued partner/session and is within Firestorm's existing 20 m facing range.
+
+The action reuses `FSAvatarAlignBase::faceAvatar()` rather than introducing another rotation implementation. If the alignment floater is not already instantiated, the action opens the configured full/mini alignment floater and then invokes its existing face-avatar routine. That routine rotates the local user's agent frame toward the partner and sends the normal agent update. It does not translate either participant, does not issue a teleport/autopilot movement, and does not force the remote avatar to rotate. The partner can independently choose the same action from their own Viewer.
+
+The existing alignment helper locally snaps the remote avatar render root back to its server-reported transform after changing the local heading; this is a visual correction, not a remote transform command. The action is limited to the active interaction partner and cannot be used from this menu against unrelated avatars.
+
+**Verification status:** source checks confirm active-session/partner matching, 20 m range gating, existing alignment helper reuse, and menu registration. No C++ build or in-world two-viewer test has been run. The animation itself still requires runtime verification for hand contact and avatar orientation.
