@@ -33,6 +33,46 @@
 #include "llagent.h"
 #include "llavataractions.h"
 #include "llanimationstates.h"
+
+// Only standard Second Life facial expression animations may be requested by
+// the local social-emotion layer. Never invent animation IDs here.
+static bool is_social_facial_expression(const LLUUID& id)
+{
+    return id == ANIM_AGENT_EXPRESS_AFRAID ||
+        id == ANIM_AGENT_EXPRESS_ANGER ||
+        id == ANIM_AGENT_EXPRESS_BORED ||
+        id == ANIM_AGENT_EXPRESS_CRY ||
+        id == ANIM_AGENT_EXPRESS_DISDAIN ||
+        id == ANIM_AGENT_EXPRESS_EMBARRASSED ||
+        id == ANIM_AGENT_EXPRESS_FROWN ||
+        id == ANIM_AGENT_EXPRESS_KISS ||
+        id == ANIM_AGENT_EXPRESS_LAUGH ||
+        id == ANIM_AGENT_EXPRESS_OPEN_MOUTH ||
+        id == ANIM_AGENT_EXPRESS_REPULSED ||
+        id == ANIM_AGENT_EXPRESS_SAD ||
+        id == ANIM_AGENT_EXPRESS_SHRUG ||
+        id == ANIM_AGENT_EXPRESS_SMILE ||
+        id == ANIM_AGENT_EXPRESS_SURPRISE ||
+        id == ANIM_AGENT_EXPRESS_TONGUE_OUT ||
+        id == ANIM_AGENT_EXPRESS_TOOTHSMILE ||
+        id == ANIM_AGENT_EXPRESS_WINK ||
+        id == ANIM_AGENT_EXPRESS_WORRY;
+}
+
+static bool has_external_social_expression_source(const LLVOAvatarSelf* avatar, const LLUUID& id)
+{
+    if (!avatar)
+        return true;
+
+    for (LLVOAvatar::AnimationSourceMap::const_iterator it = avatar->mAnimationSources.begin();
+         it != avatar->mAnimationSources.end(); ++it)
+    {
+        if (it->second == id)
+            return true;
+    }
+    return false;
+}
+
 #include "llfloatercamera.h"
 #include "llfloaterreg.h"
 #include "llhudmanager.h"
@@ -1501,10 +1541,116 @@ static void update_local_social_gaze()
 //-----------------------------------------------------------------------------
 // updateCamera()
 //-----------------------------------------------------------------------------
+
+bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 duration)
+{
+    if (!is_social_facial_expression(animation_id) || !gAgentAvatarp ||
+        !gAgentAvatarp->isSelf() || mSocialExpressionPending || mSocialExpressionOwned)
+        return false;
+
+    // Never take over an expression that is already active or sourced by an object.
+    if (gAgentAvatarp->mSignaledAnimations.find(animation_id) != gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_expression_source(gAgentAvatarp, animation_id))
+        return false;
+
+    mSocialExpressionAnimation = animation_id;
+    mSocialExpressionSequence = 0;
+    mSocialExpressionRequestTime = LLTimer::getTotalSeconds();
+    mSocialExpressionDeadline = mSocialExpressionRequestTime + llclamp(duration, 0.5f, 12.f);
+    mSocialExpressionPending = true;
+    gAgent.sendAnimationRequest(animation_id, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialExpression()
+{
+    if (mSocialExpressionOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current = gAgentAvatarp->mSignaledAnimations.find(mSocialExpressionAnimation);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialExpressionSequence &&
+            !has_external_social_expression_source(gAgentAvatarp, mSocialExpressionAnimation))
+        {
+            gAgent.sendAnimationRequest(mSocialExpressionAnimation, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialExpressionAnimation.setNull();
+    mSocialExpressionSequence = 0;
+    mSocialExpressionRequestTime = 0.0;
+    mSocialExpressionDeadline = 0.0;
+    mSocialExpressionPending = false;
+    mSocialExpressionOwned = false;
+}
+
+static void update_social_expression_lease(LLVOAvatarSelf* avatar, LLUUID& animation_id,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    const F64 now = LLTimer::getTotalSeconds();
+    if (!avatar || !avatar->isSelf())
+    {
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(animation_id);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            // The simulator's sequence ID confirms the current animation generation.
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            // Request was not confirmed. Fail closed and never send STOP.
+            animation_id.setNull();
+            sequence = 0;
+            pending = false;
+            owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_expression_source(avatar, animation_id))
+    {
+        // A replacement generation or external animation source took over.
+        // Relinquish ownership without sending STOP.
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        // Release only the exact generation still held by this lease.
+        gAgent.sendAnimationRequest(animation_id, ANIM_REQUEST_STOP);
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
 void LLAgentCamera::updateCamera()
 {
     LL_RECORD_BLOCK_TIME(FTM_UPDATE_CAMERA);
     update_avatar_interaction_motions();
+    update_social_expression_lease(gAgentAvatarp, mSocialExpressionAnimation,
+        mSocialExpressionSequence, mSocialExpressionRequestTime, mSocialExpressionDeadline,
+        mSocialExpressionPending, mSocialExpressionOwned);
     if (gCubeSnapshot)
     {
         return;
