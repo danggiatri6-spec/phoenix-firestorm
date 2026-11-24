@@ -9920,7 +9920,8 @@ bool can_approach_interaction_partner()
 {
     const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
     const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
-    if (partner_id.isNull() || session_id.isNull() || gAgent.getAutoPilot() || gAgent.getFlying())
+    if (partner_id.isNull() || session_id.isNull() || !isAgentAvatarValid() ||
+        gAgentAvatarp->isSitting() || gAgent.getAutoPilot() || gAgent.getFlying())
         return false;
 
     LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
