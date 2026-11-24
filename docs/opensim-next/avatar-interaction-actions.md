@@ -118,3 +118,54 @@ This confirms capability handling is per-agent/per-circuit and attached to the v
 The branch check also confirms that the server's current public working branch is `opensim-next-dev`; the earlier guessed `OpenSim/Region/ClientStack/Linden/Caps/...` path is not present. Do not use that guessed path in implementation.
 
 **Viewer integration point confirmed:** `menu_avatar_other.xml` is the right-click context menu for another avatar; `lltoolpie.cpp` selects and displays it. A menu item can therefore use the exact clicked avatar UUID, but it must remain capability-gated and must not be wired to a guessed LLSD payload.
+
+
+## Verified server implementation — exact contract (2026-11-24)
+
+The earlier proposed request fields in this document were speculative. They are superseded by the actual implementation found in the server repository:
+
+- Repository: `danggiatri6-spec/opensim`
+- Branch: `opensim-next/avatar-modernization`
+- Handler: `OpenSim/Region/ClientStack/Linden/Caps/AvatarInteractionModule.cs`
+- Handler blob SHA: `b5bc42d619fd6d707f7ffe7d529e86d21bfd84db`
+
+The capability is registered during `Scene.EventManager.OnRegisterCaps` using `caps.RegisterSimpleHandler("AvatarInteraction", ...)`. This is the same established OpenSim per-agent CAPS pattern used by other Linden capability modules.
+
+### Exact outbound LLSD request fields
+
+- `action=set_policy`: `policy` is one of `off`, `friends`, `ask`, `everyone`.
+- `action=check`: `target` is the target avatar UUID as a string.
+- `action=invite`: `target` is the target avatar UUID as a string; `interaction` is one of `handshake`, `high_five`, `shoulder_tap`.
+- `action=accept`, `reject`, or `cancel`: `request_id` is the simulator-issued invitation UUID as a string.
+
+Important corrections:
+- The field is `target`, not the previously proposed `target_id`.
+- The implemented action key is `shoulder_tap`, not `shoulder_pat`.
+- The server currently issues an invitation `request_id`; it does not yet create a paired `session_id` or role-specific animation metadata.
+- The server response is an LLSD map with `ok` and `status`; successful invite also returns `request_id`. Policy success also returns `policy`.
+
+### Exact event payloads
+
+The invite event `AvatarInteractionInvite` contains `request_id`, `requester`, `requester_name`, `interaction`, and `expires_in`.
+
+The accepted/ended event bodies contain `request_id`, `requester`, `target`, `interaction`, `status`, and `reason`. The current Viewer event handlers already recognise the invite's `requester_name` + `request_id` shape and the accepted/ended `status` shape, but accepted events currently only display a notification; they do not start paired animations.
+
+### Verified server-side limits and gaps
+
+- Invitation lifetime: 30 seconds.
+- Maximum pending invitations: 128.
+- One pending invitation per target.
+- Same-scene root-presence/lifecycle and 3-metre distance checks.
+- Policies are per-presence and default to `Off`; they are not persisted.
+- `Friends` checks `IFriendsModule.IsFriend(target, requester)`.
+- `Ask` allows delivery of the invitation; explicit target acceptance is still required.
+- No per-agent rate limiter, automatic departure/teleport cleanup, session state, or paired animation start/end lifecycle is implemented yet. Expiry pruning is lazy on a subsequent request.
+
+The server implementation is present on `opensim-next/avatar-modernization`; it was not present in the `opensim-next-dev` branch checked earlier. Do not describe `opensim-next-dev` as containing this feature.
+
+### Viewer implementation sequence now unblocked
+
+1. Add the outbound invite helper using `action=invite`, `target`, and `interaction` exactly as above.
+2. Wire the helper to the clicked Avatar UUID from the existing avatar context menu.
+3. Expand the policy UI from the current `everyone/off` toggle to all four server-supported values.
+4. Keep accepted/ended handling notification-only until the simulator gains a real paired session contract. Do not invent `session_id` or animation UUID fields.
