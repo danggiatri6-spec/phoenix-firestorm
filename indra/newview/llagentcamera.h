@@ -125,6 +125,7 @@ public:
     bool            requestSocialGreetingGesture();
     void            cancelSocialGreetingGesture();
     bool            requestSocialNodGesture();
+    void            updateSocialSpeechGesture();
     void            cancelSocialNodGesture();
     void            observeSocialChat(const LLUUID& speaker_id, const std::string& message);
     bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
@@ -156,6 +157,11 @@ private:
     F64             mSocialNodDeadline = 0.0;
     bool            mSocialNodPending = false;
     bool            mSocialNodOwned = false;
+    // Voice-activity-driven lease for the standard SL TALK animation.
+    S32             mSocialTalkSequence = 0;
+    F64             mSocialTalkRequestTime = 0.0;
+    bool            mSocialTalkPending = false;
+    bool            mSocialTalkOwned = false;
 
     //--------------------------------------------------------------------
     // Preset
