@@ -3256,6 +3256,16 @@ void process_chat_from_simulator(LLMessageSystem *msg, void **user_data)
             // </FS:TS> FIRE-23138
 
             chat.mText += mesg;
+
+            // Social expression reactions are local-only and only observe a
+            // nearby, explicitly accepted interaction partner. This runs after
+            // mute, anti-spam, and RLVa receive-chat filtering.
+            if (chat.mSourceType == CHAT_SOURCE_AGENT && !is_muted && !is_do_not_disturb &&
+                (chat.mChatType == CHAT_TYPE_NORMAL || chat.mChatType == CHAT_TYPE_DIRECT ||
+                 chat.mChatType == CHAT_TYPE_WHISPER))
+            {
+                gAgentCamera.observeSocialChat(from_id, mesg);
+            }
         }
 
         // <FS:Zi> Omnifilter support
