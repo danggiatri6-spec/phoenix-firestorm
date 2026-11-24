@@ -395,3 +395,8 @@ Inspected the existing Firestorm expression, gesture, animation-state, and Visua
 ### Verification status
 
 Source inspection covered `llemote.cpp/.h`, `llgesturemgr.cpp/.h`, `llanimationstates.cpp/.h`, `llvoavatar.cpp`, `llvoavatarself.cpp`, and `llmotioncontroller.cpp`. This is a research/design checkpoint; no expression controller or new runtime behavior was added in this step. No C++ build or in-world gesture/LSL conflict test has been run.
+
+
+### Animation ownership finding
+
+The local Avatar path exposes source-aware cleanup for attachment/object animation sources (`LLVOAvatarSelf::hasMotionFromSource()` and `stopMotionFromSource()`), while standard face-expression motions are registered and activated by the avatar's signaled animation state. Gesture stop sends an animation STOP for the gesture's animation UUID; it does not provide a distinct ownership token for a particular expression instance. Consequently, an emotion layer must not issue a STOP for a standard expression UUID merely because its own timer expired: the same UUID may have been activated by a user gesture, LSL, or another source. The next implementation should first introduce a source/lease-aware arbitration boundary, or limit itself to observing and recommending expression intents without taking over existing animation state.
