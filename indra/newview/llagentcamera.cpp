@@ -1542,6 +1542,29 @@ static void update_local_social_gaze()
 // updateCamera()
 //-----------------------------------------------------------------------------
 
+bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
+{
+    // Map high-level social intent to established SL facial expression assets.
+    // This is deliberately conservative: no emotion is inferred from chat yet.
+    switch (emotion)
+    {
+    case ESocialEmotion::GREETING:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SMILE, 2.8f);
+    case ESocialEmotion::FRIENDLY:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_TOOTHSMILE, 2.5f);
+    case ESocialEmotion::AMUSED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_LAUGH, 2.0f);
+    case ESocialEmotion::CONCERNED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_WORRY, 3.2f);
+    case ESocialEmotion::SAD:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SAD, 3.5f);
+    case ESocialEmotion::SURPRISED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SURPRISE, 1.8f);
+    default:
+        return false;
+    }
+}
+
 bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 duration)
 {
     if (!is_social_facial_expression(animation_id) || !gAgentAvatarp ||
