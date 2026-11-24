@@ -246,6 +246,21 @@ This means the next gaze feature should be a **target-selection/arbitration laye
 The existing eye motion already supplies random jitter, occasional look-away, return-to-target, vergence, and blinking. The gap is chiefly richer target selection, configurable naturalness, interaction-aware attention, and better rig fallbacks—not basic blink or eye rotation.
 
 
+
+## Avatar Interaction session contract and Viewer bridge (2026-11-24)
+
+The OpenSim server branch `opensim-next/avatar-modernization` now creates a distinct `session_id` when an invitation is accepted. The accepted event sent to both participants carries `session_id`, `request_id`, requester/target UUIDs, interaction kind, status, and a 120-second expiry window. The server allows at most 128 active sessions per region and one active session per participant. Either participant may POST `action=end` with the `session_id`; the server validates participation, removes the session, and sends `AvatarInteractionEnded` to both participants. Expired sessions are pruned on subsequent session operations and both sides receive an `expired` end event. Region removal clears the session table.
+
+The Viewer interaction event bridge now:
+- records the server-issued session ID when an `AvatarInteractionAccepted` event arrives;
+- clears the matching active ID on `AvatarInteractionEnded` or session expiry;
+- exposes `LLAvatarActions::endAvatarInteraction(session_id)`, which POSTs the server's explicit `end` action;
+- keeps the session identifier separate from the invitation/request identifier.
+
+This is session-state plumbing only. It does not yet start paired animations, acquire a gaze target, or add an end-interaction UI control. The active session is currently held as one Viewer-local ID, matching the server's one-session-per-participant rule. The end method is available for the upcoming interaction controls.
+
+Verification in this pass: source-level checks confirmed the event-to-session binding, matching-ID cleanup, end capability payload, and header/implementation declarations. No C++ build, C# build, simulator test, or end-to-end two-viewer test has been run. Session expiry notification remains lazy: if no further interaction request reaches the region after the 120-second deadline, the server will not emit the timeout event until a later session operation triggers pruning.
+
 ## Avatar Attention System: existing arbitration and interaction integration (2026-11-24)
 
 A further source trace of `indra/newview/llhudeffectlookat.h/.cpp` and `indra/newview/llagentcamera.cpp` establishes the following implementation constraints:
