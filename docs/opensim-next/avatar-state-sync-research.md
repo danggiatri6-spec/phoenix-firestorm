@@ -282,3 +282,18 @@ A further source trace of `indra/newview/llhudeffectlookat.h/.cpp` and `indra/ne
 6. Add deterministic tests for priority conflicts and cleanup ownership before any full Viewer build. No code was changed in this inspection pass.
 
 Current limitation and implementation note (updated 2026-11-24): the server now does provide a stable `session_id`, so the Viewer can key an interaction controller to that ID. The event payload also includes requester and target UUIDs, allowing the Viewer to derive the partner UUID by comparing each participant with `gAgent.getID()`. The Viewer bridge now stores both the session ID and the partner UUID. The partner is derived from the event's `requester` and `target` fields by comparing the local agent UUID, and is cleared only when the matching session ends. This is identity tracking only; it does not yet resolve the partner to a live `LLVOAvatar` or acquire gaze. The next code change should add an explicit attention lease, but it must not use `LOOKAT_TARGET_CONVERSATION` as-is because its default priority is 0 and its timeout is not a session lifecycle. A lease must preserve/restore the previous attention state only when the interaction still owns the active target; it must never clear a newer user focus. Paired animation remains blocked on verified role-specific animation assets and a reliable start/stop alignment contract.
+
+
+## Viewer-local interaction gaze overlay (2026-11-24)
+
+The Viewer now has a first local-only interaction gaze overlay:
+
+- `LLHUDEffectLookAt` stores a separate interaction target pointer and exposes set/clear methods.
+- During the effect update, the normal legacy target is calculated first. If an interaction target is live and drawable, the overlay recalculates the local `LookAtPoint` toward that avatar.
+- The overlay does not change `mTargetType`, the legacy attention table, packet enum values, or network-send flags.
+- Existing high-priority focus and mouselook attentions suppress the overlay (the threshold is the configured Focus priority).
+- `LLAgentCamera` exposes acquire/release wrappers and respects `PrivateLocalLookAtTarget`.
+- The accepted session event resolves the partner UUID to a live avatar object and acquires the overlay; ended/expired events release it.
+- If the partner object disappears, the overlay drops the target and removes stale local look-at animation data when no legacy target remains.
+
+This is intentionally a local presentation layer only; it does not replicate the interaction gaze to other viewers. It is not yet compiled or runtime-tested. One known limitation remains: if the accepted event arrives before the partner avatar object is present in the object list, this first version does not retry resolution later. A follow-up should make target resolution resilient to late avatar arrival and region transitions.
