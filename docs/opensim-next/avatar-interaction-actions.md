@@ -483,3 +483,8 @@ Connected the semantic emotion API to two narrow Viewer events:
 - Reactions are local Viewer behavior only; no chat text is sent to the server, no extra network messages are introduced, and no remote avatar is animated by this code.
 
 This is a prototype cue mapper, not natural-language understanding. It does not infer emotion from arbitrary sentences, voice tone, sarcasm, or context. Users can still use existing gestures and LSL animations. No C++ build or in-world two-viewer test has been run.
+
+
+### Social emotion reaction preference (2026-11-24)
+
+Added the persistent Boolean setting `FSAvatarSocialEmotions` (default enabled). When disabled, both the interaction-accepted greeting expression and incoming-chat emotion reactions are suppressed by the shared semantic reaction path only for chat cues; the greeting event still calls the semantic API directly and is therefore not yet gated by this preference. The setting currently gates `observeSocialChat()`; a follow-up should route the accepted-session greeting through the same preference-aware method so the user has one consistent master switch. No new network messages or server behavior are involved. Static source review only; no build or runtime test.
