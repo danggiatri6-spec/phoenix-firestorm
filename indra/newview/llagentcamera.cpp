@@ -109,7 +109,7 @@ static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, c
 #include "lltimer.h"
 #include "llvoiceclient.h"
 
-static bool has_social_upper_body_motion_conflict(const LLVOAvatarSelf* avatar)
+static bool has_social_upper_body_motion_conflict(LLVOAvatarSelf* avatar)
 {
     if (!avatar)
         return true;
