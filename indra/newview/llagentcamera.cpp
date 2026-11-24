@@ -3156,6 +3156,32 @@ bool LLAgentCamera::setLookAt(ELookAtType target_type, LLViewerObject *object, L
     return mLookAt->setLookAt(target_type, object, position);
 }
 
+void LLAgentCamera::setInteractionLookAt(LLViewerObject* avatar)
+{
+    static LLCachedControl<bool> private_local_lookat(gSavedSettings, "PrivateLocalLookAtTarget", false);
+    if (private_local_lookat || !avatar || !avatar->isAvatar() || avatar->isDead())
+        return;
+    if (!mLookAt || mLookAt->isDead())
+    {
+        mLookAt = (LLHUDEffectLookAt*)LLHUDManager::getInstance()->createViewerEffect(LLHUDObject::LL_HUD_EFFECT_LOOKAT);
+        mLookAt->setSourceObject(gAgentAvatarp);
+    }
+    mLookAt->setInteractionTarget(avatar);
+}
+
+void LLAgentCamera::clearInteractionLookAt()
+{
+    if (mLookAt.notNull())
+    {
+        mLookAt->clearInteractionTarget();
+        if (mLookAt->getLookAtType() == LOOKAT_TARGET_NONE && gAgentAvatarp)
+        {
+            gAgentAvatarp->removeAnimationData("LookAtPoint");
+            gAgentAvatarp->stopMotion(ANIM_AGENT_HEAD_ROT);
+        }
+    }
+}
+
 //-----------------------------------------------------------------------------
 // lookAtLastChat()
 //-----------------------------------------------------------------------------
