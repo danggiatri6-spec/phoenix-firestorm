@@ -4,7 +4,7 @@
  save_rect="true"
  legacy_header_height="18"
  can_resize="true"
- height="515"
+ height="538"
  name="gestures"
  help_topic="gestures"
  title="Gestures"
@@ -27,7 +27,7 @@
      name="copy_name">Copy of [COPY_NAME]</floater.string>
     <panel
      follows="left|right|top"
-     height="27"
+     height="50"
      left="4"
      name="quick_expression_panel"
      top="20"
@@ -39,6 +39,7 @@
         <button label="Wow" name="expression_surprise" left="178" top="2" width="42" height="22" />
         <button label="Wink" name="expression_wink" left="218" top="2" width="45" height="22" />
         <button label="Clear" name="expression_clear" left="261" top="2" width="55" height="22" />
+        <button label="Toggle avatar interactions" name="interaction_policy_btn" left="0" top="25" width="170" height="22" />
     </panel>
     <scroll_list
      bottom_delta="418"
@@ -47,7 +48,7 @@
      layout="topleft"
      left="0"
      multi_select="true"
-     top="52"
+     top="73"
      name="gesture_list">
         <scroll_list.columns
          label=""
