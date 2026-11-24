@@ -106,6 +106,7 @@
 namespace
 {
     LLUUID sActiveAvatarInteractionSession;
+    LLUUID sActiveAvatarInteractionPartner;
 }
 
 // Flags for kick message
@@ -343,15 +344,27 @@ void LLAvatarActions::requestInteractionInvite(const LLUUID& target_id, const st
     region->requestPostCapability("AvatarInteraction", request);
 }
 
-void LLAvatarActions::setActiveAvatarInteraction(const LLUUID& session_id)
+void LLAvatarActions::setActiveAvatarInteraction(const LLUUID& session_id, const LLUUID& partner_id)
 {
+    if (session_id.isNull() || partner_id.isNull() || partner_id == gAgent.getID())
+        return;
+
     sActiveAvatarInteractionSession = session_id;
+    sActiveAvatarInteractionPartner = partner_id;
+}
+
+const LLUUID& LLAvatarActions::getActiveAvatarInteractionPartner()
+{
+    return sActiveAvatarInteractionPartner;
 }
 
 void LLAvatarActions::clearActiveAvatarInteraction(const LLUUID& session_id)
 {
     if (session_id.isNull() || sActiveAvatarInteractionSession == session_id)
+    {
         sActiveAvatarInteractionSession.setNull();
+        sActiveAvatarInteractionPartner.setNull();
+    }
 }
 
 void LLAvatarActions::endAvatarInteraction(const LLUUID& session_id)
