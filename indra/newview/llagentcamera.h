@@ -110,12 +110,22 @@ public:
     ECameraMode     getCameraMode() const           { return mCameraMode; }
     ECameraMode     getLastCameraMode() const       { return mLastCameraMode; }
     void            updateCamera();                 // Call once per frame to update camera location/orientation
+    bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
+    void            cancelSocialExpression();
     void            resetCamera();                  // Slam camera into its default position
     void            updateLastCamera();             // Set last camera to current camera
 
 private:
     ECameraMode     mCameraMode;                    // Target mode after transition animation is done
     ECameraMode     mLastCameraMode;
+
+    // Sequence-aware lease for Viewer-generated social facial expressions.
+    LLUUID          mSocialExpressionAnimation;
+    S32             mSocialExpressionSequence = 0;
+    F64             mSocialExpressionRequestTime = 0.0;
+    F64             mSocialExpressionDeadline = 0.0;
+    bool            mSocialExpressionPending = false;
+    bool            mSocialExpressionOwned = false;
 
     //--------------------------------------------------------------------
     // Preset
