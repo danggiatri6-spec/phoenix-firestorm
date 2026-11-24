@@ -659,7 +659,7 @@ void LLFloaterGesture::onQuickExpression(const LLUUID& expression_id)
     if (mQuickExpression == expression_id)
     {
         gAgent.sendAnimationRequest(expression_id, ANIM_REQUEST_STOP);
-        mQuickExpression.setNull();
+        mQuickExpression = LLUUID::null;
         return;
     }
 
@@ -672,7 +672,7 @@ void LLFloaterGesture::onClearQuickExpression()
     if (mQuickExpression.notNull())
     {
         gAgent.sendAnimationRequest(mQuickExpression, ANIM_REQUEST_STOP);
-        mQuickExpression.setNull();
+        mQuickExpression = LLUUID::null;
     }
 }
 
