@@ -36,6 +36,8 @@
 #include "llhttpnode.h"
 #include "llnotificationsutil.h"
 #include "llviewerregion.h"
+#include "llviewerobjectlist.h"
+#include "llagentcamera.h"
 
 #include "llagent.h"
 #include "llavataractions.h"
@@ -116,9 +118,15 @@ namespace
                         const LLUUID target = body["target"].asUUID();
                         const LLUUID partner = requester == gAgent.getID() ? target : requester;
                         LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
+                        LLViewerObject* partner_object = gObjectList.findObject(partner);
+                        if (partner_object && partner_object->isAvatar())
+                            gAgentCamera.setInteractionLookAt(partner_object);
                     }
                     else if (status == "ended" || status == "expired")
+                    {
                         LLAvatarActions::clearActiveAvatarInteraction(session_id);
+                        gAgentCamera.clearInteractionLookAt();
+                    }
                 }
 
                 LLSD substitutions;
