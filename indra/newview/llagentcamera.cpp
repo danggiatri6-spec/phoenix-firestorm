@@ -1588,6 +1588,8 @@ void LLAgentCamera::cancelSocialGreetingGesture()
     mSocialGestureOwned = false;
 }
 
+// Nod and wave are tracked independently so one animation cannot release the other.
+
 static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
     S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
 {
@@ -1635,6 +1637,99 @@ static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
     if (now >= deadline)
     {
         gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
+bool LLAgentCamera::requestSocialNodGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->isSelf() ||
+        mSocialNodPending || mSocialNodOwned)
+        return false;
+
+    // YES is the standard Second Life head-nod animation (yes_head).
+    if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES) !=
+            gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_YES))
+        return false;
+
+    mSocialNodSequence = 0;
+    mSocialNodRequestTime = LLTimer::getTotalSeconds();
+    mSocialNodDeadline = mSocialNodRequestTime + 1.9;
+    mSocialNodPending = true;
+    gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialNodGesture()
+{
+    if (mSocialNodOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current =
+            gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialNodSequence &&
+            !has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_YES))
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialNodSequence = 0;
+    mSocialNodRequestTime = 0.0;
+    mSocialNodDeadline = 0.0;
+    mSocialNodPending = false;
+    mSocialNodOwned = false;
+}
+
+static void update_social_nod_gesture_lease(LLVOAvatarSelf* avatar,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    if (!avatar || !avatar->isSelf())
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    const F64 now = LLTimer::getTotalSeconds();
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_YES);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            sequence = 0;
+            pending = owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_expression_source(avatar, ANIM_AGENT_YES))
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_STOP);
         sequence = 0;
         pending = owned = false;
     }
@@ -1876,6 +1971,8 @@ void LLAgentCamera::updateCamera()
         mSocialExpressionPending, mSocialExpressionOwned);
     update_social_greeting_gesture_lease(gAgentAvatarp, mSocialGestureSequence,
         mSocialGestureRequestTime, mSocialGestureDeadline, mSocialGesturePending, mSocialGestureOwned);
+    update_social_nod_gesture_lease(gAgentAvatarp, mSocialNodSequence,
+        mSocialNodRequestTime, mSocialNodDeadline, mSocialNodPending, mSocialNodOwned);
     if (gCubeSnapshot)
     {
         return;
