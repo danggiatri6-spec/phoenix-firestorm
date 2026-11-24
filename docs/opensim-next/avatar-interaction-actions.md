@@ -308,3 +308,14 @@ When explicitly invoked, the local Viewer computes a horizontal stand-off point 
 The action refuses to take over an existing autopilot or start while the local avatar is flying. The feature records ownership by the dedicated autopilot behavior name `AvatarInteractionApproach`. Session end clears the active session through `clearActiveAvatarInteraction()`, which stops only this owned autopilot. The camera update also cancels this approach if the partner disappears or moves beyond 20 m. If the user replaces the autopilot with another movement action, cleanup checks the behavior name and leaves that unrelated action untouched.
 
 **Verification status:** the latest Viewer source, declarations, menu registration, XUI wiring, session-end cleanup, and missing-partner cleanup were re-fetched and passed 15/15 targeted source checks. No C++ build or in-world two-viewer test has been run. Pathfinding, collision avoidance, parcel restrictions, and actual arrival/facing behavior remain runtime tests.
+
+
+## Paired-motion late-load retry (2026-11-24)
+
+The Viewer no longer drops a server-authorized paired animation merely because one participant avatar object is not yet present or an animation asset cannot start on the first frame. Accepted-event handling stores the two server-provided motion UUIDs in a pending queue and attempts an all-or-nothing start. The per-frame Viewer camera update retries while both avatar objects and their motion assets become available, for up to 10 seconds.
+
+If one role starts and the other does not, the first role is immediately stopped before retrying; a one-sided contact pose is never intentionally left running. A successful start moves the exact session and motion IDs into the existing active-motion table. A matching end/expiry event removes pending work and stops only successfully tracked motions. A superseding interaction session also invalidates stale pending work.
+
+This retry is local Viewer scheduling only. It does not alter the server session contract, move either participant, or fabricate animation UUIDs. If either animation cannot be started within the retry window, the interaction session, gaze, and consent state remain intact without claiming that the animation played.
+
+**Verification status:** the three changed Viewer files were re-fetched from the branch and passed 10/10 targeted source checks covering the queue, both-avatar gate, partial-start rollback, 10-second timeout, session guard, end cleanup, public update declaration, and per-frame invocation. No C++ build or in-world two-viewer test has been run.
