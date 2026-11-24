@@ -9935,8 +9935,12 @@ bool can_invite_avatar_interaction()
         return false;
 
     LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    // The server only accepts invitations for nearby avatars in this scene.
+    // Keep the menu state consistent with the server's three-metre interaction
+    // range instead of exposing an action that is guaranteed to be rejected.
     return avatar && !avatar->isSelf() && !avatar->isDead() &&
-        RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID());
+        RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID()) &&
+        dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent()) <= 3.0f;
 }
 
 // [RLVa:KB] - Checked: RLVa-1.2.1
