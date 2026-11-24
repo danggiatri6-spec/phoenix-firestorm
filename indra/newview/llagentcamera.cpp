@@ -1569,6 +1569,10 @@ bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
 
 void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::string& message)
 {
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled)
+        return;
+
     // Reactions are limited to the explicitly accepted interaction partner.
     if (speaker_id.isNull() ||
         speaker_id != LLAvatarActions::getActiveAvatarInteractionPartner() ||
