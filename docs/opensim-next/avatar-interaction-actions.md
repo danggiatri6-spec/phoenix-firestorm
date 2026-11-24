@@ -328,3 +328,12 @@ The paired-motion start path now checks the current 3D separation of the request
 This prevents an accepted invitation from triggering a visibly disconnected handshake after either participant has moved away. The Viewer does not reposition either participant and does not weaken the server's consent, presence, or invitation-range checks. A user may still use the explicit local approach action to close the distance.
 
 **Verification status:** the source edit was committed. This is a source-level change only; no C++ build, animation asset playback test, or two-viewer in-world test has been run. The distance thresholds still need visual tuning with different avatar shapes and viewer camera conditions.
+
+
+## Face-to-face orientation gate for paired contact motions (2026-11-24)
+
+The paired-motion start path now also checks both Avatar forward directions before starting a contact animation. Firestorm's existing avatar alignment implementation constructs the avatar's forward basis from its local X axis; the gate therefore rotates the local X axis by each Avatar's current rotation, projects both directions onto the horizontal plane, and requires each participant to face the other within 60 degrees (dot product >= 0.5).
+
+If either participant is turned away, the existing pending request waits and retries within its 10-second lifetime. The Viewer does not rotate or reposition either participant. This is a conservative visual-quality gate, not a guarantee of hand-to-hand joint contact; the bundled upstream handshake remains a single-Avatar animation played on both participants.
+
+**Verification status:** source-level checks only. No C++ build or two-viewer runtime test has been run. The forward-axis assumption is grounded in FSAvatarAlignBase::snapAvatarBody() and still needs in-world verification against avatar root rotations, especially for seated, custom-rigged, and nonstandard avatars.
