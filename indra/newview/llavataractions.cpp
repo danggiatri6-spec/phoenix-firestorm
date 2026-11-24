@@ -363,7 +363,7 @@ bool LLAvatarActions::approachActiveAvatarInteractionPartner()
     const LLUUID session_id = sActiveAvatarInteractionSession;
     const LLUUID partner_id = sActiveAvatarInteractionPartner;
     if (session_id.isNull() || partner_id.isNull() || !isAgentAvatarValid() ||
-        gAgent.getAutoPilot() || gAgent.getFlying())
+        gAgentAvatarp->isSitting() || gAgent.getAutoPilot() || gAgent.getFlying())
         return false;
 
     LLViewerObject* object = gObjectList.findObject(partner_id);
