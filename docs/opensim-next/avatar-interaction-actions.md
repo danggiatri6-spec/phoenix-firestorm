@@ -521,3 +521,8 @@ Added a local Viewer controller for the established Second Life `ANIM_AGENT_TALK
 The controller is conservative: it does not acquire TALK if it is already signaled or attributed to an attachment/object source; it waits for simulator animation-state confirmation, records the observed sequence ID, and stops only the same generation when voice activity ends. If the animation disappears, changes generation, or an external source takes over, it relinquishes without STOP. Existing voice-amplitude Ooh/Aah lip-sync remains separate and unchanged.
 
 This is an initial voice-activity gesture, not a full gesture vocabulary or prosody-aware system. It has not been compiled or tested with live voice, AO, or multiple viewers. The standard TALK asset's visual suitability and blending with custom Bento rigs still require in-world verification.
+
+
+### Speaking gesture continuity refinement (2026-11-25)
+
+The local TALK controller now keeps the animation alive for a short 0.65-second grace period after voice activity drops. This is intended to absorb brief voice-activity detection/network gaps between syllables and prevent repeated start/stop flicker. The grace period applies only to a TALK lease acquired by this controller; it does not extend an AO/manual animation. The lease is reset when the local avatar is unavailable or the controller releases its animation.
