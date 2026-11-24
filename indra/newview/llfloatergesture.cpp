@@ -654,12 +654,31 @@ void LLFloaterGesture::onToggleInteractionPolicy()
     if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
         return;
 
-    mAllowAvatarInteractions = !mAllowAvatarInteractions;
+    // Cycle through the server-supported consent policies. "Off" remains
+    // the default and first state; "Ask" still requires explicit acceptance.
+    if (mInteractionPolicy == "off")
+        mInteractionPolicy = "friends";
+    else if (mInteractionPolicy == "friends")
+        mInteractionPolicy = "ask";
+    else if (mInteractionPolicy == "ask")
+        mInteractionPolicy = "everyone";
+    else
+        mInteractionPolicy = "off";
 
     LLSD request;
     request["action"] = "set_policy";
-    request["policy"] = mAllowAvatarInteractions ? "everyone" : "off";
+    request["policy"] = mInteractionPolicy;
     region->requestPostCapability("AvatarInteraction", request);
+
+    const char* label = "Interactions: Off";
+    if (mInteractionPolicy == "friends")
+        label = "Interactions: Friends";
+    else if (mInteractionPolicy == "ask")
+        label = "Interactions: Ask";
+    else if (mInteractionPolicy == "everyone")
+        label = "Interactions: Everyone";
+
+    getChild<LLButton>("interaction_policy_btn")->setLabel(label);
 }
 
 void LLFloaterGesture::onQuickExpression(const LLUUID& expression_id)
