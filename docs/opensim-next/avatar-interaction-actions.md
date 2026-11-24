@@ -256,3 +256,17 @@ The generic AvatarInteraction event handler now recognizes optional `requester_a
 Successful paired starts are tracked by server `session_id`, including both participant UUIDs and the exact motion UUIDs. A matching `AvatarInteractionEnded` or session-expiry event stops only those tracked motions. Unrelated AO, dance, gesture, and user-started motions are not stopped by this feature. Duplicate accepted events are ignored while that session is tracked.
 
 The current OpenSim server event does not yet supply these optional animation UUIDs, and the standard Viewer animation registry has no verified paired handshake/high-five/shoulder-tap assets. Therefore this is a forward-compatible playback/lifecycle hook, not a claim that the three actions currently animate. The next server-side step is to provide configured, verified role-specific asset UUIDs in the accepted event. No C++ build or runtime test has been performed.
+
+
+## Bundled handshake asset wired to the accepted event (2026-11-24)
+
+The OpenSim server branch now adds both optional motion fields to the accepted-event body for `handshake` only:
+
+- `requester_animation` = `ddc2400f-ecdb-b00e-aee7-442ff99d5fb7`
+- `target_animation` = `ddc2400f-ecdb-b00e-aee7-442ff99d5fb7`
+
+This UUID is not guessed: it is the bundled OpenSim `Handshake` asset in `bin/assets/AnimationsAssetSet/index.xml`, also present as an inventory-library item named `handshake`. Its inventory description identifies it as a simple right-handed, double-pump handshake. The asset animates one avatar's right arm/upper-body joints; the same asset is therefore started on both participant avatar objects by the existing all-or-nothing Viewer hook. Participants should face one another before accepting. The server does not yet auto-align their positions or rotations.
+
+No animation fields are emitted for `high_five` or `shoulder_tap`; those actions continue to use the consent/session/gaze flow without a fabricated animation. The separate `give_and_handshake` asset is not used as a counterpart because its inventory description describes a different one-avatar hand sequence, not a verified partner role.
+
+**Verification status:** source and inventory metadata were inspected and the server change was committed. No C# build, C++ build, simulator runtime test, asset-fetch test, or two-viewer visual test has been performed. In particular, successful simultaneous playback and visual hand contact still require runtime verification.
