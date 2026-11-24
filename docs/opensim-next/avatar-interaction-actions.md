@@ -498,3 +498,10 @@ Follow-up hardening: the `FSAvatarSocialEmotions` preference is checked centrall
 Before mapping a semantic social emotion to its standard SL facial-expression animation, `requestSocialEmotion()` now refreshes the local interaction gaze target to the current accepted partner when that partner is a live avatar in the same region and within 12m. This deliberately calls the existing `setInteractionLookAt()` / `LLHUDEffectLookAt` overlay rather than writing eye or head joints. Existing attention priority arbitration, Mouselook suppression, the `PrivateLocalLookAtTarget` preference, and legacy AO/LSL/camera behavior remain in control. This creates a coordinated attention cue for greeting and recognized chat reactions without introducing new animation IDs or network traffic.
 
 Targeted static source checks passed 10/10. No C++ build, simulator test, or in-world facial/gaze observation has been performed.
+
+
+### Accepted-session greeting wave (2026-11-24)
+
+The accepted-session event now requests the established Second Life `ANIM_AGENT_HELLO` animation state as a short local-avatar greeting wave, alongside the existing smile and partner gaze. The Viewer refuses to request it when the same animation is already signaled or attributed to an attachment/object source. It waits for the simulator's animation-state update, records the observed sequence ID, and releases only that same generation after approximately 2.8 seconds. If the animation is replaced, sourced externally, or never confirmed, the lease relinquishes without sending STOP. Ending/expiring the interaction cancels the local greeting lease safely.
+
+This is a single-avatar greeting cue, not a paired animation and not a nod. It uses the standard SL animation request path so normal simulator distribution and existing AO/gesture behavior remain in charge. The preference `FSAvatarSocialEmotions` also gates this greeting gesture. Static source review only; no C++ build, simulator test, or two-viewer animation observation has been performed.
