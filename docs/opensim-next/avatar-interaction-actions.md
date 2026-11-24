@@ -488,3 +488,6 @@ This is a prototype cue mapper, not natural-language understanding. It does not 
 ### Social emotion reaction preference (2026-11-24)
 
 Added the persistent Boolean setting `FSAvatarSocialEmotions` (default enabled). The preference is checked centrally by `requestSocialEmotion()`, so both the interaction-accepted greeting and incoming-chat emotion reactions are suppressed consistently when disabled. The low-level `requestSocialExpression()` lease API remains available for explicit internal callers and is not coupled to this social-reaction preference. No new network messages or server behavior are involved. Static source review only; no build or runtime test.
+
+
+Follow-up hardening: the `FSAvatarSocialEmotions` preference is checked centrally in `requestSocialEmotion()`, covering both greeting and chat-triggered semantic reactions. English cue tokens now require ASCII word boundaries, reducing accidental matches inside unrelated words (for example, "lol" inside a larger word); Chinese cue matching remains explicit. Targeted static source checks passed 11/11. This is not a compile or runtime test.
