@@ -63,37 +63,34 @@
          function="RLV.CanShowName" />
       </menu_item_call>
 
-      <context_menu
-         label="Interact"
-         name="Avatar Interaction">
-        <menu_item_call
+      <menu_item_separator />
+      <menu_item_call
          label="Handshake"
          name="Interaction Handshake">
-          <menu_item_call.on_click
-           function="Avatar.InteractionInvite"
-           parameter="handshake" />
-          <menu_item_call.on_enable
-           function="Avatar.CanInviteInteraction" />
-        </menu_item_call>
-        <menu_item_call
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="handshake" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
+      <menu_item_call
          label="High-five"
          name="Interaction High Five">
-          <menu_item_call.on_click
-           function="Avatar.InteractionInvite"
-           parameter="high_five" />
-          <menu_item_call.on_enable
-           function="Avatar.CanInviteInteraction" />
-        </menu_item_call>
-        <menu_item_call
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="high_five" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>
+      <menu_item_call
          label="Shoulder tap"
          name="Interaction Shoulder Tap">
-          <menu_item_call.on_click
-           function="Avatar.InteractionInvite"
-           parameter="shoulder_tap" />
-          <menu_item_call.on_enable
-           function="Avatar.CanInviteInteraction" />
-        </menu_item_call>
-      </context_menu>
+        <menu_item_call.on_click
+         function="Avatar.InteractionInvite"
+         parameter="shoulder_tap" />
+        <menu_item_call.on_enable
+         function="Avatar.CanInviteInteraction" />
+      </menu_item_call>_menu>
    
 <!-- [FS:Chanayane] Compass floater - face towards avatar -->
    <menu_item_separator />
