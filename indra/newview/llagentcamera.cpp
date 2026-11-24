@@ -1545,6 +1545,10 @@ static void update_local_social_gaze()
 
 bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
 {
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled)
+        return false;
+
     // Map high-level social intent to established SL facial expression assets.
     // This is deliberately conservative: no emotion is inferred from chat yet.
     switch (emotion)
