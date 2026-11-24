@@ -33,11 +33,69 @@
 #include "lluuid.h"
 #include "message.h"
 #include "llgenericstreamingmessage.h"
+#include "llhttpnode.h"
+#include "llnotificationsutil.h"
+#include "llviewerregion.h"
 
 #include "llagent.h"
 #include "llgltfmateriallist.h"
 
 LLDispatcher gGenericDispatcher;
+
+
+namespace
+{
+    void avatar_interaction_invite_callback(const LLSD& notification, const LLSD& response)
+    {
+        LLViewerRegion* region = gAgent.getRegion();
+        if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+            return;
+
+        LLSD request;
+        request["action"] = LLNotificationsUtil::getSelectedOption(notification, response) == 0
+            ? "accept" : "reject";
+        request["request_id"] = notification["payload"]["request_id"];
+        region->requestPostCapability("AvatarInteraction", request);
+    }
+
+    class LLAvatarInteractionEventNode : public LLHTTPNode
+    {
+    public:
+        LLSD simplePost(const LLSD& input) const override
+        {
+            const LLSD body = input["body"];
+            if (!body.isMap())
+                return LLSD();
+
+            if (body.has("requester_name") && body.has("request_id"))
+            {
+                LLSD substitutions;
+                substitutions["REQUESTER"] = body["requester_name"].asString();
+                substitutions["INTERACTION"] = body["interaction"].asString();
+                LLNotificationsUtil::add("AvatarInteractionInvite", substitutions, body,
+                    avatar_interaction_invite_callback);
+            }
+            else if (body.has("status"))
+            {
+                LLSD substitutions;
+                substitutions["MESSAGE"] = body["status"].asString() == "accepted"
+                    ? "Your avatar interaction was accepted."
+                    : "Avatar interaction " + body["status"].asString() + ".";
+                LLNotificationsUtil::add("GenericAlert", substitutions);
+            }
+
+            return LLSD();
+        }
+    };
+
+    LLHTTPRegistration<LLAvatarInteractionEventNode> gAvatarInteractionInvite(
+        "/message/AvatarInteractionInvite");
+    LLHTTPRegistration<LLAvatarInteractionEventNode> gAvatarInteractionAccepted(
+        "/message/AvatarInteractionAccepted");
+    LLHTTPRegistration<LLAvatarInteractionEventNode> gAvatarInteractionEnded(
+        "/message/AvatarInteractionEnded");
+}
+
 
 
 void send_generic_message(const std::string& method,
