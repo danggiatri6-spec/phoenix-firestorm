@@ -1872,6 +1872,17 @@
     <key>Value</key>
     <integer>0</integer>
   </map>
+  <key>FSAvatarSocialEmotions</key>
+  <map>
+    <key>Comment</key>
+    <string>Allow the local avatar to show brief facial expressions in response to an accepted interaction partner's greeting and limited chat cues.</string>
+    <key>Persist</key>
+    <integer>1</integer>
+    <key>Type</key>
+    <string>Boolean</string>
+    <key>Value</key>
+    <integer>1</integer>
+  </map>
   <key>FSAvatarSocialGaze</key>
   <map>
     <key>Comment</key>
