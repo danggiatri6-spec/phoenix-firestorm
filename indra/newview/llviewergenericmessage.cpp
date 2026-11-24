@@ -111,7 +111,12 @@ namespace
                 {
                     const LLUUID session_id = body["session_id"].asUUID();
                     if (status == "accepted")
-                        LLAvatarActions::setActiveAvatarInteraction(session_id);
+                    {
+                        const LLUUID requester = body["requester"].asUUID();
+                        const LLUUID target = body["target"].asUUID();
+                        const LLUUID partner = requester == gAgent.getID() ? target : requester;
+                        LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
+                    }
                     else if (status == "ended" || status == "expired")
                         LLAvatarActions::clearActiveAvatarInteraction(session_id);
                 }
