@@ -9875,6 +9875,20 @@ class LLAvatarEndInteraction : public view_listener_t
     }
 };
 
+class LLAvatarApproachInteractionPartner : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            partner_id.notNull() && session_id.notNull() && avatar->getID() == partner_id)
+            LLAvatarActions::approachActiveAvatarInteractionPartner();
+        return true;
+    }
+};
+
 class LLAvatarFaceInteractionPartner : public view_listener_t
 {
     bool handleEvent(const LLSD& userdata)
@@ -9901,6 +9915,21 @@ class LLAvatarFaceInteractionPartner : public view_listener_t
         return true;
     }
 };
+
+bool can_approach_interaction_partner()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull() || gAgent.getAutoPilot() || gAgent.getFlying())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    if (!avatar || avatar->isSelf() || avatar->isDead() || avatar->getID() != partner_id)
+        return false;
+
+    const F32 distance = dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent());
+    return distance > 1.6f && distance <= 20.f;
+}
 
 bool can_face_interaction_partner()
 {
@@ -13402,6 +13431,8 @@ void initialize_menus()
     view_listener_t::addMenu(new LLAvatarInteractionInvite(), "Avatar.InteractionInvite");
     view_listener_t::addMenu(new LLAvatarEndInteraction(), "Avatar.EndInteraction");
     view_listener_t::addMenu(new LLAvatarFaceInteractionPartner(), "Avatar.FaceInteractionPartner");
+    view_listener_t::addMenu(new LLAvatarApproachInteractionPartner(), "Avatar.ApproachInteractionPartner");
+    enable.add("Avatar.CanApproachInteractionPartner", boost::bind(&can_approach_interaction_partner));
     enable.add("Avatar.CanInviteInteraction", boost::bind(&can_invite_avatar_interaction));
     enable.add("Avatar.CanEndInteraction", boost::bind(&can_end_avatar_interaction));
     enable.add("Avatar.CanFaceInteractionPartner", boost::bind(&can_face_interaction_partner));
