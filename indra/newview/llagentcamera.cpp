@@ -1312,7 +1312,10 @@ static void update_local_social_gaze()
 {
     static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialGaze", true);
     static F64 last_scan = 0.0;
+    static F64 target_since = 0.0;
+    static F64 challenger_since = 0.0;
     static LLUUID last_target;
+    static LLUUID challenger_target;
     const F64 now = LLTimer::getTotalSeconds();
 
     if (!enabled || !gAgentAvatarp || !gAgentAvatarp->mHeadp ||
@@ -1323,23 +1326,28 @@ static void update_local_social_gaze()
         {
             gAgentCamera.clearInteractionLookAt();
             last_target.setNull();
+            challenger_target.setNull();
+            target_since = 0.0;
+            challenger_since = 0.0;
         }
         return;
     }
 
-    // A 3 Hz scan is sufficient for target selection; the actual head/eye motion
-    // remains frame-driven by the existing animation system.
+    // Target selection is deliberately slower than the frame-driven head/eye motion.
     if (now - last_scan < 0.33)
         return;
     last_scan = now;
 
-    LLVOAvatar* best_avatar = nullptr;
-    F32 best_score = 7.0f;
     const LLVector3 origin = gAgentAvatarp->getPositionAgent();
     LLVector3 forward = LLVector3::x_axis * gAgentAvatarp->getRotation();
     forward.mV[VZ] = 0.f;
     if (forward.normalize() < 0.001f)
         return;
+
+    LLVOAvatar* best_avatar = nullptr;
+    LLVOAvatar* current_avatar = nullptr;
+    F32 best_score = 7.0f;
+    F32 current_score = 1000.0f;
 
     for (S32 i = 0, count = gObjectList.getNumObjects(); i < count; ++i)
     {
@@ -1360,28 +1368,80 @@ static void update_local_social_gaze()
             continue;
         offset.normalize();
 
-        // Prefer people in front; a typing avatar receives a modest preference,
-        // but distance still dominates so gaze does not jump erratically.
-        if ((forward * offset) < 0.35f)
+        const F32 facing = forward * offset;
+        if (facing < 0.35f)
             continue;
-        F32 score = distance - (avatar->isTyping() ? 0.75f : 0.0f);
+
+        // Distance remains dominant. Typing is a weak conversational hint only.
+        const F32 score = distance - (avatar->isTyping() ? 0.75f : 0.0f);
         if (score < best_score)
         {
             best_score = score;
             best_avatar = avatar;
         }
+        if (avatar->getID() == last_target)
+        {
+            current_avatar = avatar;
+            current_score = score;
+        }
     }
 
-    if (best_avatar)
+    if (!best_avatar)
     {
+        if (last_target.notNull())
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+            challenger_target.setNull();
+            target_since = 0.0;
+            challenger_since = 0.0;
+        }
+        return;
+    }
+
+    if (best_avatar->getID() == last_target)
+    {
+        // The current target remains the best candidate; clear any stale challenge.
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    if (last_target.isNull() || !current_avatar)
+    {
+        // Acquire immediately when there is no valid current target.
         gAgentCamera.setInteractionLookAt(best_avatar);
         last_target = best_avatar->getID();
+        target_since = now;
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
     }
-    else if (last_target.notNull())
+
+    // Hysteresis: keep a valid target for at least 2.5s, then require a clearly
+    // better challenger to remain stable for 1.2s before switching attention.
+    if (now - target_since < 2.5 || best_score > current_score - 0.8f)
     {
-        gAgentCamera.clearInteractionLookAt();
-        last_target.setNull();
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
     }
+
+    if (challenger_target != best_avatar->getID())
+    {
+        challenger_target = best_avatar->getID();
+        challenger_since = now;
+        return;
+    }
+
+    if (now - challenger_since < 1.2)
+        return;
+
+    gAgentCamera.setInteractionLookAt(best_avatar);
+    last_target = best_avatar->getID();
+    target_since = now;
+    challenger_target.setNull();
+    challenger_since = 0.0;
 }
 
 //-----------------------------------------------------------------------------
