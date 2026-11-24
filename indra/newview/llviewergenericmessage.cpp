@@ -80,6 +80,18 @@ namespace
         if (!requester_avatar || !target_avatar || requester_avatar->isDead() || target_avatar->isDead())
             return false;
 
+        // A paired contact animation is only meaningful while the participants
+        // are physically close. They may have moved after accepting the invite.
+        // Keep the request pending so a deliberate local approach can bring
+        // them into range; never move either avatar automatically here.
+        const F32 separation =
+            (requester_avatar->getPositionAgent() - target_avatar->getPositionAgent()).length();
+        constexpr F32 MIN_PAIRED_MOTION_DISTANCE = 0.45f;
+        constexpr F32 MAX_PAIRED_MOTION_DISTANCE = 2.0f;
+        if (separation < MIN_PAIRED_MOTION_DISTANCE ||
+            separation > MAX_PAIRED_MOTION_DISTANCE)
+            return false;
+
         const bool requester_started = requester_avatar->startMotion(motions.requester_motion);
         const bool target_started = target_avatar->startMotion(motions.target_motion);
         if (requester_started && target_started)
