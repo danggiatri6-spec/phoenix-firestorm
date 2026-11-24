@@ -102,3 +102,19 @@ The Viewer repository paths have now been confirmed on `opensim-next/avatar-mode
 The simulator repository is `danggiatri6-spec/opensim`, branch `opensim-next/avatar-modernization`. Its `OpenSim/Region/Framework/Scenes/Scene.cs` and `ScenePresence.cs` are present, but the expected Linden Caps path `OpenSim/Region/ClientStack/Linden/Caps/` was not found at that path. No authoritative `AvatarInteraction` server handler or request schema has yet been located in the accessible branch.
 
 **Implementation gate:** do not add an outbound Viewer POST using guessed field names. First locate the server capability registration and handler in the active server branch. Then implement the Viewer action using that exact contract. This prevents a UI that appears to send invitations but can never be handled by the simulator.
+
+
+## Server capability registration architecture confirmed
+
+The active OpenSim server development branch `opensim-next-dev` exposes the region capability lifecycle through:
+
+- `OpenSim/Region/Framework/Interfaces/ICapabilitiesModule.cs`
+- `ICapabilitiesModule.GetCapsForUser(circuitCode)`
+- `ICapabilitiesModule.GetCapsPath(agentId)`
+- `ICapabilitiesModule.CreateCaps(agentId, circuitCode)` / `ActivateCaps(circuitCode)`
+
+This confirms capability handling is per-agent/per-circuit and attached to the viewer's CAPS seed lifecycle. The concrete `ICapabilitiesModule` implementation and its handler-registration API have not yet been located in the repository snapshot, so the new handler must be integrated there rather than added as an unrelated HTTP listener.
+
+The branch check also confirms that the server's current public working branch is `opensim-next-dev`; the earlier guessed `OpenSim/Region/ClientStack/Linden/Caps/...` path is not present. Do not use that guessed path in implementation.
+
+**Viewer integration point confirmed:** `menu_avatar_other.xml` is the right-click context menu for another avatar; `lltoolpie.cpp` selects and displays it. A menu item can therefore use the exact clicked avatar UUID, but it must remain capability-gated and must not be wired to a guessed LLSD payload.
