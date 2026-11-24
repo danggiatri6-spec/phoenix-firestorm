@@ -355,3 +355,20 @@ Added a local world-point target path to `LLHUDEffectLookAt` and `LLAgentCamera`
 - Explicit AvatarInteraction sessions, first-person camera mode, and the opt-out setting continue to suppress automatic social gaze.
 
 This provides a brief local glance-away, not a full conversational gaze model. The point is in agent/world space and uses the existing head/eye motion path. No new network traffic is introduced. Source-level review only; no C++ build or in-world test has been performed. Verify the point coordinate conversion and visual motion with standard and custom avatar rigs before treating the behavior as production-ready.
+
+
+## Eye-motion activation and blink-state hardening (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Reviewed the existing `LLEyeMotion` implementation rather than adding a second blink controller. The motion already has randomized blink intervals, a slight left/right eyelid timing offset, eye jitter, and brief independent eye look-away behavior.
+
+Hardened its lifecycle:
+
+- On activation, reset the eye-jitter and blink timers and initialize randomized eye-motion intervals.
+- Delay the first blink by approximately 1.5–4.5 seconds instead of allowing the constructor's zero blink time to trigger immediately.
+- Initialize the first eye look-away after the existing 5–15 second interval rather than at activation.
+- On activation and deactivation, explicitly restore both blink morph weights to zero.
+- Reset the closed-eye state on deactivation, preventing an avatar culled or motion-stopped mid-blink from reappearing with closed eyelids.
+
+The existing subsequent blink cadence, eye movement, head-follow interpolation, and legacy look-at path are unchanged. This is lifecycle hardening, not a claim of a new biometric blink model. Source-level checks only; no C++ build or runtime test has been performed.
