@@ -9913,8 +9913,8 @@ bool can_face_interaction_partner()
     if (!avatar || avatar->isSelf() || avatar->isDead() || avatar->getID() != partner_id)
         return false;
 
-    FSAvatarAlignBase* aligner = FSAvatarAlignBase::getActive();
-    return !aligner || aligner->isAvatarInRange(avatar);
+    return dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent()) <=
+        FSAvatarAlignBase::MAX_FACE_DISTANCE;
 }
 
 bool can_end_avatar_interaction()
