@@ -211,3 +211,21 @@ A likely safe local prototype is an opt-in gaze controller that:
 - never changes legacy animation UUID state or server movement.
 
 The actual `LLEyeMotion` class implementation and its registration/activation lifecycle still need to be located before changing code. No facial or gaze implementation has been modified in this research pass.
+
+
+## First compatibility improvement implemented (2026-11-24)
+
+File changed: `indra/llcharacter/llheadrotmotion.cpp`
+
+The built-in `LLEyeMotion::onInitialize()` previously treated both alternate face-eye joints (`mFaceEyeAltLeft` and `mFaceEyeAltRight`) as mandatory. If a compatible/custom rig exposed the primary eye joints but omitted the alternate pair, initialization failed and the default eye motion could be disabled entirely.
+
+The implementation now:
+- continues to require the head joint and primary left/right eye joints;
+- treats the alternate face-eye pair as optional;
+- registers and updates the alternate pair only when both joints exist;
+- retains the primary eye path unchanged;
+- keeps deactivation null-safe.
+
+This is a small compatibility hardening change, not yet a new gaze feature. It does not change animation UUIDs, network packets, server behavior, or the default Second Life rig path.
+
+Verification performed: source-level checks confirmed the two primary eye joints remain required, alternate-joint registration and update are guarded, and deactivation checks null joints. No C++ compilation or runtime test has been performed. The next validation should include a standard SL avatar rig and a test rig with the alternate eye joints omitted.
