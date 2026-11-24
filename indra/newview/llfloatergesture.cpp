@@ -36,6 +36,7 @@
 
 #include "llagent.h"
 #include "llanimationstates.h"
+#include "llviewerregion.h"
 #include "llappearancemgr.h"
 #include "llclipboard.h"
 #include "llgesturemgr.h"
@@ -289,6 +290,7 @@ bool LLFloaterGesture::postBuild()
     getChild<LLButton>("expression_surprise")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_SURPRISE));
     getChild<LLButton>("expression_wink")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_WINK));
     getChild<LLButton>("expression_clear")->setClickedCallback(boost::bind(&LLFloaterGesture::onClearQuickExpression, this));
+    getChild<LLButton>("interaction_policy_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onToggleInteractionPolicy, this));
 
     getChildView("play_btn")->setVisible( true);
     getChildView("stop_btn")->setVisible( false);
@@ -644,6 +646,20 @@ void LLFloaterGesture::onClickPlay()
     {
         playGesture(item_id);
     }
+}
+
+void LLFloaterGesture::onToggleInteractionPolicy()
+{
+    LLViewerRegion* region = gAgent.getRegion();
+    if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+        return;
+
+    mAllowAvatarInteractions = !mAllowAvatarInteractions;
+
+    LLSD request;
+    request["action"] = "set_policy";
+    request["policy"] = mAllowAvatarInteractions ? "everyone" : "off";
+    region->requestPostCapability("AvatarInteraction", request);
 }
 
 void LLFloaterGesture::onQuickExpression(const LLUUID& expression_id)
