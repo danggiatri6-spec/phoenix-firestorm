@@ -64,7 +64,9 @@ public:
     ELookAtType getLookAtType() { return mTargetType; }
     const LLVector3& getTargetPos() { return mTargetPos; }
     const LLVector3d& getTargetOffset() { return mTargetOffsetGlobal; }
-    bool calcTargetPosition();
+    bool calcTargetPosition(bool use_interaction_target = false);
+    void setInteractionTarget(LLViewerObject* target);
+    void clearInteractionTarget();
 
 protected:
     LLHUDEffectLookAt(const U8 type);
