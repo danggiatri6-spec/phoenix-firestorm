@@ -39,7 +39,7 @@
         <button label="Wow" name="expression_surprise" left="178" top="2" width="42" height="22" />
         <button label="Wink" name="expression_wink" left="218" top="2" width="45" height="22" />
         <button label="Clear" name="expression_clear" left="261" top="2" width="55" height="22" />
-        <button label="Toggle avatar interactions" name="interaction_policy_btn" left="0" top="25" width="170" height="22" />
+        <button label="Interactions: Off" name="interaction_policy_btn" left="0" top="25" width="170" height="22" />
     </panel>
     <scroll_list
      bottom_delta="418"
