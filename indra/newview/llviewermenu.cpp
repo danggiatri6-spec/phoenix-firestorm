@@ -9875,6 +9875,48 @@ class LLAvatarEndInteraction : public view_listener_t
     }
 };
 
+class LLAvatarFaceInteractionPartner : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (!avatar || avatar->isSelf() || avatar->isDead() ||
+            partner_id.isNull() || session_id.isNull() || avatar->getID() != partner_id)
+            return true;
+
+        // Face the partner using Firestorm's existing alignment implementation.
+        // This rotates only the local user's heading and sends the normal agent
+        // update; it does not move either participant or force the remote avatar.
+        if (!FSAvatarAlignBase::getActive())
+        {
+            LLFloaterReg::showInstance(gSavedSettings.getBOOL("AvatarAlignMini")
+                ? "avatar_align_mini" : "avatar_align");
+        }
+
+        FSAvatarAlignBase* aligner = FSAvatarAlignBase::getActive();
+        if (aligner && aligner->isAvatarInRange(avatar))
+            aligner->faceAvatar(avatar);
+        return true;
+    }
+};
+
+bool can_face_interaction_partner()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    if (!avatar || avatar->isSelf() || avatar->isDead() || avatar->getID() != partner_id)
+        return false;
+
+    FSAvatarAlignBase* aligner = FSAvatarAlignBase::getActive();
+    return !aligner || aligner->isAvatarInRange(avatar);
+}
+
 bool can_end_avatar_interaction()
 {
     const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
@@ -13355,8 +13397,10 @@ void initialize_menus()
     view_listener_t::addMenu(new LLAvatarCall(), "Avatar.Call");
     view_listener_t::addMenu(new LLAvatarInteractionInvite(), "Avatar.InteractionInvite");
     view_listener_t::addMenu(new LLAvatarEndInteraction(), "Avatar.EndInteraction");
+    view_listener_t::addMenu(new LLAvatarFaceInteractionPartner(), "Avatar.FaceInteractionPartner");
     enable.add("Avatar.CanInviteInteraction", boost::bind(&can_invite_avatar_interaction));
     enable.add("Avatar.CanEndInteraction", boost::bind(&can_end_avatar_interaction));
+    enable.add("Avatar.CanFaceInteractionPartner", boost::bind(&can_face_interaction_partner));
 //  enable.add("Avatar.EnableCall", boost::bind(&LLAvatarActions::canCall));
 // [RLVa:KB] - Checked: 2010-08-25 (RLVa-1.2.1b) | Added: RLVa-1.2.1b
     enable.add("Avatar.EnableCall", boost::bind(&enable_avatar_call));
