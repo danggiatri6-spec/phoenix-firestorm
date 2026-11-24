@@ -248,3 +248,11 @@ The standard animation registry in `indra/llcharacter/llanimationstates.cpp` was
 **Implementation decision:** do not invent animation UUIDs or start arbitrary standard gestures as if they were paired interactions. The next animation milestone needs a verified two-role asset pair per interaction (asset UUIDs, duration, loop/ease behavior, role assignment, and optional root/hand alignment metadata). The controller should start both roles only after both assets are available, track the exact motions it owns per session, and stop only those motions when the matching server end event arrives. If an asset is unavailable, the session and gaze interaction must still work without falsely claiming an animation played.
 
 **Verification:** inspected the Viewer headers/implementation and standard animation registry on this branch. This was source inspection only; no files outside this document were changed in this audit, and no build or runtime test was performed.
+
+## Viewer paired-motion lifecycle hook (2026-11-24)
+
+The generic AvatarInteraction event handler now recognizes optional `requester_animation` and `target_animation` UUID fields on `AvatarInteractionAccepted`. When both UUIDs are present and both participant avatar objects are available, it starts both role-specific motions as one operation. If either side cannot start, any motion started by the other side is immediately stopped, avoiding a one-sided contact pose.
+
+Successful paired starts are tracked by server `session_id`, including both participant UUIDs and the exact motion UUIDs. A matching `AvatarInteractionEnded` or session-expiry event stops only those tracked motions. Unrelated AO, dance, gesture, and user-started motions are not stopped by this feature. Duplicate accepted events are ignored while that session is tracked.
+
+The current OpenSim server event does not yet supply these optional animation UUIDs, and the standard Viewer animation registry has no verified paired handshake/high-five/shoulder-tap assets. Therefore this is a forward-compatible playback/lifecycle hook, not a claim that the three actions currently animate. The next server-side step is to provide configured, verified role-specific asset UUIDs in the accepted event. No C++ build or runtime test has been performed.
