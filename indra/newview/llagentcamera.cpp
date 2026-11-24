@@ -33,9 +33,13 @@
 #include "llagent.h"
 #include "llavataractions.h"
 #include "llanimationstates.h"
+#include "lljointstate.h"
+#include "llmotion.h"
+#include "llpose.h"
 #include "llstring.h"
 
 #include <cctype>
+#include <string>
 
 // Only standard Second Life facial expression animations may be requested by
 // the local social-emotion layer. Never invent animation IDs here.
@@ -104,6 +108,56 @@ static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, c
 #include "lltrans.h"
 #include "lltimer.h"
 #include "llvoiceclient.h"
+
+static bool has_social_upper_body_motion_conflict(const LLVOAvatarSelf* avatar)
+{
+    if (!avatar)
+        return true;
+
+    const LLMotionController::motion_list_t& motions =
+        avatar->getMotionController().getActiveMotions();
+
+    for (LLMotionController::motion_list_t::const_iterator motion_it = motions.begin();
+         motion_it != motions.end(); ++motion_it)
+    {
+        LLMotion* motion = *motion_it;
+        if (!motion || motion->getID() == ANIM_AGENT_TALK)
+            continue;
+
+        LLPose* pose = motion->getPose();
+        if (!pose)
+            continue;
+
+        for (LLJointState* state = pose->getFirstJointState(); state;
+             state = pose->getNextJointState())
+        {
+            const LLJoint* joint = state->getJoint();
+            if (!joint)
+                continue;
+
+            std::string joint_name = joint->getName();
+            LLStringUtil::toLower(joint_name);
+            const bool upper_body_joint =
+                joint_name.find("shoulder") != std::string::npos ||
+                joint_name.find("collar") != std::string::npos ||
+                joint_name.find("elbow") != std::string::npos ||
+                joint_name.find("wrist") != std::string::npos ||
+                joint_name.find("hand") != std::string::npos ||
+                joint_name.find("chest") != std::string::npos ||
+                joint_name.find("torso") != std::string::npos ||
+                joint_name.find("spine") != std::string::npos;
+
+            LLJoint::JointPriority priority = state->getPriority();
+            if (priority == LLJoint::USE_MOTION_PRIORITY)
+                priority = motion->getPriority();
+
+            if (upper_body_joint && priority >= LLJoint::MEDIUM_PRIORITY)
+                return true;
+        }
+    }
+    return false;
+}
+
 
 using namespace LLAvatarAppearanceDefines;
 
@@ -1670,7 +1724,8 @@ void LLAgentCamera::updateSocialSpeechGesture()
     LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
     if (speaking && !mSocialTalkPending && !mSocialTalkOwned &&
         current == avatar->mSignaledAnimations.end() &&
-        !has_external_social_animation_source(avatar, ANIM_AGENT_TALK))
+        !has_external_social_animation_source(avatar, ANIM_AGENT_TALK) &&
+        !has_social_upper_body_motion_conflict(avatar))
     {
         // Acquire the standard SL TALK animation only during actual local voice activity.
         gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_START);
