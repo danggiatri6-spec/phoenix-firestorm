@@ -90,6 +90,7 @@ public:
 
 private:
     ELookAtType                 mTargetType;
+    LLPointer<LLViewerObject>   mInteractionTarget;
     LLVector3d                  mTargetOffsetGlobal;
     LLVector3                   mLastSentOffsetGlobal;
     F32                         mKillTime;
