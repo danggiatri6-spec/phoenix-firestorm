@@ -358,6 +358,11 @@ const LLUUID& LLAvatarActions::getActiveAvatarInteractionPartner()
     return sActiveAvatarInteractionPartner;
 }
 
+const LLUUID& LLAvatarActions::getActiveAvatarInteractionSession()
+{
+    return sActiveAvatarInteractionSession;
+}
+
 void LLAvatarActions::clearActiveAvatarInteraction(const LLUUID& session_id)
 {
     if (session_id.isNull() || sActiveAvatarInteractionSession == session_id)
