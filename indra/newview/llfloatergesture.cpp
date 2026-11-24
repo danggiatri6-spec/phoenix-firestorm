@@ -35,6 +35,7 @@
 #include "llclipboard.h"
 
 #include "llagent.h"
+#include "llanimationstates.h"
 #include "llappearancemgr.h"
 #include "llclipboard.h"
 #include "llgesturemgr.h"
@@ -281,6 +282,13 @@ bool LLFloaterGesture::postBuild()
     getChild<LLUICtrl>("new_gesture_btn")->setCommitCallback(boost::bind(&LLFloaterGesture::onClickNew, this));
     getChild<LLButton>("del_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onDeleteSelected, this));
     getChild<LLButton>("favorite_btn")->setClickedCallback(boost::bind(&LLFloaterGesture::onClickFavorite, this));
+    getChild<LLButton>("expression_smile")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_SMILE));
+    getChild<LLButton>("expression_laugh")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_LAUGH));
+    getChild<LLButton>("expression_sad")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_SAD));
+    getChild<LLButton>("expression_frown")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_FROWN));
+    getChild<LLButton>("expression_surprise")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_SURPRISE));
+    getChild<LLButton>("expression_wink")->setClickedCallback(boost::bind(&LLFloaterGesture::onQuickExpression, this, ANIM_AGENT_EXPRESS_WINK));
+    getChild<LLButton>("expression_clear")->setClickedCallback(boost::bind(&LLFloaterGesture::onClearQuickExpression, this));
 
     getChildView("play_btn")->setVisible( true);
     getChildView("stop_btn")->setVisible( false);
@@ -635,6 +643,36 @@ void LLFloaterGesture::onClickPlay()
     else
     {
         playGesture(item_id);
+    }
+}
+
+void LLFloaterGesture::onQuickExpression(const LLUUID& expression_id)
+{
+    if (expression_id.isNull())
+        return;
+
+    // Stop only the quick expression started from this panel. This avoids
+    // issuing a blanket stop for expressions started by scripts or gestures.
+    if (mQuickExpression.notNull() && mQuickExpression != expression_id)
+        gAgent.sendAnimationRequest(mQuickExpression, ANIM_REQUEST_STOP);
+
+    if (mQuickExpression == expression_id)
+    {
+        gAgent.sendAnimationRequest(expression_id, ANIM_REQUEST_STOP);
+        mQuickExpression.setNull();
+        return;
+    }
+
+    gAgent.sendAnimationRequest(expression_id, ANIM_REQUEST_START);
+    mQuickExpression = expression_id;
+}
+
+void LLFloaterGesture::onClearQuickExpression()
+{
+    if (mQuickExpression.notNull())
+    {
+        gAgent.sendAnimationRequest(mQuickExpression, ANIM_REQUEST_STOP);
+        mQuickExpression.setNull();
     }
 }
 
