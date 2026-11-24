@@ -59,6 +59,7 @@
 // [/RLVa:KB]
 #include "fscommon.h"
 #include "lltrans.h"
+#include "lltimer.h"
 
 using namespace LLAvatarAppearanceDefines;
 
@@ -1302,7 +1303,86 @@ void LLAgentCamera::updateLookAt(const S32 mouse_x, const S32 mouse_y)
 
 static LLTrace::BlockTimerStatHandle FTM_UPDATE_CAMERA("Camera");
 
+
 extern bool gCubeSnapshot;
+
+// Local-only social gaze. This deliberately reuses the existing look-at overlay:
+// no new packets are sent and legacy AO/LSL/camera attention remains authoritative.
+static void update_local_social_gaze()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialGaze", true);
+    static F64 last_scan = 0.0;
+    static LLUUID last_target;
+    const F64 now = LLTimer::getTotalSeconds();
+
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->mHeadp ||
+        !gAgentCamera.cameraThirdPerson() ||
+        LLAvatarActions::getActiveAvatarInteractionPartner().notNull())
+    {
+        if (last_target.notNull())
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+        }
+        return;
+    }
+
+    // A 3 Hz scan is sufficient for target selection; the actual head/eye motion
+    // remains frame-driven by the existing animation system.
+    if (now - last_scan < 0.33)
+        return;
+    last_scan = now;
+
+    LLVOAvatar* best_avatar = nullptr;
+    F32 best_score = 7.0f;
+    const LLVector3 origin = gAgentAvatarp->getPositionAgent();
+    LLVector3 forward = LLVector3::x_axis * gAgentAvatarp->getRotation();
+    forward.mV[VZ] = 0.f;
+    if (forward.normalize() < 0.001f)
+        return;
+
+    for (S32 i = 0, count = gObjectList.getNumObjects(); i < count; ++i)
+    {
+        LLViewerObject* object = gObjectList.getObject(i);
+        if (!object || !object->isAvatar() || object->isDead() ||
+            object->getID() == gAgent.getID())
+            continue;
+
+        LLVOAvatar* avatar = (LLVOAvatar*)object;
+        if (!avatar->mHeadp || !avatar->isVisible() || avatar->isVisuallyMuted() ||
+            avatar->isInMuteList() || avatar->getRegion() != gAgent.getRegion())
+            continue;
+
+        LLVector3 offset = avatar->getPositionAgent() - origin;
+        offset.mV[VZ] = 0.f;
+        const F32 distance = offset.length();
+        if (distance < 1.0f || distance > 7.0f)
+            continue;
+        offset.normalize();
+
+        // Prefer people in front; a typing avatar receives a modest preference,
+        // but distance still dominates so gaze does not jump erratically.
+        if ((forward * offset) < 0.35f)
+            continue;
+        F32 score = distance - (avatar->isTyping() ? 0.75f : 0.0f);
+        if (score < best_score)
+        {
+            best_score = score;
+            best_avatar = avatar;
+        }
+    }
+
+    if (best_avatar)
+    {
+        gAgentCamera.setInteractionLookAt(best_avatar);
+        last_target = best_avatar->getID();
+    }
+    else if (last_target.notNull())
+    {
+        gAgentCamera.clearInteractionLookAt();
+        last_target.setNull();
+    }
+}
 
 //-----------------------------------------------------------------------------
 // updateCamera()
@@ -1344,6 +1424,11 @@ void LLAgentCamera::updateCamera()
         {
             LLAvatarActions::cancelAvatarInteractionApproach();
         }
+    }
+
+    else
+    {
+        update_local_social_gaze();
     }
 
     // - changed camera_skyward to the new global "mCameraUpVector"
