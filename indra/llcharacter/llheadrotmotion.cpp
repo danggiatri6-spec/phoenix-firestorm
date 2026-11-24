@@ -322,11 +322,13 @@ LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
         return STATUS_FAILURE;
     }
 
+    // Alternate face-eye joints are optional. Some compatible avatar rigs
+    // expose only the primary eye joints; missing optional joints must not
+    // disable the entire eye motion.
     mAltLeftEyeState->setJoint( character->getJoint("mFaceEyeAltLeft") );
     if ( ! mAltLeftEyeState->getJoint() )
     {
-        LL_INFOS() << getName() << ": Can't get alt left eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
+        LL_DEBUGS("Avatar") << getName() << ": No alternate left eyeball joint; using primary eyes." << LL_ENDL;
     }
 
     mRightEyeState->setJoint( character->getJoint("mEyeRight") );
@@ -339,21 +341,23 @@ LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
     mAltRightEyeState->setJoint( character->getJoint("mFaceEyeAltRight") );
     if ( ! mAltRightEyeState->getJoint() )
     {
-        LL_INFOS() << getName() << ": Can't get alt right eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
+        LL_DEBUGS("Avatar") << getName() << ": No alternate right eyeball joint; using primary eyes." << LL_ENDL;
     }
 
     mLeftEyeState->setUsage(LLJointState::ROT);
-    mAltLeftEyeState->setUsage(LLJointState::ROT);
-
     mRightEyeState->setUsage(LLJointState::ROT);
-    mAltRightEyeState->setUsage(LLJointState::ROT);
-
     addJointState( mLeftEyeState );
-    addJointState( mAltLeftEyeState );
-
     addJointState( mRightEyeState );
-    addJointState( mAltRightEyeState );
+
+    // Register alternate eye joints only when present. The update path below
+    // treats the alternate pair as an optional second eye rig.
+    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    {
+        mAltLeftEyeState->setUsage(LLJointState::ROT);
+        mAltRightEyeState->setUsage(LLJointState::ROT);
+        addJointState( mAltLeftEyeState );
+        addJointState( mAltRightEyeState );
+    }
 
     return STATUS_SUCCESS;
 }
@@ -538,7 +542,10 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
     LLVector3* targetPos = (LLVector3*)mCharacter->getAnimationData("LookAtPoint");
 
     adjustEyeTarget(targetPos, *mLeftEyeState, *mRightEyeState);
-    adjustEyeTarget(targetPos, *mAltLeftEyeState, *mAltRightEyeState);
+    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    {
+        adjustEyeTarget(targetPos, *mAltLeftEyeState, *mAltRightEyeState);
+    }
 
     return true;
 }
