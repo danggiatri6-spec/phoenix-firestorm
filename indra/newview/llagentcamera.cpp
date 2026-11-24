@@ -35,6 +35,8 @@
 #include "llanimationstates.h"
 #include "llstring.h"
 
+#include <cctype>
+
 // Only standard Second Life facial expression animations may be requested by
 // the local social-emotion layer. Never invent animation IDs here.
 static bool is_social_facial_expression(const LLUUID& id)
@@ -1571,6 +1573,25 @@ bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
 }
 
 
+// Match complete ASCII cue words so ordinary words such as "color" or
+// "saddle" do not accidentally trigger social expressions.
+static bool contains_social_word(const std::string& text, const std::string& word)
+{
+    std::string::size_type pos = 0;
+    while ((pos = text.find(word, pos)) != std::string::npos)
+    {
+        const bool left_boundary = pos == 0 ||
+            !std::isalnum(static_cast<unsigned char>(text[pos - 1]));
+        const std::string::size_type end = pos + word.size();
+        const bool right_boundary = end >= text.size() ||
+            !std::isalnum(static_cast<unsigned char>(text[end]));
+        if (left_boundary && right_boundary)
+            return true;
+        pos = end;
+    }
+    return false;
+}
+
 void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::string& message)
 {
     static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
@@ -1598,29 +1619,29 @@ void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::strin
 
     ESocialEmotion emotion;
     bool recognized = true;
-    if (normalized.find("haha") != std::string::npos ||
-        normalized.find("lol") != std::string::npos ||
-        normalized.find("lmao") != std::string::npos ||
+    if (contains_social_word(normalized, "haha") ||
+        contains_social_word(normalized, "lol") ||
+        contains_social_word(normalized, "lmao") ||
         message.find("哈哈") != std::string::npos ||
         message.find("😂") != std::string::npos)
     {
         emotion = ESocialEmotion::AMUSED;
     }
-    else if (normalized.find("thank") != std::string::npos ||
+    else if (contains_social_word(normalized, "thank") ||
         message.find("谢谢") != std::string::npos ||
         message.find("多谢") != std::string::npos)
     {
         emotion = ESocialEmotion::FRIENDLY;
     }
-    else if (normalized.find("sorry") != std::string::npos ||
-        normalized.find("sad") != std::string::npos ||
+    else if (contains_social_word(normalized, "sorry") ||
+        contains_social_word(normalized, "sad") ||
         message.find("对不起") != std::string::npos ||
         message.find("难过") != std::string::npos ||
         message.find("伤心") != std::string::npos)
     {
         emotion = ESocialEmotion::CONCERNED;
     }
-    else if (normalized.find("wow") != std::string::npos ||
+    else if (contains_social_word(normalized, "wow") ||
         message.find("惊讶") != std::string::npos)
     {
         emotion = ESocialEmotion::SURPRISED;
