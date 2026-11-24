@@ -1872,6 +1872,17 @@
     <key>Value</key>
     <integer>0</integer>
   </map>
+  <key>FSAvatarSocialGaze</key>
+  <map>
+    <key>Comment</key>
+    <string>Allow the local avatar to naturally look toward nearby visible avatars when no explicit interaction or higher-priority camera attention is active.</string>
+    <key>Persist</key>
+    <integer>1</integer>
+    <key>Type</key>
+    <string>Boolean</string>
+    <key>Value</key>
+    <integer>1</integer>
+  </map>
   <key>PrivatePointAtTarget</key>
   <map>
     <key>Comment</key>
