@@ -190,3 +190,24 @@ Do not start by adding a server-side joint-pose packet. The first implementation
 4. how to keep the cost bounded by visibility and avatar update period.
 
 After that local prototype is stable, define the negotiated extension and only then implement server replication.
+
+
+## Viewer-local face feature inventory (2026-11-24)
+
+A source inspection of `indra/newview/llvoavatar.cpp` and `indra/newview/character/avatar_lad.xml` reveals that the legacy Viewer already has part of the required foundation:
+
+- `LLVOAvatar::buildCharacter()` obtains the `Lipsync_Ooh` and `Lipsync_Aah` visual parameters, with fallbacks to `Express_Kiss` and `Express_Open_Mouth`.
+- `LLVOAvatar::idleUpdateLipSync()` drives those morphs from the voice visualizer and speaking state, then updates visual parameters and dirties the mesh.
+- `LLVOAvatar::initClass()` registers the built-in `ANIM_AGENT_EYE` motion through `LLEyeMotion::create`, and `startDefaultMotions()` starts it with other baseline motions.
+- The standard avatar definition contains animatable `Blink_Left` and `Blink_Right` morph parameters (IDs 58 and 59 in the inspected definition).
+
+This changes the implementation strategy: do not create a competing blink system until the built-in `LLEyeMotion` implementation and its behavior are traced. First determine whether it already provides timed blinking and whether the limitation is only lack of independent gaze targeting or poor compatibility with newer rigs. Likewise, preserve the existing lip-sync path and compose additional face controls around it rather than overwriting its morph weights.
+
+A likely safe local prototype is an opt-in gaze controller that:
+- operates only on fully built, visible avatars with valid eye/head joints;
+- uses the existing avatar joint/motion framework rather than directly writing root transforms;
+- has deterministic fallback to the built-in eye motion when the rig lacks required joints;
+- updates at a bounded rate and smooths target changes;
+- never changes legacy animation UUID state or server movement.
+
+The actual `LLEyeMotion` class implementation and its registration/activation lifecycle still need to be located before changing code. No facial or gaze implementation has been modified in this research pass.
