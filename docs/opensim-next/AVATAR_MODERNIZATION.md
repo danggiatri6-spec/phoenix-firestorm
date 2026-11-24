@@ -94,3 +94,10 @@ A source commit or static check is not a build or runtime validation.
 The Gestures floater now has a desktop quick-expression row for Smile, Laugh, Sad, Frown, Surprise, and Wink, plus Clear. It sends the existing legacy expression animation IDs through the normal Viewer animation request path. It does not add a new wire protocol or replace inventory gestures.
 
 This is source-level work only. It has not yet been compiled or runtime-tested.
+
+
+## Interaction capability increment
+
+The Gestures floater now includes a desktop toggle that posts `set_policy` (`everyone` / `off`) to the optional `AvatarInteraction` capability when the current region advertises it. Regions without the capability are ignored safely. This is an initial control only: the toggle is local to the open floater session, and the Viewer does not yet expose Friends or Ask settings or a paired-interaction request UI.
+
+Quick-expression controls and the interaction-policy toggle are source changes only; compile and runtime validation remain outstanding.
