@@ -297,3 +297,8 @@ The Viewer now has a first local-only interaction gaze overlay:
 - If the partner object disappears, the overlay drops the target and removes stale local look-at animation data when no legacy target remains.
 
 This is intentionally a local presentation layer only; it does not replicate the interaction gaze to other viewers. It is not yet compiled or runtime-tested. One known limitation remains: if the accepted event arrives before the partner avatar object is present in the object list, this first version does not retry resolution later. A follow-up should make target resolution resilient to late avatar arrival and region transitions.
+
+
+## Late avatar-object resolution retry (2026-11-24)
+
+The interaction partner is now resolved from the active session UUID during the regular Viewer camera update. This covers the ordering race where `AvatarInteractionAccepted` is received before the remote avatar object is present in `gObjectList`: the Viewer retries on subsequent camera frames and acquires the existing local-only gaze overlay as soon as a live avatar object appears. If the object is temporarily absent or not yet an avatar, only the local overlay is released; the server-issued session and partner UUID remain intact for retry. The implementation adds no timer, network packet, or server request. It has not been compiled or runtime-tested.
