@@ -124,6 +124,8 @@ public:
     bool            requestSocialEmotion(ESocialEmotion emotion);
     bool            requestSocialGreetingGesture();
     void            cancelSocialGreetingGesture();
+    bool            requestSocialNodGesture();
+    void            cancelSocialNodGesture();
     void            observeSocialChat(const LLUUID& speaker_id, const std::string& message);
     bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
     void            cancelSocialExpression();
@@ -149,6 +151,11 @@ private:
     F64             mSocialGestureDeadline = 0.0;
     bool            mSocialGesturePending = false;
     bool            mSocialGestureOwned = false;
+    S32             mSocialNodSequence = 0;
+    F64             mSocialNodRequestTime = 0.0;
+    F64             mSocialNodDeadline = 0.0;
+    bool            mSocialNodPending = false;
+    bool            mSocialNodOwned = false;
 
     //--------------------------------------------------------------------
     // Preset
