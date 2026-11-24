@@ -314,6 +314,27 @@ void LLAvatarActions::endIM(const LLUUID& id)
     }
 }
 
+// static
+
+void LLAvatarActions::requestInteractionInvite(const LLUUID& target_id, const std::string& interaction)
+{
+    if (target_id.isNull() || target_id == gAgent.getID())
+        return;
+
+    if (interaction != "handshake" && interaction != "high_five" && interaction != "shoulder_tap")
+        return;
+
+    LLViewerRegion* region = gAgent.getRegion();
+    if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+        return;
+
+    LLSD request;
+    request["action"] = "invite";
+    request["target"] = target_id;
+    request["interaction"] = interaction;
+    region->requestPostCapability("AvatarInteraction", request);
+}
+
 static void on_avatar_name_cache_start_call(const LLUUID& agent_id,
                                             const LLAvatarName& av_name)
 {
