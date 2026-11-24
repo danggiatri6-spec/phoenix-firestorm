@@ -368,3 +368,30 @@ Fixed a stale-mouth-pose edge case in `LLVOAvatar::idleUpdateLipSync()`:
 - Existing voice amplitude sampling, Ooh/Aah curves, fallback morphs, and legacy gesture/animation behavior are unchanged.
 
 This is a correctness fix to the existing amplitude-based two-morph lip-sync path, not phoneme/viseme recognition. It does not infer speech content and does not add new network traffic. Static source review only; no C++ build or live voice test has been performed.
+
+
+
+## Facial expression and emotion compatibility research (2026-11-24)
+
+Inspected the existing Firestorm expression, gesture, animation-state, and Visual Parameter paths before introducing any new emotion controller.
+
+### Existing compatible path
+
+- `LLVOAvatar::initInstance()` registers the standard `ANIM_AGENT_EXPRESS_*` animation IDs with `LLEmote::create`. The registered set includes afraid, anger, bored, cry, disdain, embarrassed, frown, kiss, laugh, open-mouth, repulsed, sad, shrug, smile, surprise, tongue-out, tooth-smile, wink, and worry.
+- `llanimationstates.cpp` maps those same standard IDs to the established Second Life animation state names. These are not new OpenSim-next animation IDs.
+- `LLEmote` drives the face through the avatar's named Visual Parameters and cross-fades against `Express_Closed_Mouth`. This is the compatibility path that existing animation signals and gestures already use.
+- `LLGestureMgr` sends start/stop animation requests for the animation IDs referenced by a gesture. It is therefore an existing user-authored trigger path, not a suitable place to synthesize AI emotion or silently replace gesture semantics.
+- The voice lip-sync path is separate: it drives Ooh/Aah morphs from voice amplitude and now clears stale morph weights when voice/lip-sync is disabled.
+
+### Design constraints for the next implementation
+
+1. Do not write facial joints or face morph weights from a second competing per-frame controller. Let the registered `LLEmote` motions remain the owner of standard expression morphs.
+2. Do not invent new animation UUIDs or change the standard expression UUID/name mappings. That would break existing LSL, gesture, AO, and inventory compatibility.
+3. Emotion selection should be a semantic intent layer (for example, friendly greeting, attentive listening, amusement, concern, sadness), mapped onto existing standard expression IDs only after priority and ownership rules are explicit.
+4. The intent layer must distinguish an expression it started from one already active due to LSL, a user gesture, or another animation source. It must never stop or overwrite an expression it does not own.
+5. Expression transitions need bounded duration, fade/return behavior, and suppression rules for explicit user/LSL gestures. Lip-sync must remain independent so speaking does not cancel the emotional expression or leave the mouth morph stuck.
+6. A future AI/chat-driven expression may be local-only as a presentation enhancement, but any expression intended to be visible to other users must use the normal animation signaling path and respect the simulator's existing animation permissions and propagation.
+
+### Verification status
+
+Source inspection covered `llemote.cpp/.h`, `llgesturemgr.cpp/.h`, `llanimationstates.cpp/.h`, `llvoavatar.cpp`, `llvoavatarself.cpp`, and `llmotioncontroller.cpp`. This is a research/design checkpoint; no expression controller or new runtime behavior was added in this step. No C++ build or in-world gesture/LSL conflict test has been run.
