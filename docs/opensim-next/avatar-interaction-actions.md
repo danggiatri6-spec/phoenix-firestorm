@@ -88,3 +88,17 @@ The Viewer should:
 - Shared: action catalog and role-animation metadata.
 
 Do not add UI callbacks until the exact avatar context-menu class and simulator capability request/response schema have been inspected on the active integration branches.
+
+
+## Repository inspection update (2026-11-24)
+
+The Viewer repository paths have now been confirmed on `opensim-next/avatar-modernization`:
+
+- `indra/newview/llviewermenu.cpp` — owns menu construction and already includes the avatar action and pie-menu infrastructure.
+- `indra/newview/llavataractions.cpp` / `.h` — central avatar action layer; the appropriate place for a reusable `requestInteraction(target_id, interaction_key)` entry point once the request schema is verified.
+- `indra/newview/lltoolpie.cpp` — should be inspected for the precise clicked-avatar context and menu dispatch before wiring the action.
+- `indra/newview/llviewergenericmessage.cpp` — existing interaction invite/accepted/ended LLSD event receiver.
+
+The simulator repository is `danggiatri6-spec/opensim`, branch `opensim-next/avatar-modernization`. Its `OpenSim/Region/Framework/Scenes/Scene.cs` and `ScenePresence.cs` are present, but the expected Linden Caps path `OpenSim/Region/ClientStack/Linden/Caps/` was not found at that path. No authoritative `AvatarInteraction` server handler or request schema has yet been located in the accessible branch.
+
+**Implementation gate:** do not add an outbound Viewer POST using guessed field names. First locate the server capability registration and handler in the active server branch. Then implement the Viewer action using that exact contract. This prevents a UI that appears to send invitations but can never be handled by the simulator.
