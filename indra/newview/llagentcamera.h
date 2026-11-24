@@ -271,6 +271,7 @@ public:
     void            updateLookAt(const S32 mouse_x, const S32 mouse_y);
     bool            setLookAt(ELookAtType target_type, LLViewerObject *object = NULL, LLVector3 position = LLVector3::zero);
     void            setInteractionLookAt(LLViewerObject* avatar);
+    void            setInteractionLookAtPoint(const LLVector3d& global_position);
     void            clearInteractionLookAt();
     ELookAtType     getLookAtType();
     void            lookAtLastChat();
