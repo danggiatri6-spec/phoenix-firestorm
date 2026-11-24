@@ -160,6 +160,7 @@ private:
     // Voice-activity-driven lease for the standard SL TALK animation.
     S32             mSocialTalkSequence = 0;
     F64             mSocialTalkRequestTime = 0.0;
+    F64             mSocialTalkLastActiveTime = 0.0;
     bool            mSocialTalkPending = false;
     bool            mSocialTalkOwned = false;
 
