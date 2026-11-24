@@ -3347,6 +3347,20 @@ void LLAgentCamera::setInteractionLookAt(LLViewerObject* avatar)
     mLookAt->setInteractionTarget(avatar);
 }
 
+void LLAgentCamera::setInteractionLookAtPoint(const LLVector3d& global_position)
+{
+    static LLCachedControl<bool> private_look_at(gSavedSettings, "PrivateLocalLookAtTarget", false);
+    if (private_look_at || !gAgentAvatarp || !global_position.isFinite())
+        return;
+
+    if (mLookAt.isNull())
+    {
+        mLookAt = (LLHUDEffectLookAt*)LLHUDObject::addHUDObject(LLHUDObject::LL_HUD_EFFECT_LOOKAT);
+        mLookAt->setSourceObject(gAgentAvatarp);
+    }
+    mLookAt->setInteractionTargetPoint(global_position);
+}
+
 void LLAgentCamera::clearInteractionLookAt()
 {
     if (mLookAt.notNull())
