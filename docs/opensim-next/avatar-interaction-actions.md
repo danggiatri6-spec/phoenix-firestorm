@@ -470,3 +470,16 @@ Added `LLAgentCamera::ESocialEmotion` and `requestSocialEmotion()` as a small se
 The semantic method delegates to `requestSocialExpression()`, so the same pre-existing-animation guard, source check, server confirmation, sequence-aware release, and fail-closed behavior apply. It does not parse chat, infer emotion from text/voice, or automatically trigger expressions. That separation is intentional: first expose a stable intent API; later connect it to interaction events or a configurable conversation policy without treating every message as an emotion cue.
 
 Static verification only; no C++ build or live avatar test has been run.
+
+
+## Interaction-scoped emotion reactions (2026-11-24)
+
+Connected the semantic emotion API to two narrow Viewer events:
+
+- When the server confirms an interaction session, the local avatar requests a brief greeting smile.
+- For incoming nearby agent chat, the Viewer may react only when the speaker is the currently accepted interaction partner, the partner is still a live avatar in the same region and within 12m, the local user is not in DND, and the message has passed the existing mute, anti-spam, and RLVa receive-chat filtering path.
+- Recognized cues are deliberately small and deterministic: laughter tokens/Chinese laughter -> amused; thanks -> friendly; apology/sadness -> concerned; "wow"/surprise -> surprised. Ordinary messages do not trigger an expression.
+- An eight-second cooldown prevents rapid expression changes. The existing single-expression lease also prevents overlapping requests and relinquishes when another animation source takes over.
+- Reactions are local Viewer behavior only; no chat text is sent to the server, no extra network messages are introduced, and no remote avatar is animated by this code.
+
+This is a prototype cue mapper, not natural-language understanding. It does not infer emotion from arbitrary sentences, voice tone, sarcasm, or context. Users can still use existing gestures and LSL animations. No C++ build or in-world two-viewer test has been run.
