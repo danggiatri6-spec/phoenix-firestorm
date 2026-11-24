@@ -79,6 +79,7 @@ public:
     /** Record, clear, or end the server-authoritative interaction session. */
     static void setActiveAvatarInteraction(const LLUUID& session_id, const LLUUID& partner_id);
     static const LLUUID& getActiveAvatarInteractionPartner();
+    static const LLUUID& getActiveAvatarInteractionSession();
     static void clearActiveAvatarInteraction(const LLUUID& session_id);
     static void endAvatarInteraction(const LLUUID& session_id);
 
