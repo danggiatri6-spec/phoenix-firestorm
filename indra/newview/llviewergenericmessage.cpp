@@ -39,6 +39,7 @@
 #include "llviewerobjectlist.h"
 #include "llagentcamera.h"
 #include "llvoavatar.h"
+#include "lltimer.h"
 
 #include "llagent.h"
 #include "llavataractions.h"
@@ -57,18 +58,50 @@ namespace
         LLUUID target;
         LLUUID requester_motion;
         LLUUID target_motion;
+        F64 queued_at;
     };
 
-    // Only motions explicitly supplied by the server are owned by this feature.
-    // Session ownership prevents an end event from stopping AO or user motions.
+    // Keep only motions explicitly supplied by the server. Session ownership
+    // prevents an end event from stopping AO or user motions.
     std::map<LLUUID, LLAvatarInteractionMotions> sAvatarInteractionMotions;
+    std::map<LLUUID, LLAvatarInteractionMotions> sPendingAvatarInteractionMotions;
+
+    bool avatar_interaction_try_start_paired_motions(const LLUUID& session_id,
+        const LLAvatarInteractionMotions& motions)
+    {
+        LLViewerObject* requester_object = gObjectList.findObject(motions.requester);
+        LLViewerObject* target_object = gObjectList.findObject(motions.target);
+        LLVOAvatar* requester_avatar = requester_object && requester_object->isAvatar()
+            ? (LLVOAvatar*)requester_object : nullptr;
+        LLVOAvatar* target_avatar = target_object && target_object->isAvatar()
+            ? (LLVOAvatar*)target_object : nullptr;
+
+        // Wait until both avatar objects exist. Never start only one participant.
+        if (!requester_avatar || !target_avatar || requester_avatar->isDead() || target_avatar->isDead())
+            return false;
+
+        const bool requester_started = requester_avatar->startMotion(motions.requester_motion);
+        const bool target_started = target_avatar->startMotion(motions.target_motion);
+        if (requester_started && target_started)
+        {
+            sAvatarInteractionMotions[session_id] = motions;
+            return true;
+        }
+
+        // Roll back a partial start before the next retry.
+        if (requester_started)
+            requester_avatar->stopMotion(motions.requester_motion);
+        if (target_started)
+            target_avatar->stopMotion(motions.target_motion);
+        return false;
+    }
 
     void avatar_interaction_start_paired_motions(const LLSD& body,
         const LLUUID& requester, const LLUUID& target, const LLUUID& session_id)
     {
-        if (session_id.isNull() || sAvatarInteractionMotions.find(session_id) != sAvatarInteractionMotions.end())
+        if (session_id.isNull() || sAvatarInteractionMotions.find(session_id) != sAvatarInteractionMotions.end() ||
+            sPendingAvatarInteractionMotions.find(session_id) != sPendingAvatarInteractionMotions.end())
             return;
-
         if (!body.has("requester_animation") || !body.has("target_animation"))
             return;
 
@@ -77,35 +110,20 @@ namespace
         motions.target = target;
         motions.requester_motion = body["requester_animation"].asUUID();
         motions.target_motion = body["target_animation"].asUUID();
+        motions.queued_at = LLTimer::getTotalSeconds();
 
-        // Paired playback is all-or-nothing: never play one side of a contact action.
         if (motions.requester_motion.isNull() || motions.target_motion.isNull())
             return;
 
-        LLViewerObject* requester_object = gObjectList.findObject(requester);
-        LLViewerObject* target_object = gObjectList.findObject(target);
-        LLVOAvatar* requester_avatar = requester_object && requester_object->isAvatar()
-            ? (LLVOAvatar*)requester_object : nullptr;
-        LLVOAvatar* target_avatar = target_object && target_object->isAvatar()
-            ? (LLVOAvatar*)target_object : nullptr;
-        if (!requester_avatar || !target_avatar)
-            return;
-
-        const bool requester_started = requester_avatar->startMotion(motions.requester_motion);
-        const bool target_started = target_avatar->startMotion(motions.target_motion);
-        if (requester_started && target_started)
-            sAvatarInteractionMotions[session_id] = motions;
-        else
-        {
-            if (requester_started)
-                requester_avatar->stopMotion(motions.requester_motion);
-            if (target_started)
-                target_avatar->stopMotion(motions.target_motion);
-        }
+        sPendingAvatarInteractionMotions[session_id] = motions;
+        avatar_interaction_try_start_paired_motions(session_id, motions);
+        if (sAvatarInteractionMotions.find(session_id) != sAvatarInteractionMotions.end())
+            sPendingAvatarInteractionMotions.erase(session_id);
     }
 
     void avatar_interaction_stop_paired_motions(const LLUUID& session_id)
     {
+        sPendingAvatarInteractionMotions.erase(session_id);
         auto found = sAvatarInteractionMotions.find(session_id);
         if (found == sAvatarInteractionMotions.end())
             return;
@@ -221,6 +239,30 @@ namespace
         "/message/AvatarInteractionEnded");
 }
 
+// Called from LLAgentCamera::updateCamera() so late avatar creation and asset
+// loading can complete without another timer or background thread.
+void update_avatar_interaction_motions()
+{
+    const F64 now = LLTimer::getTotalSeconds();
+    auto it = sPendingAvatarInteractionMotions.begin();
+    while (it != sPendingAvatarInteractionMotions.end())
+    {
+        const LLUUID session_id = it->first;
+        const LLAvatarInteractionMotions motions = it->second;
+
+        if (LLAvatarActions::getActiveAvatarInteractionSession() != session_id ||
+            now - motions.queued_at > 10.0)
+        {
+            it = sPendingAvatarInteractionMotions.erase(it);
+            continue;
+        }
+
+        if (avatar_interaction_try_start_paired_motions(session_id, motions))
+            it = sPendingAvatarInteractionMotions.erase(it);
+        else
+            ++it;
+    }
+}
 
 
 void send_generic_message(const std::string& method,
