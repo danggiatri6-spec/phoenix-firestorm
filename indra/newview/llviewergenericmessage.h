@@ -41,6 +41,9 @@ void process_generic_message(LLMessageSystem* msg, void**);
 void process_generic_streaming_message(LLMessageSystem* msg, void**);
 void process_large_generic_message(LLMessageSystem* msg, void**);
 
+// Retry consented paired motions while participant avatars/assets finish loading.
+void update_avatar_interaction_motions();
+
 
 extern LLDispatcher gGenericDispatcher;
 
