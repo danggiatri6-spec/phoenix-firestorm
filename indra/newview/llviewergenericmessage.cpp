@@ -45,6 +45,30 @@ LLDispatcher gGenericDispatcher;
 
 namespace
 {
+    std::string avatar_interaction_label(const std::string& interaction)
+    {
+        if (interaction == "handshake") return "a handshake";
+        if (interaction == "high_five") return "a high-five";
+        if (interaction == "shoulder_tap") return "a shoulder tap";
+        return "an avatar interaction";
+    }
+
+    std::string avatar_interaction_status_message(const LLSD& body)
+    {
+        const std::string status = body["status"].asString();
+        const std::string interaction = avatar_interaction_label(body["interaction"].asString());
+
+        if (status == "accepted")
+            return "Your invitation for " + interaction + " was accepted.";
+        if (status == "rejected")
+            return "Your invitation for " + interaction + " was declined.";
+        if (status == "cancelled")
+            return "The invitation for " + interaction + " was cancelled.";
+        if (status == "expired")
+            return "The invitation for " + interaction + " expired.";
+        return "Avatar interaction update: " + status + ".";
+    }
+
     void avatar_interaction_invite_callback(const LLSD& notification, const LLSD& response)
     {
         LLViewerRegion* region = gAgent.getRegion();
@@ -71,16 +95,14 @@ namespace
             {
                 LLSD substitutions;
                 substitutions["REQUESTER"] = body["requester_name"].asString();
-                substitutions["INTERACTION"] = body["interaction"].asString();
+                substitutions["INTERACTION"] = avatar_interaction_label(body["interaction"].asString());
                 LLNotificationsUtil::add("AvatarInteractionInvite", substitutions, body,
                     avatar_interaction_invite_callback);
             }
             else if (body.has("status"))
             {
                 LLSD substitutions;
-                substitutions["MESSAGE"] = body["status"].asString() == "accepted"
-                    ? "Your avatar interaction was accepted."
-                    : "Avatar interaction " + body["status"].asString() + ".";
+                substitutions["MESSAGE"] = avatar_interaction_status_message(body);
                 LLNotificationsUtil::add("GenericAlert", substitutions);
             }
 
