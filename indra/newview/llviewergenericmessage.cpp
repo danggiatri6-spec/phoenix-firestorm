@@ -178,6 +178,10 @@ namespace
         if (interaction == "handshake") return "a handshake";
         if (interaction == "high_five") return "a high-five";
         if (interaction == "shoulder_tap") return "a shoulder tap";
+        if (interaction == "hug") return "a hug";
+        if (interaction == "kiss") return "a kiss";
+        if (interaction == "holding_hands") return "holding hands";
+        if (interaction == "affection") return "an affectionate pose";
         return "an avatar interaction";
     }
 
