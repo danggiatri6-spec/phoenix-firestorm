@@ -100,6 +100,14 @@
 #include "llviewerwindow.h" // For opening logs externally
 #include "llworld.h"
 
+
+// Active server-authoritative Avatar Interaction session. The server permits
+// one active interaction per participant in a region.
+namespace
+{
+    LLUUID sActiveAvatarInteractionSession;
+}
+
 // Flags for kick message
 const U32 KICK_FLAGS_DEFAULT    = 0x0;
 const U32 KICK_FLAGS_FREEZE     = 1 << 0;
@@ -332,6 +340,32 @@ void LLAvatarActions::requestInteractionInvite(const LLUUID& target_id, const st
     request["action"] = "invite";
     request["target"] = target_id;
     request["interaction"] = interaction;
+    region->requestPostCapability("AvatarInteraction", request);
+}
+
+void LLAvatarActions::setActiveAvatarInteraction(const LLUUID& session_id)
+{
+    sActiveAvatarInteractionSession = session_id;
+}
+
+void LLAvatarActions::clearActiveAvatarInteraction(const LLUUID& session_id)
+{
+    if (session_id.isNull() || sActiveAvatarInteractionSession == session_id)
+        sActiveAvatarInteractionSession.setNull();
+}
+
+void LLAvatarActions::endAvatarInteraction(const LLUUID& session_id)
+{
+    if (session_id.isNull() || session_id != sActiveAvatarInteractionSession)
+        return;
+
+    LLViewerRegion* region = gAgent.getRegion();
+    if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+        return;
+
+    LLSD request;
+    request["action"] = "end";
+    request["session_id"] = session_id;
     region->requestPostCapability("AvatarInteraction", request);
 }
 
