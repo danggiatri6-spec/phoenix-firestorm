@@ -247,7 +247,7 @@ namespace
                         const LLUUID target = body["target"].asUUID();
                         const LLUUID partner = requester == gAgent.getID() ? target : requester;
                         LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
-                    gAgentCamera.requestSocialEmotion(LLAgentCamera::ESocialEmotion::GREETING);
+                        gAgentCamera.requestSocialEmotion(LLAgentCamera::ESocialEmotion::GREETING);
                         avatar_interaction_start_paired_motions(body, requester, target, session_id);
                         LLViewerObject* partner_object = gObjectList.findObject(partner);
                         if (partner_object && partner_object->isAvatar())
