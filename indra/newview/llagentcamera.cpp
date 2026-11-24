@@ -1824,6 +1824,7 @@ void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::strin
 
     ESocialEmotion emotion;
     bool recognized = true;
+    bool conversational_nod = false;
     if (contains_social_word(normalized, "haha") ||
         contains_social_word(normalized, "lol") ||
         contains_social_word(normalized, "lmao") ||
@@ -1834,9 +1835,15 @@ void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::strin
     }
     else if (contains_social_word(normalized, "thank") ||
         message.find("谢谢") != std::string::npos ||
-        message.find("多谢") != std::string::npos)
+        message.find("多谢") != std::string::npos ||
+        contains_social_word(normalized, "yes") ||
+        contains_social_word(normalized, "yeah") ||
+        contains_social_word(normalized, "yep") ||
+        contains_social_word(normalized, "agree") ||
+        contains_social_word(normalized, "absolutely"))
     {
         emotion = ESocialEmotion::FRIENDLY;
+        conversational_nod = true;
     }
     else if (contains_social_word(normalized, "sorry") ||
         contains_social_word(normalized, "sad") ||
@@ -1857,7 +1864,11 @@ void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::strin
     }
 
     if (recognized && requestSocialEmotion(emotion))
+    {
         mLastSocialEmotionReaction = now;
+        if (conversational_nod)
+            requestSocialNodGesture();
+    }
 }
 
 bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 duration)
