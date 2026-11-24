@@ -917,7 +917,13 @@ bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
         : (LLViewerObject*)mTargetObject;
     LLVector3 local_offset;
 
-    if (target_obj)
+    if (use_interaction_target)
+    {
+        // Interaction attention aims at the partner's head, independent of
+        // offsets left behind by the previous legacy look-at target.
+        local_offset.clearVec();
+    }
+    else if (target_obj)
     {
         local_offset.setVec(mTargetOffsetGlobal);
     }
