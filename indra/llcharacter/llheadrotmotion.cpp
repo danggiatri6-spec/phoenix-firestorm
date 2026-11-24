@@ -368,6 +368,25 @@ LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
 //-----------------------------------------------------------------------------
 bool LLEyeMotion::onActivate()
 {
+    // Start with a short natural settling period instead of an immediate
+    // blink/look-away on the first rendered frame after activation.
+    mEyeJitterTimer.reset();
+    mEyeBlinkTimer.reset();
+    mEyeJitterTime = EYE_JITTER_MIN_TIME + ll_frand(EYE_JITTER_MAX_TIME - EYE_JITTER_MIN_TIME);
+    mEyeJitterYaw = 0.f;
+    mEyeJitterPitch = 0.f;
+
+    mEyeLookAwayTime = EYE_LOOK_AWAY_MIN_TIME + ll_frand(EYE_LOOK_AWAY_MAX_TIME - EYE_LOOK_AWAY_MIN_TIME);
+    mEyeLookAwayYaw = 0.f;
+    mEyeLookAwayPitch = 0.f;
+
+    // The first blink is deliberately delayed; subsequent intervals retain
+    // the existing randomized cadence.
+    mEyeBlinkTime = 1.5f + ll_frand(3.0f);
+    mEyesClosed = false;
+    mCharacter->setVisualParamWeight("Blink_Left", 0.f);
+    mCharacter->setVisualParamWeight("Blink_Right", 0.f);
+    mCharacter->updateVisualParams();
     return true;
 }
 
@@ -575,6 +594,16 @@ void LLEyeMotion::onDeactivate()
         mAltLeftEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
         mAltRightEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
     }
+
+    // A motion can be deactivated while an avatar is culled mid-blink.
+    // Always restore eyelid morphs so it cannot reappear with closed eyes.
+    if (mCharacter)
+    {
+        mCharacter->setVisualParamWeight("Blink_Left", 0.f);
+        mCharacter->setVisualParamWeight("Blink_Right", 0.f);
+        mCharacter->updateVisualParams();
+    }
+    mEyesClosed = false;
 }
 
 // End
