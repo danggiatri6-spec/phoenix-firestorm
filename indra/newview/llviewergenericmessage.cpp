@@ -38,16 +38,89 @@
 #include "llviewerregion.h"
 #include "llviewerobjectlist.h"
 #include "llagentcamera.h"
+#include "llvoavatar.h"
 
 #include "llagent.h"
 #include "llavataractions.h"
 #include "llgltfmateriallist.h"
+
+#include <map>
 
 LLDispatcher gGenericDispatcher;
 
 
 namespace
 {
+    struct LLAvatarInteractionMotions
+    {
+        LLUUID requester;
+        LLUUID target;
+        LLUUID requester_motion;
+        LLUUID target_motion;
+    };
+
+    // Only motions explicitly supplied by the server are owned by this feature.
+    // Session ownership prevents an end event from stopping AO or user motions.
+    std::map<LLUUID, LLAvatarInteractionMotions> sAvatarInteractionMotions;
+
+    void avatar_interaction_start_paired_motions(const LLSD& body,
+        const LLUUID& requester, const LLUUID& target, const LLUUID& session_id)
+    {
+        if (session_id.isNull() || sAvatarInteractionMotions.find(session_id) != sAvatarInteractionMotions.end())
+            return;
+
+        if (!body.has("requester_animation") || !body.has("target_animation"))
+            return;
+
+        LLAvatarInteractionMotions motions;
+        motions.requester = requester;
+        motions.target = target;
+        motions.requester_motion = body["requester_animation"].asUUID();
+        motions.target_motion = body["target_animation"].asUUID();
+
+        // Paired playback is all-or-nothing: never play one side of a contact action.
+        if (motions.requester_motion.isNull() || motions.target_motion.isNull())
+            return;
+
+        LLViewerObject* requester_object = gObjectList.findObject(requester);
+        LLViewerObject* target_object = gObjectList.findObject(target);
+        LLVOAvatar* requester_avatar = requester_object && requester_object->isAvatar()
+            ? (LLVOAvatar*)requester_object : nullptr;
+        LLVOAvatar* target_avatar = target_object && target_object->isAvatar()
+            ? (LLVOAvatar*)target_object : nullptr;
+        if (!requester_avatar || !target_avatar)
+            return;
+
+        const bool requester_started = requester_avatar->startMotion(motions.requester_motion);
+        const bool target_started = target_avatar->startMotion(motions.target_motion);
+        if (requester_started && target_started)
+            sAvatarInteractionMotions[session_id] = motions;
+        else
+        {
+            if (requester_started)
+                requester_avatar->stopMotion(motions.requester_motion);
+            if (target_started)
+                target_avatar->stopMotion(motions.target_motion);
+        }
+    }
+
+    void avatar_interaction_stop_paired_motions(const LLUUID& session_id)
+    {
+        auto found = sAvatarInteractionMotions.find(session_id);
+        if (found == sAvatarInteractionMotions.end())
+            return;
+
+        const LLAvatarInteractionMotions motions = found->second;
+        sAvatarInteractionMotions.erase(found);
+
+        LLViewerObject* requester_object = gObjectList.findObject(motions.requester);
+        LLViewerObject* target_object = gObjectList.findObject(motions.target);
+        if (requester_object && requester_object->isAvatar())
+            ((LLVOAvatar*)requester_object)->stopMotion(motions.requester_motion);
+        if (target_object && target_object->isAvatar())
+            ((LLVOAvatar*)target_object)->stopMotion(motions.target_motion);
+    }
+
     std::string avatar_interaction_label(const std::string& interaction)
     {
         if (interaction == "handshake") return "a handshake";
@@ -118,12 +191,14 @@ namespace
                         const LLUUID target = body["target"].asUUID();
                         const LLUUID partner = requester == gAgent.getID() ? target : requester;
                         LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
+                        avatar_interaction_start_paired_motions(body, requester, target, session_id);
                         LLViewerObject* partner_object = gObjectList.findObject(partner);
                         if (partner_object && partner_object->isAvatar())
                             gAgentCamera.setInteractionLookAt(partner_object);
                     }
                     else if (status == "ended" || status == "expired")
                     {
+                        avatar_interaction_stop_paired_motions(session_id);
                         LLAvatarActions::clearActiveAvatarInteraction(session_id);
                         gAgentCamera.clearInteractionLookAt();
                     }
