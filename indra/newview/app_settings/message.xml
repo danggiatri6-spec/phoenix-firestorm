@@ -36,6 +36,21 @@
 				    a map of individual message names that override defaults
 				-->
 		  <map>
+				<key>AvatarInteractionInvite</key>
+				<map>
+					<key>flavor</key><string>llsd</string>
+					<key>trusted-sender</key><boolean>false</boolean>
+				</map>
+				<key>AvatarInteractionAccepted</key>
+				<map>
+					<key>flavor</key><string>llsd</string>
+					<key>trusted-sender</key><boolean>false</boolean>
+				</map>
+				<key>AvatarInteractionEnded</key>
+				<map>
+					<key>flavor</key><string>llsd</string>
+					<key>trusted-sender</key><boolean>false</boolean>
+				</map>
 				<!--
 					Circuit related messages
 				-->
