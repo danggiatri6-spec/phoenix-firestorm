@@ -1421,7 +1421,7 @@ static void update_local_social_gaze()
         return;
     }
 
-    if (last_target.notNull() && best_avatar->getID() == last_target &&
+    if (best_avatar && last_target.notNull() && best_avatar->getID() == last_target &&
         next_look_away > 0.0 && now >= next_look_away)
     {
         LLVector3 glance_direction = LLVector3::y_axis * gAgentAvatarp->getRotation();
