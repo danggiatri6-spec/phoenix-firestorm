@@ -62,7 +62,7 @@ static bool is_social_facial_expression(const LLUUID& id)
         id == ANIM_AGENT_EXPRESS_WORRY;
 }
 
-static bool has_external_social_expression_source(const LLVOAvatarSelf* avatar, const LLUUID& id)
+static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, const LLUUID& id)
 {
     if (!avatar)
         return true;
@@ -103,6 +103,7 @@ static bool has_external_social_expression_source(const LLVOAvatarSelf* avatar, 
 #include "fscommon.h"
 #include "lltrans.h"
 #include "lltimer.h"
+#include "llvoiceclient.h"
 
 using namespace LLAvatarAppearanceDefines;
 
@@ -1556,7 +1557,7 @@ bool LLAgentCamera::requestSocialGreetingGesture()
     // Do not interrupt an existing gesture, AO, LSL animation, or attachment source.
     if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO) !=
             gAgentAvatarp->mSignaledAnimations.end() ||
-        has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+        has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_HELLO))
         return false;
 
     mSocialGestureSequence = 0;
@@ -1575,7 +1576,7 @@ void LLAgentCamera::cancelSocialGreetingGesture()
             gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO);
         if (current != gAgentAvatarp->mSignaledAnimations.end() &&
             current->second == mSocialGestureSequence &&
-            !has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+            !has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_HELLO))
         {
             gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
         }
@@ -1626,7 +1627,7 @@ static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
 
     if (current == avatar->mSignaledAnimations.end() ||
         current->second != sequence ||
-        has_external_social_expression_source(avatar, ANIM_AGENT_HELLO))
+        has_external_social_animation_source(avatar, ANIM_AGENT_HELLO))
     {
         // A competing gesture or animation source took over; never stop it.
         sequence = 0;
@@ -1642,6 +1643,71 @@ static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
     }
 }
 
+void LLAgentCamera::updateSocialSpeechGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    LLVOAvatarSelf* avatar = gAgentAvatarp;
+    const bool speaking = enabled && avatar && avatar->isSelf() &&
+        LLVoiceClient::getInstance()->getIsSpeaking(gAgent.getID());
+    const F64 now = LLTimer::getTotalSeconds();
+
+    if (!avatar || !avatar->isSelf())
+    {
+        mSocialTalkSequence = 0;
+        mSocialTalkRequestTime = 0.0;
+        mSocialTalkPending = false;
+        mSocialTalkOwned = false;
+        return;
+    }
+
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
+    if (speaking && !mSocialTalkPending && !mSocialTalkOwned &&
+        current == avatar->mSignaledAnimations.end() &&
+        !has_external_social_animation_source(avatar, ANIM_AGENT_TALK))
+    {
+        // Acquire the standard SL TALK animation only during actual local voice activity.
+        gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_START);
+        mSocialTalkRequestTime = now;
+        mSocialTalkPending = true;
+    }
+
+    if (mSocialTalkPending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            mSocialTalkSequence = current->second;
+            mSocialTalkPending = false;
+            mSocialTalkOwned = true;
+        }
+        else if (now - mSocialTalkRequestTime > 3.0)
+        {
+            mSocialTalkSequence = 0;
+            mSocialTalkPending = false;
+        }
+    }
+
+    if (mSocialTalkOwned)
+    {
+        current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
+        if (current == avatar->mSignaledAnimations.end() ||
+            current->second != mSocialTalkSequence ||
+            has_external_social_animation_source(avatar, ANIM_AGENT_TALK))
+        {
+            // Simulator state changed or an external source took over: relinquish without STOP.
+            mSocialTalkSequence = 0;
+            mSocialTalkOwned = false;
+            return;
+        }
+
+        if (!speaking)
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_STOP);
+            mSocialTalkSequence = 0;
+            mSocialTalkOwned = false;
+        }
+    }
+}
+
 bool LLAgentCamera::requestSocialNodGesture()
 {
     static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
@@ -1652,7 +1718,7 @@ bool LLAgentCamera::requestSocialNodGesture()
     // YES is the standard Second Life head-nod animation (yes_head).
     if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES) !=
             gAgentAvatarp->mSignaledAnimations.end() ||
-        has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_YES))
+        has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_YES))
         return false;
 
     mSocialNodSequence = 0;
@@ -1671,7 +1737,7 @@ void LLAgentCamera::cancelSocialNodGesture()
             gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES);
         if (current != gAgentAvatarp->mSignaledAnimations.end() &&
             current->second == mSocialNodSequence &&
-            !has_external_social_expression_source(gAgentAvatarp, ANIM_AGENT_YES))
+            !has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_YES))
         {
             gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_STOP);
         }
@@ -1720,7 +1786,7 @@ static void update_social_nod_gesture_lease(LLVOAvatarSelf* avatar,
 
     if (current == avatar->mSignaledAnimations.end() ||
         current->second != sequence ||
-        has_external_social_expression_source(avatar, ANIM_AGENT_YES))
+        has_external_social_animation_source(avatar, ANIM_AGENT_YES))
     {
         sequence = 0;
         pending = owned = false;
@@ -1879,7 +1945,7 @@ bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 dura
 
     // Never take over an expression that is already active or sourced by an object.
     if (gAgentAvatarp->mSignaledAnimations.find(animation_id) != gAgentAvatarp->mSignaledAnimations.end() ||
-        has_external_social_expression_source(gAgentAvatarp, animation_id))
+        has_external_social_animation_source(gAgentAvatarp, animation_id))
         return false;
 
     mSocialExpressionAnimation = animation_id;
@@ -1898,7 +1964,7 @@ void LLAgentCamera::cancelSocialExpression()
         LLVOAvatar::AnimIterator current = gAgentAvatarp->mSignaledAnimations.find(mSocialExpressionAnimation);
         if (current != gAgentAvatarp->mSignaledAnimations.end() &&
             current->second == mSocialExpressionSequence &&
-            !has_external_social_expression_source(gAgentAvatarp, mSocialExpressionAnimation))
+            !has_external_social_animation_source(gAgentAvatarp, mSocialExpressionAnimation))
         {
             gAgent.sendAnimationRequest(mSocialExpressionAnimation, ANIM_REQUEST_STOP);
         }
@@ -1953,7 +2019,7 @@ static void update_social_expression_lease(LLVOAvatarSelf* avatar, LLUUID& anima
 
     if (current == avatar->mSignaledAnimations.end() ||
         current->second != sequence ||
-        has_external_social_expression_source(avatar, animation_id))
+        has_external_social_animation_source(avatar, animation_id))
     {
         // A replacement generation or external animation source took over.
         // Relinquish ownership without sending STOP.
@@ -1984,6 +2050,7 @@ void LLAgentCamera::updateCamera()
         mSocialGestureRequestTime, mSocialGestureDeadline, mSocialGesturePending, mSocialGestureOwned);
     update_social_nod_gesture_lease(gAgentAvatarp, mSocialNodSequence,
         mSocialNodRequestTime, mSocialNodDeadline, mSocialNodPending, mSocialNodOwned);
+    updateSocialSpeechGesture();
     if (gCubeSnapshot)
     {
         return;
