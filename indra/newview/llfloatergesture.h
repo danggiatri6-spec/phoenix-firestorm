@@ -97,6 +97,8 @@ private:
     void onClickPlay();
     void onClickNew();
     void onClickFavorite();
+    void onQuickExpression(const LLUUID& expression_id);
+    void onClearQuickExpression();
     void onCommitList();
     void onCopyPasteAction(const LLSD& command);
     void onDeleteSelected();
@@ -110,6 +112,7 @@ private:
     static void onGestureRename(const LLSD& notification, const LLSD& response);
 
     LLUUID mSelectedID;
+    LLUUID mQuickExpression; // Expression started by the quick expression row
     LLUUID mGestureFolderID;
     LLScrollListCtrl* mGestureList;
 
