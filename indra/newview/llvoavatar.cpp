@@ -3718,6 +3718,23 @@ void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
         LLCharacter::updateVisualParams();
         dirtyMesh();
     }
+    else if (mLipSyncActive)
+    {
+        // Voice can be disabled, muted, or have lip sync toggled off while
+        // the speaker is still active. Do not leave the last mouth pose stuck.
+        if (mOohMorph)
+        {
+            mOohMorph->setWeight(mOohMorph->getMinWeight(), false);
+        }
+        if (mAahMorph)
+        {
+            mAahMorph->setWeight(mAahMorph->getMinWeight(), false);
+        }
+
+        mLipSyncActive = false;
+        LLCharacter::updateVisualParams();
+        dirtyMesh();
+    }
 }
 
 void LLVOAvatar::idleUpdateLoadingEffect()
