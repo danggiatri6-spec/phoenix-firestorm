@@ -65,8 +65,12 @@ namespace
             return "Your invitation for " + interaction + " was declined.";
         if (status == "cancelled")
             return "The invitation for " + interaction + " was cancelled.";
+        if (status == "expired" && body.has("session_id"))
+            return "The " + interaction + " session timed out.";
         if (status == "expired")
             return "The invitation for " + interaction + " expired.";
+        if (status == "ended")
+            return "The " + interaction + " session has ended.";
         return "Avatar interaction update: " + status + ".";
     }
 
