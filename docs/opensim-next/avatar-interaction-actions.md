@@ -512,3 +512,12 @@ These are single-avatar greeting cues, not paired animations. The nod reuses the
 The accepted interaction's short head nod is now also available as a restrained conversational response. When the accepted partner sends a nearby, filtered chat message containing an explicit affirmative cue (`yes`, `yeah`, `yep`, `agree`, `absolutely`) or thanks (`thank`, `谢谢`, `多谢`), and the existing semantic reaction is accepted, the local avatar requests the standard `ANIM_AGENT_YES` / `yes_head` nod. The existing cooldown, active-animation guard, source guard, and sequence-aware lease prevent repeated or competing requests. Ordinary messages do not trigger a nod. This is deterministic keyword matching, not conversational understanding; no chat text is transmitted beyond the normal chat path and no remote avatar is animated.
 
 Static source checks only. No C++ build, live chat test, or in-world animation blend test has been run.
+
+
+### Voice-activity-driven speaking gesture (2026-11-25)
+
+Added a local Viewer controller for the established Second Life `ANIM_AGENT_TALK` animation (`talk`, UUID `5c682a95-6da4-a463-0bf6-0f5b7be129d1`). It observes the local voice client's `getIsSpeaking(gAgent.getID())` state and requests TALK only while the local user is actively speaking. Typed chat does not trigger it; the Viewer uses the normal standard animation start/stop path.
+
+The controller is conservative: it does not acquire TALK if it is already signaled or attributed to an attachment/object source; it waits for simulator animation-state confirmation, records the observed sequence ID, and stops only the same generation when voice activity ends. If the animation disappears, changes generation, or an external source takes over, it relinquishes without STOP. Existing voice-amplitude Ooh/Aah lip-sync remains separate and unchanged.
+
+This is an initial voice-activity gesture, not a full gesture vocabulary or prosody-aware system. It has not been compiled or tested with live voice, AO, or multiple viewers. The standard TALK asset's visual suitability and blending with custom Bento rigs still require in-world verification.
