@@ -133,3 +133,39 @@ Before adding a new packet or server module, map the exact existing animation an
 - No code was copied from Vircadia.
 - No new AvatarState protocol or implementation has been added.
 - No build, simulator runtime test or network interoperability test has been performed.
+
+
+## End-to-end legacy animation path mapped (2026-11-24)
+
+The matching OpenSim server branch was inspected further:
+
+- `OpenSim/Region/Framework/Scenes/Animation/ScenePresenceAnimator.cs`
+  - `GetArrays()` obtains active animation UUIDs, sequence numbers and source object UUIDs from the animation state.
+  - `SendAnimPackToClient(IClientAPI)` sends those arrays through `IClientAPI.SendAnimations(...)`.
+  - `SendAnimPack()` broadcasts the same legacy animation state through `ScenePresence`.
+- `OpenSim/Region/Framework/Scenes/ScenePresence.cs`
+  - `SendAnimPackToAgentNF()`, `SendAnimPackToOthers()`, and initial-avatar setup send the legacy animation pack.
+  - `SendAvatarDataToAgent()` sends the avatar as an entity full update.
+  - `SendAppearanceToAgent...` is a separate appearance replication path.
+  - `SendViewTo()` sends avatar entity update, appearance, animation pack and attachments as separate steps.
+- `OpenSim/Region/ClientStack/Linden/UDP/LLClientView.cs`
+  - `SendAnimations(...)` constructs the legacy AvatarAnimation high-frequency packet (message ID 20 in the inspected implementation), carrying source agent UUID, animation UUIDs, sequence IDs and associated object UUIDs.
+  - The same class has a separate AvatarAppearance packet writer and entity full-update path.
+
+Matching Firestorm Viewer branch:
+
+- `indra/newview/llviewermessage.cpp`
+  - `process_avatar_animation(...)` reads the sender UUID, resolves the corresponding `LLVOAvatar`, and processes the AnimationList blocks.
+- `indra/newview/llvoavatar.cpp`
+  - `LLVOAvatar::processUpdateMessage(...)` handles the existing avatar/object update path.
+  - `LLVOAvatar::idleUpdate()` and `updateCharacter()` are the per-frame/LOD-aware avatar update and presentation paths.
+- `indra/newview/llviewerobject.cpp`
+  - `LLViewerObject::processUpdateMessage(...)` is the common legacy object update parser inherited by avatar objects.
+
+### What this means
+
+The existing AvatarAnimation packet communicates **which animation assets are active**, their sequence and source object. It does not carry a per-frame skeleton pose stream, arbitrary joint transforms, or a standardized face blendshape frame. The avatar entity update and appearance packet are distinct channels and should not be overloaded with high-rate facial or joint samples.
+
+Therefore the first safe enhancement should be a Viewer-local expression/gaze composition layer, independent of incoming network state. The next network step should be a negotiated extension, separate from the legacy AvatarAnimation packet. It must not repurpose or change message ID 20, alter legacy packet layouts, or assume that third-party SL servers understand the extension.
+
+The source mapping above is based on the OpenSim and Firestorm branches named in this document. Exact send cadence, all appearance serializers, and all animation precedence rules still require a focused follow-up trace before implementing the wire protocol.
