@@ -1327,9 +1327,20 @@ void LLAgentCamera::updateCamera()
         }
         else
         {
+            // If the partner disappears during our explicit local approach,
+            // stop only that feature-owned autopilot. The server session and
+            // ordinary camera attention remain independently managed.
+            LLAvatarActions::cancelAvatarInteractionApproach();
             // Drop only the local interaction overlay; retain the server session
             // so the next frame can reacquire the avatar if it appears later.
             clearInteractionLookAt();
+        }
+        if (partner_object && partner_object->isAvatar() && !partner_object->isDead() &&
+            gAgent.getAutoPilot() &&
+            gAgent.getAutoPilotBehaviorName() == "AvatarInteractionApproach" &&
+            dist_vec(partner_object->getPositionAgent(), gAgent.getPositionAgent()) > 20.f)
+        {
+            LLAvatarActions::cancelAvatarInteractionApproach();
         }
     }
 
