@@ -337,3 +337,19 @@ The paired-motion start path now also checks both Avatar forward directions befo
 If either participant is turned away, the existing pending request waits and retries within its 10-second lifetime. The Viewer does not rotate or reposition either participant. This is a conservative visual-quality gate, not a guarantee of hand-to-hand joint contact; the bundled upstream handshake remains a single-Avatar animation played on both participants.
 
 **Verification status:** source-level checks only. No C++ build or two-viewer runtime test has been run. The forward-axis assumption is grounded in FSAvatarAlignBase::snapAvatarBody() and still needs in-world verification against avatar root rotations, especially for seated, custom-rigged, and nonstandard avatars.
+
+
+## Affection interaction types — first protocol increment (2026-11-24)
+
+The Viewer and simulator invitation allowlists now include four consent-gated interaction keys:
+
+- `hug`
+- `kiss`
+- `holding_hands`
+- `affection` (a general close-companionship pose category)
+
+The existing capability invitation flow, server-side policy checks, request expiry, session creation, participant authorization, and end/timeout notifications are reused. The other-avatar context menu exposes the four additional invitation choices, and incoming/status notifications use human-readable labels.
+
+**Important implementation boundary:** this increment adds protocol and UI support only. It does not claim these actions already have paired animation assets. The official OpenSim animation asset index currently exposes a solo `blowkiss` animation, not a synchronized two-avatar kiss; no verified paired hug, kiss, hand-holding, or affection-pose animation pair has been selected. The existing Viewer paired-motion handler only starts animations when the server supplies explicit role-specific animation UUIDs, so these new interaction sessions currently remain animation-neutral rather than playing an incorrect solo animation on both avatars.
+
+Next implementation work is to source or create licensed role-specific animation pairs, then add per-action alignment metadata (relative position, facing, height offsets, and allowed seated/standing states) to the server event contract. No C# or C++ build, simulator test, or two-viewer runtime test has been run for this increment.
