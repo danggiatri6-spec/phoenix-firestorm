@@ -169,3 +169,24 @@ The existing AvatarAnimation packet communicates **which animation assets are ac
 Therefore the first safe enhancement should be a Viewer-local expression/gaze composition layer, independent of incoming network state. The next network step should be a negotiated extension, separate from the legacy AvatarAnimation packet. It must not repurpose or change message ID 20, alter legacy packet layouts, or assume that third-party SL servers understand the extension.
 
 The source mapping above is based on the OpenSim and Firestorm branches named in this document. Exact send cadence, all appearance serializers, and all animation precedence rules still require a focused follow-up trace before implementing the wire protocol.
+
+
+### Animation packet semantics and precedence observations
+
+A deeper source trace confirms:
+
+- OpenSim `ScenePresenceAnimator` is the state owner for active legacy animation UUIDs, sequence numbers and source object UUIDs.
+- `LLClientView.SendAnimations()` writes the legacy AvatarAnimation packet. For the avatar's own animations it separates animations associated with objects and writes the corresponding object UUID list; it currently writes a zero count for physical-avatar events.
+- Firestorm `process_avatar_animation()` resolves the sender to an existing `LLVOAvatar`, clears/rebuilds the signaled-animation map, handles self-avatar animation sources and the animation asset blacklist, then calls `processAnimationStateChanges()`.
+- The self-avatar path preserves animation-source object relationships. Any new pose layer must not discard these relationships or bypass the Viewer animation state machine.
+- This path is state replication, not a high-frequency pose stream. The current OpenSim packet writer's physical-avatar-events count being zero is not an invitation to repurpose that field; compatibility with existing packet parsers must be preserved.
+
+### Revised first implementation target
+
+Do not start by adding a server-side joint-pose packet. The first implementation should be a **Viewer-local facial/gaze overlay prototype** behind a setting and with no network or server changes. It can establish:
+1. where the rig exposes head/eye joints and morph/blendshape controls;
+2. how to compose an overlay with the existing animation controller;
+3. how to disable it for unsupported rigs and for legacy compatibility;
+4. how to keep the cost bounded by visibility and avatar update period.
+
+After that local prototype is stable, define the negotiated extension and only then implement server replication.
