@@ -249,6 +249,7 @@ namespace
                         LLAvatarActions::setActiveAvatarInteraction(session_id, partner);
                         gAgentCamera.requestSocialEmotion(LLAgentCamera::ESocialEmotion::GREETING);
                         gAgentCamera.requestSocialGreetingGesture();
+                        gAgentCamera.requestSocialNodGesture();
                         avatar_interaction_start_paired_motions(body, requester, target, session_id);
                         LLViewerObject* partner_object = gObjectList.findObject(partner);
                         if (partner_object && partner_object->isAvatar())
@@ -258,6 +259,7 @@ namespace
                     {
                         avatar_interaction_stop_paired_motions(session_id);
                         gAgentCamera.cancelSocialGreetingGesture();
+                        gAgentCamera.cancelSocialNodGesture();
                         LLAvatarActions::clearActiveAvatarInteraction(session_id);
                         gAgentCamera.clearInteractionLookAt();
                     }
