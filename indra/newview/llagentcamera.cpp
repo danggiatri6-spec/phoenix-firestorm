@@ -46,6 +46,7 @@
 #include "llviewercontrol.h"
 #include "llviewerjoystick.h"
 #include "llviewermenu.h"
+#include "llviewergenericmessage.h"
 #include "llviewerobjectlist.h"
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
@@ -1309,6 +1310,7 @@ extern bool gCubeSnapshot;
 void LLAgentCamera::updateCamera()
 {
     LL_RECORD_BLOCK_TIME(FTM_UPDATE_CAMERA);
+    update_avatar_interaction_motions();
     if (gCubeSnapshot)
     {
         return;
