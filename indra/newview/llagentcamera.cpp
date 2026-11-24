@@ -1565,6 +1565,66 @@ bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
     }
 }
 
+
+void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::string& message)
+{
+    // Reactions are limited to the explicitly accepted interaction partner.
+    if (speaker_id.isNull() ||
+        speaker_id != LLAvatarActions::getActiveAvatarInteractionPartner() ||
+        message.empty() || gAgent.isDoNotDisturb())
+        return;
+
+    LLViewerObject* partner = gObjectList.findObject(speaker_id);
+    if (!partner || !partner->isAvatar() || partner->isDead() ||
+        partner->getRegion() != gAgent.getRegion() ||
+        dist_vec(partner->getPositionAgent(), gAgent.getPositionAgent()) > 12.f)
+        return;
+
+    const F64 now = LLTimer::getTotalSeconds();
+    if (now - mLastSocialEmotionReaction < 8.0)
+        return;
+
+    std::string normalized(message);
+    LLStringUtil::toLower(normalized);
+
+    ESocialEmotion emotion;
+    bool recognized = true;
+    if (normalized.find("haha") != std::string::npos ||
+        normalized.find("lol") != std::string::npos ||
+        normalized.find("lmao") != std::string::npos ||
+        message.find("哈哈") != std::string::npos ||
+        message.find("😂") != std::string::npos)
+    {
+        emotion = ESocialEmotion::AMUSED;
+    }
+    else if (normalized.find("thank") != std::string::npos ||
+        message.find("谢谢") != std::string::npos ||
+        message.find("多谢") != std::string::npos)
+    {
+        emotion = ESocialEmotion::FRIENDLY;
+    }
+    else if (normalized.find("sorry") != std::string::npos ||
+        normalized.find("sad") != std::string::npos ||
+        message.find("对不起") != std::string::npos ||
+        message.find("难过") != std::string::npos ||
+        message.find("伤心") != std::string::npos)
+    {
+        emotion = ESocialEmotion::CONCERNED;
+    }
+    else if (normalized.find("wow") != std::string::npos ||
+        message.find("惊讶") != std::string::npos)
+    {
+        emotion = ESocialEmotion::SURPRISED;
+    }
+    else
+    {
+        recognized = false;
+    }
+
+    if (recognized && requestSocialEmotion(emotion))
+        mLastSocialEmotionReaction = now;
+}
+
 bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 duration)
 {
     if (!is_social_facial_expression(animation_id) || !gAgentAvatarp ||
