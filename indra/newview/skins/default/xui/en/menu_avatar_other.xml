@@ -91,7 +91,7 @@
         <menu_item_call.on_enable
          function="Avatar.CanInviteInteraction" />
       </menu_item_call>
-</context_menu>
+
    
 <!-- [FS:Chanayane] Compass floater - face towards avatar -->
    <menu_item_separator />
