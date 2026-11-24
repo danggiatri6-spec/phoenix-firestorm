@@ -229,3 +229,18 @@ The implementation now:
 This is a small compatibility hardening change, not yet a new gaze feature. It does not change animation UUIDs, network packets, server behavior, or the default Second Life rig path.
 
 Verification performed: source-level checks confirmed the two primary eye joints remain required, alternate-joint registration and update are guarded, and deactivation checks null joints. No C++ compilation or runtime test has been performed. The next validation should include a standard SL avatar rig and a test rig with the alternate eye joints omitted.
+
+
+## Existing gaze-target pipeline confirmed
+
+Further inspection of `indra/newview/llhudeffectlookat.cpp` shows that the Viewer already has a target pipeline that should be reused:
+
+- `LLHUDEffectLookAt::calcTargetPosition()` resolves a target Avatar to its head world position, or resolves a non-avatar object/world position.
+- It converts the target into a vector relative to the source Avatar's head.
+- Unless `DisableLookAtAnimation` is enabled, it stores that vector as the source Avatar's `LookAtPoint` animation data.
+- Both `LLHeadRotMotion` and `LLEyeMotion` consume `LookAtPoint`, so head and eye motion already share one target.
+- The standard `settings.xml` declares `DisableLookAtAnimation` with value 0 (enabled); the C++ fallback value of true is used only if the setting is absent.
+
+This means the next gaze feature should be a **target-selection/arbitration layer**, not a second eye-rotation implementation. Candidate target sources can be ranked and blended into the existing LookAtPoint input: explicit user focus, interaction partner, selected object, then ambient idle behavior. Keep the existing privacy setting effective, retain the current HUD effect path, and do not alter legacy look-at packet semantics.
+
+The existing eye motion already supplies random jitter, occasional look-away, return-to-target, vergence, and blinking. The gap is chiefly richer target selection, configurable naturalness, interaction-aware attention, and better rig fallbacks—not basic blink or eye rotation.
