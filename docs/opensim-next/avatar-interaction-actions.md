@@ -491,3 +491,10 @@ Added the persistent Boolean setting `FSAvatarSocialEmotions` (default enabled).
 
 
 Follow-up hardening: the `FSAvatarSocialEmotions` preference is checked centrally in `requestSocialEmotion()`, covering both greeting and chat-triggered semantic reactions. English cue tokens now require ASCII word boundaries, reducing accidental matches inside unrelated words (for example, "lol" inside a larger word); Chinese cue matching remains explicit. Targeted static source checks passed 11/11. This is not a compile or runtime test.
+
+
+### Facial expression and gaze coordination (2026-11-24)
+
+Before mapping a semantic social emotion to its standard SL facial-expression animation, `requestSocialEmotion()` now refreshes the local interaction gaze target to the current accepted partner when that partner is a live avatar in the same region and within 12m. This deliberately calls the existing `setInteractionLookAt()` / `LLHUDEffectLookAt` overlay rather than writing eye or head joints. Existing attention priority arbitration, Mouselook suppression, the `PrivateLocalLookAtTarget` preference, and legacy AO/LSL/camera behavior remain in control. This creates a coordinated attention cue for greeting and recognized chat reactions without introducing new animation IDs or network traffic.
+
+Targeted static source checks passed 10/10. No C++ build, simulator test, or in-world facial/gaze observation has been performed.
