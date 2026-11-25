@@ -195,6 +195,7 @@ class LLWebRTCDeviceInterface
 
     virtual void setMute(bool mute, int delay_ms = 0) = 0;
     // Non-blocking poll; false means no captured frame is ready.
+    virtual void setCaptureTapEnabled(bool enabled) = 0;
     virtual bool getCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame) = 0;
 };
 
