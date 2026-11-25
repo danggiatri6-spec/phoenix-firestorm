@@ -66,6 +66,19 @@ Observed:
 
 Fix committed: clear pending/needed flags and pause the upload timer when the bake slot is unsupported. This is defensive state cleanup; runtime reproduction is still required to confirm whether this path is reached in normal region transitions.
 
+### 2.4 Texture UUID activation and final mesh use: source path verified
+
+Files: `indra/newview/llvoavatarself.cpp`, `indra/newview/llvoavatar.cpp`, `indra/newview/llviewerobject.cpp`, `indra/newview/llviewertexturelist.cpp`, `indra/newview/llviewertexture.cpp`.
+
+Verified path after successful self-bake upload:
+1. `LLVOAvatarSelf::setNewBakedTexture(te, uuid)` obtains the current object host and calls `getFetchedTextureFromHost(uuid, FTT_HOST_BAKE, host)`.
+2. `LLViewerTextureList::getImage()` keys the texture by UUID and texture-list type. If absent, `createImage()` constructs `LLViewerFetchedTexture` with the requested host; the constructor stores `mTargetHost` and disables HTTP for `FTT_HOST_BAKE`.
+3. `LLViewerObject::setTEImage()` updates the primitive TE UUID and `mTEImages`, marks TEXTURE changed, and marks the drawable textured.
+4. `LLVOAvatar::updateMeshTextures()` selects baked or local-composite rendering. For a remote avatar with a baked TE, it attaches `onBakedTextureLoaded`; when the final callback succeeds, `useBakedTexture()` assigns the fetched texture to the corresponding joint meshes and dirties the mesh.
+5. Texture fetch/decode and GL texture creation are separate asynchronous stages. `isFullyLoaded()` only checks complete download/fetcher state; it does not prove GL residency or correct visible sampling.
+
+No additional defect has been proven in this path yet. In particular, the empty-URL fallback still resolves to the already-created UUID-keyed Host Bake texture in the normal same-list case; it is not evidence by itself of an overwrite defect. Next investigation is whether region transitions or pre-existing UUID cache entries can leave a Host Bake texture object bound to the wrong target host/type, and whether the final GL texture creation path handles failures without leaving a stale drawable.
+
 ### 2.3 Existing baked/local texture update path
 
 File: `indra/newview/llvoavatar.cpp`, `LLVOAvatar::updateTextures()`.
