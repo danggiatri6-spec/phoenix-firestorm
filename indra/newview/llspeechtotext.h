@@ -58,6 +58,8 @@ public:
     bool start(std::unique_ptr<LLSpeechToTextRecognizer> recognizer);
     void stop();
     bool isRunning() const;
+    bool hasFailed() const;
+    std::string getError() const;
 
     // Called by the Viewer/main thread after polling WebRTC. This method
     // copies into a bounded queue; it never waits for recognition to finish.
@@ -77,6 +79,8 @@ private:
     std::thread mWorker;
     bool mRunning{ false };
     bool mStopping{ false };
+    bool mFailed{ false };
+    std::string mError;
 };
 
 // Returns a Whisper.cpp recognizer when the optional backend is compiled in.
