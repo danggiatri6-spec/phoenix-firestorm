@@ -213,7 +213,7 @@ void LLViewerTexLayerSetBuffer::midRenderTexLayerSet(bool success, LLRenderTarge
                 // layer_set->getAvatar()->debugBakedTextureUpload(layer_set->getBakedTexIndex(), false); // false for start of upload, true for finish.
                 //doUpload(bound_target);
                 auto bakedTexIdx = layer_set->getBakedTexIndex();
-                if(bakedTexIdx <= layer_set->getAvatar()->getNumBakes())
+                if(bakedTexIdx < layer_set->getAvatar()->getNumBakes())
                 {
                     layer_set->getAvatar()->debugBakedTextureUpload(bakedTexIdx, false); // false for start of upload, true for finish.
                     doUpload(bound_target);
