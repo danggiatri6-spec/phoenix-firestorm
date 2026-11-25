@@ -3811,6 +3811,16 @@ void LLVOAvatar::updateFacialExpressionComposition()
     const F32 facial_blend = facial_delta > 0.f
         ? facial_delta / (facial_tau + facial_delta)
         : 0.f;
+    // Head and eye cues deliberately settle after the facial morphs. This
+    // staggered response avoids every feature appearing to switch together.
+    const F32 posture_tau = has_active_expression ? 0.15f : 0.23f;
+    const F32 posture_blend = facial_delta > 0.f
+        ? facial_delta / (posture_tau + facial_delta)
+        : 0.f;
+    const F32 eye_tau = has_active_expression ? 0.20f : 0.30f;
+    const F32 eye_blend = facial_delta > 0.f
+        ? facial_delta / (eye_tau + facial_delta)
+        : 0.f;
 
     // Publish a restrained emotional pitch hint for this avatar's existing
     // idle head motion. Sad/worried expressions bias slightly downward;
@@ -3830,7 +3840,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
             * llclamp(surprised_head_weight, 0.f, 1.f);
     }
     mFacialHeadPitchBias +=
-        (target_head_pitch_bias - mFacialHeadPitchBias) * facial_blend;
+        (target_head_pitch_bias - mFacialHeadPitchBias) * posture_blend;
 
     // Keep the eye cue smaller than the head cue. It is consumed only by the
     // procedural idle eye direction when no explicit LookAtPoint is active.
@@ -3841,7 +3851,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
             ? -0.45f * DEG_TO_RAD * llclamp(surprised_head_weight, 0.f, 1.f)
             : 0.f);
     mFacialEyePitchBias +=
-        (target_eye_pitch_bias - mFacialEyePitchBias) * facial_blend;
+        (target_eye_pitch_bias - mFacialEyePitchBias) * eye_blend;
 
     // The three brow shapes are competing emotional cues. When two
     // expression families overlap during a cross-fade, let the strongest
