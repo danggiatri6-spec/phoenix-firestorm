@@ -100,7 +100,7 @@ if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
     # dependency prevent an otherwise valid MSVC build. Suppress only the
     # known GCC-pragma / narrowing warnings emitted by whisper.cpp and GGML.
     if (MSVC)
-        foreach(_opensimnext_whisper_target IN ITEMS whisper ggml ggml-base ggml-cpu)
+        foreach(_opensimnext_whisper_target IN ITEMS whisper ggml ggml-base ggml-cpu parakeet)
             if (TARGET ${_opensimnext_whisper_target})
                 target_compile_options(${_opensimnext_whisper_target} PRIVATE
                     /WX-
