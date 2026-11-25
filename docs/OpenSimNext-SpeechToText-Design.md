@@ -148,3 +148,12 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Upstream README memory estimates list tiny at about 273 MB and base at about 388 MB. This is a useful baseline, not a guarantee of total Viewer process memory or real-time performance. Start by evaluating tiny/tiny.en on target hardware; do not default to the small model for low-memory PCs.
 - The OpenSim-next repository search did not find an existing whisper.cpp integration or dependency. Do not introduce an unpinned FetchContent download into normal Viewer builds. The next dependency step should be an explicit optional, version-pinned third-party build/package with the feature disabled by default until Windows x64 CI validates it.
 - No Whisper adapter source has been added yet; upstream API and model selection still need a pinned revision and build verification.
+
+## Optional Whisper adapter prototype (2026-11-25)
+
+- Added `indra/newview/llspeechtotext_whisper.cpp` and a `createWhisperSpeechRecognizer(model_path, language)` factory declaration.
+- The adapter is guarded by `LL_HAS_WHISPER_CPP`; without that compile definition it builds as a stub factory returning nullptr, so the standard Viewer does not gain a mandatory Whisper dependency.
+- When enabled and linked against whisper.cpp, it requests CPU inference, converts interleaved S16 mono/stereo frames to mono float at 16 kHz, buffers five-second windows, and emits final text segments from the worker thread. It uses two inference threads by default.
+- Model loading is lazy on the worker's first audio frame. The model file is external and is not downloaded or bundled automatically.
+- This is an adapter prototype, not yet an end-user feature: no pinned whisper.cpp revision/package, CMake target linkage, user setting/model picker, start/stop UI, Viewer idle pump, or chat editor insertion has been completed. No Windows x64 compilation or runtime accuracy/performance test has been run.
+- The adapter currently emits final segments only after each five-second window; it does not claim word-level live captions or remote-speaker attribution.
