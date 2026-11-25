@@ -96,6 +96,7 @@ FSFloaterNearbyChat::FSFloaterNearbyChat(const LLSD& key)
     ,mChatHistoryMuted(NULL)
     ,mInputEditor(NULL)
     ,mSpeechToTextButton(NULL)
+    ,mSpeechToTextActive(false)
     ,mChatLayoutPanel(NULL)
     ,mInputPanels(NULL)
     ,mChatLayoutPanelHeight(0)
@@ -1108,9 +1109,10 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
     }
 
     // The microphone tap is opened only after this explicit user action.
-    if (mSpeechToTextButton->getLabel() == "Stop")
+    if (mSpeechToTextActive)
     {
         app->stopSpeechToTextDictation();
+        mSpeechToTextActive = false;
         mSpeechToTextButton->setLabel("Mic");
         mSpeechToTextButton->setToolTip("Start local speech-to-text dictation");
         return;
@@ -1134,6 +1136,7 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
 
     if (app->startSpeechToTextDictation(model_path))
     {
+        mSpeechToTextActive = true;
         mSpeechToTextButton->setLabel("Stop");
         mSpeechToTextButton->setToolTip("Stop local speech-to-text dictation");
     }
