@@ -85,7 +85,7 @@ Vivox:
 
 1. Complete backend capability audit: WebRTC track cardinality/participant mapping and Vivox PCM access.
 2. Implement the Viewer STT service and recognizer adapter with a synthetic PCM test harness.
-3. Add the WebRTC microphone capture tap and local dictation UI.
+3. Complete the WebRTC microphone capture bridge and add the local dictation UI.
 4. Add WebRTC incoming-track sinks only after confirming track-to-avatar attribution.
 5. Implement Vivox support only if its supported API exposes the required PCM.
 6. Add settings, packaging/model management, performance tests, and two-Viewer/multi-speaker tests.
@@ -105,3 +105,15 @@ Vivox:
 - WebRTC remote decoded audio is observable at the received AudioTrack boundary in LLWebRTCPeerConnectionImpl::OnAddTrack(). The current code does not attach an AudioTrackSinkInterface. Before implementing captions, confirm the gateway's track cardinality and whether track/stream identifiers can be mapped to participant UUIDs from existing voice signaling metadata.
 - Vivox source audit found daemon command/event handling, device enumeration, mic tuning, and capture-buffer recording/playback commands, but no raw PCM frame callback exposed to Viewer code. Therefore native per-avatar captions and shared-pipeline dictation cannot currently be claimed for Vivox. A supported SDK API or a separately selected OS capture path would be required; do not capture system output as a false per-speaker substitute.
 - The initial implementation should target the WebRTC backend and keep Vivox capability explicitly unavailable until a supported audio-frame API is identified.
+
+
+## Implementation update (2026-11-25)
+
+The first WebRTC capture bridge is now committed on the OpenSim-next development branch:
+
+- `LLWebRTCCapturedAudioFrame` is a fixed-size, interleaved signed-16-bit PCM frame (up to 1,920 samples, with sample-rate and channel metadata).
+- `LLWebRTCAudioTransport` has a 16-slot single-producer/single-consumer ring. The audio callback only copies a bounded frame when the opt-in capture switch is enabled; a full queue drops the recognition frame rather than blocking voice transmission.
+- The Viewer can enable/disable the tap and poll frames through `LLWebRTCVoiceClient`. Capture is disabled by default and explicitly disabled before WebRTC shutdown.
+- Disabling capture flushes pending queued PCM. No recognition engine, UI control, or automatic chat sending is wired yet.
+
+This is an API/implementation milestone, not a validated build. A full Windows build and runtime test are still required before treating the bridge as production-ready. The next implementation step is the Viewer-side bounded worker and recognizer adapter, followed by the Nearby Chat dictation control.
