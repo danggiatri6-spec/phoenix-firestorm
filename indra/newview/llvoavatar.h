@@ -1171,6 +1171,7 @@ private:
     LLVisualParam*  mAahMorph; // cached pointers morphs for lip sync
     bool            mLipSyncUsesFallbackMorphs; // legacy mouth morphs overlap facial expressions
     LLFrameTimer    mLipSyncTimer;
+    LLFrameTimer    mFacialExpressionTimer;
     F32             mLipSyncOohWeight;
     F32             mLipSyncAahWeight;
 
