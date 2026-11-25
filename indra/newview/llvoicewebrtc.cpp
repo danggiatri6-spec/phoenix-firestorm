@@ -285,6 +285,21 @@ void LLWebRTCVoiceClient::init(LLPumpIO* pump)
     initWebRTC();
 }
 
+void LLWebRTCVoiceClient::setSpeechCaptureEnabled(bool enabled)
+{
+    if (mWebRTCDeviceInterface && !sShuttingDown)
+    {
+        mWebRTCDeviceInterface->setCaptureTapEnabled(enabled);
+    }
+}
+
+bool LLWebRTCVoiceClient::getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioFrame& frame)
+{
+    return mWebRTCDeviceInterface && !sShuttingDown
+        ? mWebRTCDeviceInterface->getCapturedAudioFrame(frame)
+        : false;
+}
+
 void LLWebRTCVoiceClient::initWebRTC()
 {
     llwebrtc::init(this);
