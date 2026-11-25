@@ -190,3 +190,11 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Normal builds do not fetch or link Whisper.cpp. Enabling the option requires network access at CMake configure time and increases build time and binary size.
 - The current five-second-window adapter and CPU-only inference settings remain prototypes. This wiring has not been compiled or exercised on Windows x64; API compatibility, model loading, redistributable/runtime packaging, latency, memory use, and transcription quality still require validation.
 - Remote Avatar captions remain a separate unimplemented task. The local microphone path must not be mistaken for per-participant audio capture.
+
+
+## Windows build validation and cancellation hardening (2026-11-25)
+
+- The OpenSim-next Windows x64 CI workflow now also runs on `opensim-next/avatar-interaction-actions` and explicitly configures `OPENSIMNEXT_ENABLE_WHISPER_CPP=ON`. This makes the optional third-party dependency and adapter part of the Windows compile validation rather than testing only the stub path.
+- A Windows CI run was created for the branch. Subsequent commits can supersede/cancel earlier runs through the workflow's existing concurrency policy; the latest run must be checked before treating validation as complete.
+- Added cooperative backend cancellation to the recognizer contract. The worker requests cancellation before joining; the Whisper adapter sets an atomic stop flag and wires it to whisper.cpp's supported GGML abort callback. This should allow an active inference to stop at a computation boundary instead of forcing the UI to wait for the entire five-second decode.
+- Model file loading itself is not yet cancellable. Windows CI and runtime testing must verify that the pinned release exposes the callback fields and that stopping during inference behaves as expected.
