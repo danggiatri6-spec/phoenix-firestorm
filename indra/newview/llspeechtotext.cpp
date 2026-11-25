@@ -58,6 +58,12 @@ void LLSpeechToText::stop()
         }
         mStopping = true;
         mFrames.clear();
+        // Ask the active backend to abort a long inference before joining.
+        // The recognizer remains alive until the worker exits.
+        if (mRecognizer)
+        {
+            mRecognizer->requestStop();
+        }
     }
     mCondition.notify_all();
 
