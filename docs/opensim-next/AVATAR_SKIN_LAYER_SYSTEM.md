@@ -169,3 +169,15 @@ This supersedes the earlier proposal to prioritize a general color overlay compo
 The legacy LLTexLayerSetBuffer::renderTexLayerSet() path renders the existing appearance stack into its render target through LLTexLayerSet::render(). That path remains authoritative for Base Skin and legacy wearable compatibility. The new material compositor must remain a separate optional path and must not replace or write into the legacy Bake render target.
 
 The LLImageRaw API is suitable for a standalone CPU-side compositor, but the current inspection has not established a safe GPU upload owner, native-skin-only draw binding point, or tangent-basis correctness for every Avatar render path. Those remain later integration gates.
+
+
+### Phase 1 progress: first LLImageRaw surface compositor slice
+
+Implemented as CPU-only functions in the existing skin-material module:
+- compositeNormalMap() accepts RGB/RGBA tangent-space maps, uses the detail alpha channel as coverage when present, blends vectors by clamped detail strength, normalizes the result and emits an independent RGB output.
+- packSpecularRoughness() packs scalar R-channel inputs into RGBA (R = specular, G = roughness, B = reserved subsurface mask, A = neutral detail mask). Missing inputs use caller-supplied defaults.
+- Both operations reject aliased output buffers, invalid component counts, mismatched dimensions and outputs exceeding a 32 MiB budget. No implicit resampling is performed.
+- The legacy baked diffuse is not an input or output of these functions and remains untouched.
+- Five additional TUT cases (tests 17–21) cover normal blending, transparent detail coverage, missing-map defaults, mismatched dimensions and invalid normal formats. The existing CMake test registration resolves llavatarskinmaterial.cpp to tests/llavatarskinmaterial_test.cpp.
+
+These tests are authored but have not been compiled or executed. This CPU slice does not yet resolve texture UUIDs, generate GPU textures, select a shader permutation or render on an Avatar. Source pixel color-space metadata is also not established; this is safe for the normal and scalar data maps because these channels must be treated as linear data, not color.
