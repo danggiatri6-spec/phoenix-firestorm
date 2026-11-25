@@ -35,6 +35,9 @@ namespace LLAvatarSkin
 
         State getState(const LLUUID& texture_id);
 
+        // Drop a UUID no longer referenced by the Avatar's active skin material.
+        void release(const LLUUID& texture_id);
+
         // Release this Avatar's references. The global texture manager/cache
         // continues to manage the underlying fetched texture.
         void clear();
