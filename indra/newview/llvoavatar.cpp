@@ -2567,6 +2567,11 @@ void LLVOAvatar::buildCharacter()
         mAahMorph = getVisualParam( "Express_Open_Mouth" );
     }
 
+    // Keep the local envelope synchronized with the actual morph defaults.
+    mLipSyncOohWeight = mOohMorph ? mOohMorph->getMinWeight() : 0.f;
+    mLipSyncAahWeight = mAahMorph ? mAahMorph->getMinWeight() : 0.f;
+    mLipSyncTimer.reset();
+
     // Currently disabled for control avatars (animated objects), enabled for all others.
     if (mEnableDefaultMotions)
     {
@@ -3683,35 +3688,37 @@ F32 LLVOAvatar::calcMorphAmount() const
 
 void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
 {
-    // Use the Lipsync_Ooh and Lipsync_Aah morphs for lip sync
-    if (voice_enabled
+    const bool speaking = voice_enabled
         && mLastRezzedStatus > 0 // no point updating lip-sync for clouds
         && LLVoiceVisualizer::getLipSyncEnabled()
-        && LLVoiceClient::getInstance()->getIsSpeaking(mID))
+        && LLVoiceClient::getInstance()->getIsSpeaking(mID);
+
+    const F32 elapsed = llclamp(mLipSyncTimer.getElapsedTimeF32(), 0.f, 0.25f);
+    mLipSyncTimer.reset();
+
+    if (speaking)
     {
         F32 ooh_morph_amount = 0.0f;
         F32 aah_morph_amount = 0.0f;
+        mVoiceVisualizer->lipSyncOohAah(ooh_morph_amount, aah_morph_amount);
 
-        mVoiceVisualizer->lipSyncOohAah( ooh_morph_amount, aah_morph_amount );
-
+        const F32 attack = llclamp(elapsed / 0.045f, 0.f, 1.f);
         if (mOohMorph)
         {
-            F32 ooh_weight = mOohMorph->getMinWeight()
+            const F32 target = mOohMorph->getMinWeight()
                 + ooh_morph_amount * (mOohMorph->getMaxWeight() - mOohMorph->getMinWeight());
-
+            mLipSyncOohWeight += (target - mLipSyncOohWeight) * attack;
             // <FS:Ansariel> [Legacy Bake]
-            //mOohMorph->setWeight( ooh_weight);
-            mOohMorph->setWeight( ooh_weight, false);
+            mOohMorph->setWeight(mLipSyncOohWeight, false);
         }
 
         if (mAahMorph)
         {
-            F32 aah_weight = mAahMorph->getMinWeight()
+            const F32 target = mAahMorph->getMinWeight()
                 + aah_morph_amount * (mAahMorph->getMaxWeight() - mAahMorph->getMinWeight());
-
+            mLipSyncAahWeight += (target - mLipSyncAahWeight) * attack;
             // <FS:Ansariel> [Legacy Bake]
-            //mAahMorph->setWeight( aah_weight);
-            mAahMorph->setWeight( aah_weight, false);
+            mAahMorph->setWeight(mLipSyncAahWeight, false);
         }
 
         mLipSyncActive = true;
@@ -3720,18 +3727,43 @@ void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
     }
     else if (mLipSyncActive)
     {
-        // Voice can be disabled, muted, or have lip sync toggled off while
-        // the speaker is still active. Do not leave the last mouth pose stuck.
+        // Release the last mouth pose gently when voice becomes unavailable,
+        // is muted, or lip sync is disabled. Avoid leaving a frozen syllable.
+        const F32 release = llclamp(elapsed / 0.085f, 0.f, 1.f);
         if (mOohMorph)
         {
-            mOohMorph->setWeight(mOohMorph->getMinWeight(), false);
-        }
-        if (mAahMorph)
-        {
-            mAahMorph->setWeight(mAahMorph->getMinWeight(), false);
+            const F32 minimum = mOohMorph->getMinWeight();
+            mLipSyncOohWeight += (minimum - mLipSyncOohWeight) * release;
+            mOohMorph->setWeight(mLipSyncOohWeight, false);
         }
 
-        mLipSyncActive = false;
+        if (mAahMorph)
+        {
+            const F32 minimum = mAahMorph->getMinWeight();
+            mLipSyncAahWeight += (minimum - mLipSyncAahWeight) * release;
+            mAahMorph->setWeight(mLipSyncAahWeight, false);
+        }
+
+        const bool ooh_released = !mOohMorph
+            || fabsf(mLipSyncOohWeight - mOohMorph->getMinWeight()) < 0.001f;
+        const bool aah_released = !mAahMorph
+            || fabsf(mLipSyncAahWeight - mAahMorph->getMinWeight()) < 0.001f;
+
+        if (ooh_released && aah_released)
+        {
+            if (mOohMorph)
+            {
+                mLipSyncOohWeight = mOohMorph->getMinWeight();
+                mOohMorph->setWeight(mLipSyncOohWeight, false);
+            }
+            if (mAahMorph)
+            {
+                mLipSyncAahWeight = mAahMorph->getMinWeight();
+                mAahMorph->setWeight(mLipSyncAahWeight, false);
+            }
+            mLipSyncActive = false;
+        }
+
         LLCharacter::updateVisualParams();
         dirtyMesh();
     }
