@@ -117,3 +117,16 @@ The first WebRTC capture bridge is now committed on the OpenSim-next development
 - Disabling capture flushes pending queued PCM. No recognition engine, UI control, or automatic chat sending is wired yet.
 
 This is an API/implementation milestone, not a validated build. A full Windows build and runtime test are still required before treating the bridge as production-ready. The next implementation step is the Viewer-side bounded worker and recognizer adapter, followed by the Nearby Chat dictation control.
+
+
+## Worker implementation update (2026-11-25)
+
+The Viewer-side worker boundary is now present:
+
+- Added `LLSpeechToTextRecognizer`, a replaceable backend contract. A Whisper.cpp implementation can be supplied without coupling model headers or inference calls to the voice DLL.
+- Added `LLSpeechToText`: a dedicated worker thread, bounded pending-frame queue (25 frames), bounded transcript-result queue (32 events), and explicit start/stop/join lifecycle.
+- When recognition falls behind, the oldest queued PCM is discarded to favor current speech. Stopping clears pending audio and joins the worker before releasing the recognizer.
+- Added `LLWebRTCVoiceClient::pumpSpeechCapture()` to move at most a caller-selected number of captured frames per Viewer tick into the worker queue. The capture tap follows the worker's explicitly user-initiated lifetime and is disabled when the worker stops or the voice client shuts down.
+- Registered `llspeechtotext.cpp` in the Viewer CMake source list.
+
+The worker currently has no concrete recognition backend. This is intentional: Whisper.cpp model loading, CPU/thread settings, language selection, licensing, and model-file lifecycle must be integrated and tested before enabling dictation in the UI. No text is recognized or inserted into chat yet. The branch has not been built in this environment; a Windows x64 build remains a required validation step.
