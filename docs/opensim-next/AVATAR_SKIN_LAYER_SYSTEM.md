@@ -133,3 +133,39 @@ This is not yet an image compositor: it does not iterate LLImageRaw pixels, crea
 ## 8. Current repository status
 
 The existing `LLAvatarSkin::MaterialData` and texture resolver are infrastructure only. The resolver is not yet wired into the Avatar draw path, and the current deferred skinned Avatar fragment shader samples the legacy diffuse map only. This specification does not claim that skin layers are implemented or tested.
+
+
+## 9. Revised first-release priority: skin surface material first
+
+The first visible enhancement is narrowed to the native skin surface, not a general-purpose color-layer editor.
+
+Priority order:
+1. Preserve and validate the existing baked Base Skin path without modifying its pixels or alpha.
+2. Add an optional tangent-space Normal Map for pores, fine lines and shallow skin relief. Do not create a separate pore color texture in the first release.
+3. Add an optional packed Specular/Roughness map. Specular strength and roughness are distinct material properties and must both be represented.
+4. Add subsurface response only after the first two material maps are stable and the target Avatar shader path supports it.
+5. Add optional color overlays (freckles, discoloration, makeup and scars) after surface shading is working.
+
+The first runtime material set is therefore:
+- Legacy Base Skin: existing baked diffuse, unchanged.
+- Skin Normal: one optional tangent-space normal composite.
+- Skin Material: one optional packed RGBA map, with R = specular strength, G = roughness, B = reserved for subsurface mask, A = reserved for detail mask.
+
+This supersedes the earlier proposal to prioritize a general color overlay composite. The logical layer schema may continue to describe future color layers, but they are not a prerequisite for the first surface-material milestone.
+
+### Pixel-processing rules
+
+- LLImageRaw already exposes dimensions, component count, data access, allocation, resize/scale, copy and legacy color-composite operations. The new path should use these existing image primitives rather than introducing a second raw-image container.
+- Do not use the legacy LLImageRaw composite operation to combine tangent-space normal maps. Decode each normal sample to a signed vector, combine according to a documented normal-blending rule, then normalize the result before encoding it back to RGB.
+- Specular and roughness are scalar channels. Blend each channel independently with clamped values and explicit defaults; never interpret missing data as black (which would incorrectly erase material response).
+- Inputs must have compatible dimensions and expected component counts. A future resampling policy must be explicit; the first implementation should reject invalid/mismatched inputs safely rather than sample out of bounds.
+- CPU image work must not mutate the legacy baked image. Output buffers are independently allocated and have bounded dimensions/byte budgets.
+- Establish whether fetched source pixels are sRGB-encoded or linear before applying any color blend math. Normal vectors and scalar material channels are data textures and must not receive sRGB color transforms.
+- Mask semantics must be explicit (first implementation: optional single-channel mask, with opacity multiplied into its coverage).
+- Normal-map strength is a runtime parameter; distant-avatar mip behavior must avoid pore shimmer and aliasing.
+
+### Existing renderer boundary found during source inspection
+
+The legacy LLTexLayerSetBuffer::renderTexLayerSet() path renders the existing appearance stack into its render target through LLTexLayerSet::render(). That path remains authoritative for Base Skin and legacy wearable compatibility. The new material compositor must remain a separate optional path and must not replace or write into the legacy Bake render target.
+
+The LLImageRaw API is suitable for a standalone CPU-side compositor, but the current inspection has not established a safe GPU upload owner, native-skin-only draw binding point, or tangent-basis correctness for every Avatar render path. Those remain later integration gates.
