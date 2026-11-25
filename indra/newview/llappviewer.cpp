@@ -27,6 +27,9 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llappviewer.h"
+#include "llvoiceclient.h"
+#include "llvoicewebrtc.h"
+#include "fsfloaternearbychat.h"
 
 // Viewer includes
 #include "llversioninfo.h"
@@ -1763,6 +1766,7 @@ bool LLAppViewer::doFrame()
                 pauseMainloopTimeout();
                 saveFinalSnapshot();
 
+                stopSpeechToTextDictation();
                 if (LLVoiceClient::instanceExists())
                 {
                     LLVoiceClient::getInstance()->terminate();
@@ -1944,6 +1948,7 @@ bool LLAppViewer::doFrame()
         }
 
         pingMainloopTimeout("Main:TerminateVoice");
+        stopSpeechToTextDictation();
         if (LLVoiceClient::instanceExists())
         {
             LLVoiceClient::getInstance()->terminate();
@@ -5890,10 +5895,68 @@ static LLTrace::BlockTimerStatHandle FTM_HUD_EFFECTS("HUD Effects");
 // Called every time the window is not doing anything.
 // Receive packets, update statistics, and schedule a redisplay.
 ///////////////////////////////////////////////////////
+bool LLAppViewer::startSpeechToTextDictation(const std::string& model_path,
+                                                   const std::string& language)
+{
+    if (model_path.empty() || mSpeechToText.isRunning())
+    {
+        return false;
+    }
+
+    auto recognizer = createWhisperSpeechRecognizer(model_path, language);
+    if (!recognizer)
+    {
+        LL_WARNS("SpeechToText") << "Local speech recognizer is unavailable. "
+                                  << "Check the optional Whisper.cpp build configuration."
+                                  << LL_ENDL;
+        return false;
+    }
+
+    return mSpeechToText.start(std::move(recognizer));
+}
+
+void LLAppViewer::stopSpeechToTextDictation()
+{
+    if (LLVoiceClient::instanceExists())
+    {
+        if (auto* voice = dynamic_cast<LLWebRTCVoiceClient*>(LLVoiceClient::getInstance()))
+        {
+            voice->setSpeechCaptureEnabled(false);
+        }
+    }
+    mSpeechToText.stop();
+}
+
 void LLAppViewer::idle()
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_APP;
     pingMainloopTimeout("Main:Idle");
+
+    // Local dictation is opt-in: this path does nothing until the user starts
+    // a recognizer through startSpeechToTextDictation().
+    if (mSpeechToText.isRunning() && LLVoiceClient::instanceExists())
+    {
+        if (auto* voice = dynamic_cast<LLWebRTCVoiceClient*>(LLVoiceClient::getInstance()))
+        {
+            voice->pumpSpeechCapture(mSpeechToText, 8);
+
+            // Keep completed transcripts editable in Nearby Chat. Never call
+            // the chat commit/send path from speech recognition.
+            if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+            {
+                LLSpeechToTextResult result;
+                std::size_t delivered = 0;
+                while (delivered < 8 && mSpeechToText.tryPopResult(result))
+                {
+                    if (result.is_final && !result.text.empty())
+                    {
+                        nearby_chat->insertSpeechToText(result.text);
+                    }
+                    ++delivered;
+                }
+            }
+        }
+    }
 
     // Update frame timers
     static LLTimer idle_timer;
