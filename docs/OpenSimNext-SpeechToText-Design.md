@@ -141,3 +141,10 @@ The worker currently has no concrete recognition backend. This is intentional: W
 ## Integration boundary remains unchanged
 
 The PCM tap and worker are not yet connected to an active Viewer idle callback or Nearby Chat UI. pumpSpeechCapture() is currently an available bridge method, not an automatically running loop. There is still no concrete recognizer backend, model loading, microphone dictation button, transcript-to-chat-editor insertion, or per-Avatar remote subtitle path. The next implementation step must wire a service lifecycle and main-thread result pump without enabling microphone capture until the user explicitly starts dictation.
+
+## Whisper.cpp dependency assessment (2026-11-25)
+
+- Upstream whisper.cpp provides a C-style API, CPU-only inference, and quantized model support. Its current API exposes explicit context initialization and context cleanup; the adapter should own one context on the dedicated STT worker and never share it concurrently.
+- Upstream README memory estimates list tiny at about 273 MB and base at about 388 MB. This is a useful baseline, not a guarantee of total Viewer process memory or real-time performance. Start by evaluating tiny/tiny.en on target hardware; do not default to the small model for low-memory PCs.
+- The OpenSim-next repository search did not find an existing whisper.cpp integration or dependency. Do not introduce an unpinned FetchContent download into normal Viewer builds. The next dependency step should be an explicit optional, version-pinned third-party build/package with the feature disabled by default until Windows x64 CI validates it.
+- No Whisper adapter source has been added yet; upstream API and model selection still need a pinned revision and build verification.
