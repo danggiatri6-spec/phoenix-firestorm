@@ -184,3 +184,30 @@ The first code change should add only the value type, defaults, validation and u
 - add a creator UI or upload workflow.
 
 This isolates data-contract correctness before touching the render path.
+
+
+## 8. Phase B implementation status
+
+The first viewer-local data-contract implementation has been added:
+
+- `indra/newview/llavatarskinmaterial.h`
+- `indra/newview/llavatarskinmaterial.cpp`
+- Both files are registered in `indra/newview/CMakeLists.txt`.
+
+Implemented behavior:
+
+- Schema version 1.
+- Optional UUIDs for normal, roughness, specular and detail-mask maps.
+- Conservative scalar defaults; subsurface and detail are disabled by default.
+- A `sanitize()` method clamps scalar and color channels to [0, 1].
+- Unsupported schema versions disable the optional material path.
+- The structure contains UUIDs and scalar data only; it does not own GPU texture pointers.
+
+Not yet completed:
+
+- No unit test has been added or run.
+- No Windows x64 ReleaseOS build has been run.
+- No runtime rendering path consumes this structure yet.
+- No texture resolver/cache or asset distribution protocol exists yet.
+
+This is source implementation only, not a build- or runtime-verified feature.
