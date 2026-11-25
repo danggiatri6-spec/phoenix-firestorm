@@ -3695,7 +3695,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
 {
     // Standard Second Life facial expression animations are represented by
     // LLEmote motions. Aggregate their blended pose weights per avatar rather
-    // than allowing the last-updated motion to own Express_Closed_Mouth.
+    // than allowing the last-updated motion to own shared facial parameters.
     static const LLUUID expression_ids[] =
     {
         ANIM_AGENT_EXPRESS_AFRAID,
@@ -3720,6 +3720,9 @@ void LLVOAvatar::updateFacialExpressionComposition()
     };
 
     F32 strongest_expression = 0.f;
+    F32 surprised_brow_weight = 0.f;
+    F32 worried_brow_weight = 0.f;
+    F32 furrowed_brow_weight = 0.f;
     bool has_active_expression = false;
     LLMotionController::motion_list_t& active_motions =
         getMotionController().getActiveMotions();
@@ -3749,19 +3752,97 @@ void LLVOAvatar::updateFacialExpressionComposition()
             continue;
         }
 
+        const F32 weight = llclamp(motion->getPose()->getWeight(), 0.f, 1.f);
         has_active_expression = true;
-        strongest_expression = llmax(strongest_expression,
-                                     llclamp(motion->getPose()->getWeight(), 0.f, 1.f));
+        strongest_expression = llmax(strongest_expression, weight);
+
+        // Add subtle brow participation to the standard facial expressions.
+        // These are animatable morphs in the stock avatar_lad.xml; missing
+        // parameters on custom rigs are intentionally ignored.
+        if (motion_id == ANIM_AGENT_EXPRESS_SURPRISE
+            || motion_id == ANIM_AGENT_EXPRESS_AFRAID
+            || motion_id == ANIM_AGENT_EXPRESS_OPEN_MOUTH)
+        {
+            surprised_brow_weight = llmax(surprised_brow_weight, weight * 0.42f);
+        }
+        else if (motion_id == ANIM_AGENT_EXPRESS_WORRY
+                 || motion_id == ANIM_AGENT_EXPRESS_SAD
+                 || motion_id == ANIM_AGENT_EXPRESS_CRY
+                 || motion_id == ANIM_AGENT_EXPRESS_EMBARRASSED)
+        {
+            worried_brow_weight = llmax(worried_brow_weight, weight * 0.34f);
+        }
+        else if (motion_id == ANIM_AGENT_EXPRESS_ANGER
+                 || motion_id == ANIM_AGENT_EXPRESS_FROWN
+                 || motion_id == ANIM_AGENT_EXPRESS_DISDAIN
+                 || motion_id == ANIM_AGENT_EXPRESS_REPULSED)
+        {
+            furrowed_brow_weight = llmax(furrowed_brow_weight, weight * 0.32f);
+        }
+    }
+
+    bool facial_params_changed = false;
+    LLVisualParam* surprised_brows = getVisualParam("Surprised_Eyebrows");
+    LLVisualParam* worried_brows = getVisualParam("Worried_Eyebrows");
+    LLVisualParam* furrowed_brows = getVisualParam("Furrowed_Eyebrows");
+
+    // Restore the animatable brow morphs after the final expression ends.
+    // Do not manufacture parameters on non-standard/custom avatar rigs.
+    if (surprised_brows)
+    {
+        const F32 target = has_active_expression
+            ? surprised_brows->getMinWeight()
+                + surprised_brow_weight * (surprised_brows->getMaxWeight() - surprised_brows->getMinWeight())
+            : surprised_brows->getDefaultWeight();
+        if (fabsf(surprised_brows->getWeight() - target) > 0.001f)
+        {
+            surprised_brows->setWeight(target, false);
+            facial_params_changed = true;
+        }
+    }
+    if (worried_brows)
+    {
+        const F32 target = has_active_expression
+            ? worried_brows->getMinWeight()
+                + worried_brow_weight * (worried_brows->getMaxWeight() - worried_brows->getMinWeight())
+            : worried_brows->getDefaultWeight();
+        if (fabsf(worried_brows->getWeight() - target) > 0.001f)
+        {
+            worried_brows->setWeight(target, false);
+            facial_params_changed = true;
+        }
+    }
+    if (furrowed_brows)
+    {
+        const F32 target = has_active_expression
+            ? furrowed_brows->getMinWeight()
+                + furrowed_brow_weight * (furrowed_brows->getMaxWeight() - furrowed_brows->getMinWeight())
+            : furrowed_brows->getDefaultWeight();
+        if (fabsf(furrowed_brows->getWeight() - target) > 0.001f)
+        {
+            furrowed_brows->setWeight(target, false);
+            facial_params_changed = true;
+        }
     }
 
     if (!has_active_expression)
     {
+        if (facial_params_changed)
+        {
+            updateVisualParams();
+            dirtyMesh();
+        }
         return;
     }
 
     LLVisualParam* closed_mouth = getVisualParam("Express_Closed_Mouth");
     if (!closed_mouth)
     {
+        if (facial_params_changed)
+        {
+            updateVisualParams();
+            dirtyMesh();
+        }
         return;
     }
 
@@ -3771,9 +3852,17 @@ void LLVOAvatar::updateFacialExpressionComposition()
 
     // One final write per avatar/frame makes overlapping expression fades
     // deterministic while preserving each expression's own morph weight.
-    closed_mouth->setWeight(closed_mouth_weight, false);
-    updateVisualParams();
-    dirtyMesh();
+    if (fabsf(closed_mouth->getWeight() - closed_mouth_weight) > 0.001f)
+    {
+        closed_mouth->setWeight(closed_mouth_weight, false);
+        facial_params_changed = true;
+    }
+
+    if (facial_params_changed)
+    {
+        updateVisualParams();
+        dirtyMesh();
+    }
 }
 
 void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
