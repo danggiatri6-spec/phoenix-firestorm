@@ -45,13 +45,23 @@ public:
         const llwebrtc::LLWebRTCCapturedAudioFrame& frame,
         std::vector<LLSpeechToTextResult>& results) override
     {
-        if (!mContext && !loadModel())
+        // Validate the frame before touching the model or dividing by channels.
+        if (frame.mSampleCount == 0 ||
+            frame.mSampleCount > llwebrtc::LLWebRTCCapturedAudioFrame::MAX_SAMPLES ||
+            frame.mChannels == 0 || frame.mChannels > 2 ||
+            frame.mSampleCount % frame.mChannels != 0 ||
+            frame.mSampleRate < 8000 || frame.mSampleRate > 48000)
         {
             return;
         }
 
         const std::size_t input_frames = frame.mSampleCount / frame.mChannels;
-        if (!input_frames || !frame.mSampleRate)
+        if (!input_frames)
+        {
+            return;
+        }
+
+        if (!mContext && !loadModel())
         {
             return;
         }
@@ -95,6 +105,22 @@ public:
         const std::size_t window_samples = 5 * WHISPER_SAMPLE_RATE;
         while (mAudio.size() >= window_samples)
         {
+            // Do not spend CPU decoding a completely silent five-second window.
+            // A low threshold keeps quiet speech eligible; this is only a coarse
+            // silence gate, not voice activity detection or speech segmentation.
+            double energy = 0.0;
+            for (std::size_t i = 0; i < window_samples; ++i)
+            {
+                const double sample = static_cast<double>(mAudio[i]);
+                energy += sample * sample;
+            }
+            const double rms = std::sqrt(energy / static_cast<double>(window_samples));
+            if (rms < 0.003)
+            {
+                mAudio.erase(mAudio.begin(), mAudio.begin() + window_samples);
+                continue;
+            }
+
             whisper_full_params params =
                 whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
             params.n_threads = 2;
