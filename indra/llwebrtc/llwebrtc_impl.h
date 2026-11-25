@@ -171,7 +171,15 @@ public:
 
     float GetMicrophoneEnergy() { return mMicrophoneEnergy.load(std::memory_order_relaxed); }
     void  SetGain(float gain) { mGain.store(gain, std::memory_order_relaxed); }
-    void SetCaptureTapEnabled(bool enabled) { mCaptureTapEnabled.store(enabled, std::memory_order_release); }
+    void SetCaptureTapEnabled(bool enabled)
+    {
+        mCaptureTapEnabled.store(enabled, std::memory_order_release);
+        if (!enabled)
+        {
+            // Discard pending PCM immediately when the user turns capture off.
+            mCaptureRead.store(mCaptureWrite.load(std::memory_order_acquire), std::memory_order_release);
+        }
+    }
     bool GetCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame);
 
 private:
