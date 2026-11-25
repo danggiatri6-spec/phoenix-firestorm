@@ -54,6 +54,7 @@
 #include "llvovolume.h"
 #include "llavatarrendernotifier.h"
 #include "llavatarskintextureresolver.h"
+#include "llavatarskinmaterial.h"
 #include "llmodel.h"
 
 extern const LLUUID ANIM_AGENT_BODY_NOISE;
@@ -161,6 +162,8 @@ public:
     void                        releaseOldTextures();
     /*virtual*/ void            updateTextures();
     LLAvatarSkin::TextureResolver& getSkinTextureResolver() { return mSkinTextureResolver; }
+    const LLAvatarSkin::MaterialData& getSkinMaterial() const { return mSkinMaterial; }
+    void setSkinMaterial(const LLAvatarSkin::MaterialData& material);
     LLViewerFetchedTexture*     getBakedTextureImage(const U8 te, const LLUUID& uuid);
     /*virtual*/ S32             setTETexture(const U8 te, const LLUUID& uuid); // If setting a baked texture, need to request it from a non-local sim.
     /*virtual*/ void            onShift(const LLVector4a& shift_vector);
@@ -1402,6 +1405,7 @@ public:
 private:
     // Viewer-local optional skin maps; releases only this Avatar's references.
     LLAvatarSkin::TextureResolver mSkinTextureResolver;
+    LLAvatarSkin::MaterialData mSkinMaterial;
 
 protected: // Shared with LLVOAvatarSelf
 
