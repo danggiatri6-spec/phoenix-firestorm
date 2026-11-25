@@ -40,6 +40,8 @@
 #include "fsfloaterimcontainer.h"
 #include "fsnearbychathub.h"
 #include "llagent.h"            // gAgent
+#include "llappviewer.h"
+#include "llfilepicker.h"
 #include "llagentcamera.h"  // gAgentCamera
 #include "llanimationstates.h"  // ANIM_AGENT_WHISPER, ANIM_AGENT_TALK, ANIM_AGENT_SHOUT
 #include "llautoreplace.h"
@@ -93,6 +95,7 @@ FSFloaterNearbyChat::FSFloaterNearbyChat(const LLSD& key)
     ,mChatHistory(NULL)
     ,mChatHistoryMuted(NULL)
     ,mInputEditor(NULL)
+    ,mSpeechToTextButton(NULL)
     ,mChatLayoutPanel(NULL)
     ,mInputPanels(NULL)
     ,mChatLayoutPanelHeight(0)
@@ -213,6 +216,9 @@ bool FSFloaterNearbyChat::postBuild()
     mSendChatButton = getChild<LLButton>("send_chat");
     mSendChatButton->setCommitCallback(boost::bind(&FSFloaterNearbyChat::onChatBoxCommit, this));
     onChatTypeChanged();
+
+    mSpeechToTextButton = getChild<LLButton>("speech_to_text_button");
+    mSpeechToTextButton->setCommitCallback([this](LLUICtrl*, const LLSD&) { onSpeechToTextButtonClicked(); });
 
     mChatHistory = getChild<FSChatHistory>("chat_history");
     mChatHistoryMuted = getChild<FSChatHistory>("chat_history_muted");
@@ -1090,6 +1096,46 @@ void FSFloaterNearbyChat::initEmojiRecentPanel()
         mEmojiRecentIconsCtrl->setEmojis(emojis);
         mEmojiRecentEmptyText->setVisible(false);
         mEmojiRecentIconsCtrl->setVisible(true);
+    }
+}
+
+void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
+{
+    LLAppViewer* app = LLAppViewer::instance();
+    if (!app || !mSpeechToTextButton)
+    {
+        return;
+    }
+
+    // The microphone tap is opened only after this explicit user action.
+    if (mSpeechToTextButton->getLabel() == "Stop")
+    {
+        app->stopSpeechToTextDictation();
+        mSpeechToTextButton->setLabel("Mic");
+        mSpeechToTextButton->setToolTip("Start local speech-to-text dictation");
+        return;
+    }
+
+    std::string model_path = gSavedSettings.getString("SpeechToTextModelPath");
+    if (model_path.empty())
+    {
+        LLFilePicker& picker = LLFilePicker::instance();
+        if (!picker.getOpenFile(LLFilePicker::FFLOAD_ALL))
+        {
+            return;
+        }
+        model_path = picker.getFirstFile();
+        if (model_path.empty())
+        {
+            return;
+        }
+        gSavedSettings.setString("SpeechToTextModelPath", model_path);
+    }
+
+    if (app->startSpeechToTextDictation(model_path))
+    {
+        mSpeechToTextButton->setLabel("Stop");
+        mSpeechToTextButton->setToolTip("Stop local speech-to-text dictation");
     }
 }
 
