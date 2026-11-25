@@ -127,7 +127,7 @@ int32_t LLWebRTCAudioTransport::RecordedDataIsAvailable(const void* audio_data,
     // The callback only copies bounded PCM data; it never blocks, allocates,
     // performs inference, or changes the audio sent to the voice engine.
     if (mCaptureTapEnabled.load(std::memory_order_acquire) &&
-        bytes_per_frame == sizeof(int16_t) * number_of_channels &&
+        bytes_per_frame == sizeof(int16_t) &&
         number_of_frames * number_of_channels <= LLWebRTCCapturedAudioFrame::MAX_SAMPLES)
     {
         const uint32_t write = mCaptureWrite.load(std::memory_order_relaxed);
