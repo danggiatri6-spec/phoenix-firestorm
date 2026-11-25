@@ -164,3 +164,9 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Add a coarse RMS silence gate for completed five-second windows. Windows below the low energy threshold are discarded without invoking Whisper, reducing needless CPU use during silence. This is not a full VAD and does not yet provide speech endpointing.
 - Remove a duplicate standard-library include from the worker header.
 - The adapter remains optional and unbuilt: whisper.cpp is not pinned or linked, and no Windows x64 compile, runtime, latency, memory, or transcription-quality test has been performed.
+
+## Nearby Chat insertion boundary update (2026-11-25)
+
+- Added `FSFloaterNearbyChat::insertSpeechToText()` as a main-thread UI helper. It appends recognized text to the existing editable Nearby Chat input, places the cursor at the end, and does not invoke the chat commit/send callback.
+- This helper is not yet called by a transcript-result pump. The Viewer idle integration, explicit dictation start/stop control, model-path setting, and recognizer startup are still pending.
+- The insertion helper is source-level work only and has not been compiled or runtime-tested.
