@@ -40,6 +40,7 @@
 #include "lldrawpoolalpha.h"
 #include "llviewerobject.h"
 #include "llcharacter.h"
+#include "llframetimer.h"
 #include "llcontrol.h"
 #include "llviewerjointmesh.h"
 #include "llviewerjointattachment.h"
@@ -1167,6 +1168,9 @@ private:
     bool            mLipSyncActive; // we're morphing for lip sync
     LLVisualParam*  mOohMorph; // cached pointers morphs for lip sync
     LLVisualParam*  mAahMorph; // cached pointers morphs for lip sync
+    LLFrameTimer    mLipSyncTimer;
+    F32             mLipSyncOohWeight;
+    F32             mLipSyncAahWeight;
 
     //--------------------------------------------------------------------
     // Flight
