@@ -9,6 +9,7 @@
 #include "../llavatarskinmaterial.h"
 
 #include <limits>
+#include <set>
 
 namespace tut
 {
@@ -95,6 +96,27 @@ namespace tut
         ensure("specular map remains null", material.specular_map_id.isNull());
         ensure("detail mask remains null", material.detail_mask_id.isNull());
     }
+    template<> template<>
+    void avatarskinmaterial_object_t::test<6>()
+    {
+        LLAvatarSkin::MaterialData material;
+        LLUUID shared_id;
+        shared_id.generate();
+        LLUUID other_id;
+        other_id.generate();
+        material.normal_map_id = shared_id;
+        material.roughness_map_id = shared_id;
+        material.specular_map_id = other_id;
+
+        std::set<LLUUID> ids;
+        material.collectTextureIds(ids);
+
+        ensure_equals("shared slot UUID collected once", ids.size(), static_cast<std::set<LLUUID>::size_type>(2));
+        ensure("shared UUID present", ids.find(shared_id) != ids.end());
+        ensure("second UUID present", ids.find(other_id) != ids.end());
+        ensure("null UUID omitted", ids.find(LLUUID::null) == ids.end());
+    }
+
     template<> template<>
     void avatarskinmaterial_object_t::test<5>()
     {
