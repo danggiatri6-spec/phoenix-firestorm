@@ -1100,6 +1100,17 @@ void FSFloaterNearbyChat::initEmojiRecentPanel()
     }
 }
 
+void FSFloaterNearbyChat::onSpeechToTextFailed(const std::string& error)
+{
+    mSpeechToTextActive = false;
+    if (mSpeechToTextButton)
+    {
+        mSpeechToTextButton->setLabel("Mic");
+        mSpeechToTextButton->setToolTip("Speech recognition failed: " + error);
+    }
+    LL_WARNS("SpeechToText") << "Dictation stopped: " << error << LL_ENDL;
+}
+
 void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
 {
     LLAppViewer* app = LLAppViewer::instance();
