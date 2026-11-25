@@ -120,7 +120,8 @@ enum SocialMotionRegion
     SOCIAL_REGION_ARMS  = 1 << 2,
     SOCIAL_REGION_HANDS = 1 << 3,
     SOCIAL_REGION_TORSO = 1 << 4,
-    SOCIAL_REGION_LEGS  = 1 << 5
+    SOCIAL_REGION_LEGS  = 1 << 5,
+    SOCIAL_REGION_UNKNOWN = 1 << 6
 };
 
 enum SocialMotionKind
@@ -181,6 +182,8 @@ static U32 get_social_motion_region_mask(LLMotion* motion)
                  joint_name.find("ankle") != std::string::npos ||
                  joint_name.find("foot") != std::string::npos)
             regions |= SOCIAL_REGION_LEGS;
+        else
+            regions |= SOCIAL_REGION_UNKNOWN;
     }
     return regions;
 }
@@ -193,7 +196,8 @@ static bool social_motion_conflicts(SocialMotionKind requested, U32 active_regio
             // TALK is currently treated as an upper-body gesture. Facial,
             // head-only and leg-only motion may continue alongside it.
             return (active_regions &
-                (SOCIAL_REGION_ARMS | SOCIAL_REGION_HANDS | SOCIAL_REGION_TORSO)) != 0;
+                (SOCIAL_REGION_ARMS | SOCIAL_REGION_HANDS | SOCIAL_REGION_TORSO |
+                 SOCIAL_REGION_UNKNOWN)) != 0;
     }
     return true; // Unknown future motion kinds fail closed.
 }
