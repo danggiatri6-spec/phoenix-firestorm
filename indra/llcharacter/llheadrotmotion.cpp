@@ -539,6 +539,17 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
     {
         target_eye_rot = LLQuaternion::DEFAULT;
         vergence = 0.f;
+
+        // Emotional eye direction is an idle-only hint. Never offset an
+        // explicit avatar/object/world look target, and keep the range tiny.
+        F32* facial_eye_bias = (F32*)mCharacter->getAnimationData("FacialEyePitchBias");
+        if (facial_eye_bias)
+        {
+            const F32 eye_pitch_bias = llclamp(*facial_eye_bias,
+                -1.5f * DEG_TO_RAD, 1.5f * DEG_TO_RAD);
+            LLQuaternion facial_eye_pitch(eye_pitch_bias, LLVector3::y_axis);
+            target_eye_rot = facial_eye_pitch * target_eye_rot;
+        }
     }
 
     //RN: subtract 4 degrees to account for foveal angular offset relative to pupil
