@@ -566,3 +566,12 @@ This is intentionally a subtle first pass, not a breathing or full-body idle sys
 ### Natural blink cadence refinement (2026-11-25)
 
 Refined only the local eye-motion blink scheduler. Ordinary blink intervals now vary between 2.2 and 6.8 seconds, with a 12% chance of a short 0.55–0.95 second follow-up blink to create occasional double blinks. The first blink still uses the existing 1.5–4.5 second settling delay, and the existing eyelid easing, left/right offset, eye look-away behavior, and deactivation cleanup are retained. This changes no avatar-to-avatar behavior, animation protocol, AO/LSL requests, or server code. Static source checks only; no C++ build or in-world visual test has been run.
+
+
+## Legacy lip-sync / facial-expression arbitration
+
+- `LLVOAvatar` now records whether either dedicated `Lipsync_Ooh` / `Lipsync_Aah` morph is missing and the legacy `Express_Kiss` / `Express_Open_Mouth` fallback is therefore in use.
+- While any standard facial-expression animation is signaled, `idleUpdateLipSync()` does not write the shared fallback morphs. This prevents the per-frame voice update (including its release path) from overwriting an active `LLEmote` expression.
+- The lip-sync timer is reset during this guard so resuming lip-sync does not inherit a stale elapsed interval.
+- Avatars with both dedicated lip-sync morphs retain the existing amplitude-driven lip-sync path unchanged.
+- This is a conservative compatibility behavior: legacy avatars may temporarily show the facial expression without moving lip-sync mouth shapes while that expression is active. It avoids morph corruption but does not provide additive mouth composition. Runtime appearance and compilation remain unverified.
