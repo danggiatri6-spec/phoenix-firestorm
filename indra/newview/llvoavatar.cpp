@@ -911,6 +911,7 @@ void LLVOAvatar::debugAvatarRezTime(std::string notification_name, std::string c
 //------------------------------------------------------------------------
 LLVOAvatar::~LLVOAvatar()
 {
+    mSkinTextureResolver.clear();
     sInstances.remove(this);
 
     if (!mFullyLoaded)
@@ -951,6 +952,8 @@ LLVOAvatar::~LLVOAvatar()
 
 void LLVOAvatar::markDead()
 {
+    mSkinTextureResolver.clear();
+
     if (mNameText)
     {
         mNameText->markDead();
