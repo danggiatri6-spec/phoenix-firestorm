@@ -3837,7 +3837,6 @@ void LLVOAvatar::updateFacialExpressionComposition()
     // idle head motion. Sad/worried expressions bias slightly downward;
     // surprise/fear can bias slightly upward. The head motion consumes this
     // only when no explicit look target is active.
-    const F32 worried_head_weight = worried_brow_weight / 0.34f;
     const F32 surprised_head_weight = widen_eyes_weight;
     F32 target_head_pitch_bias = 0.f;
     if (sad_head_weight > 0.f
