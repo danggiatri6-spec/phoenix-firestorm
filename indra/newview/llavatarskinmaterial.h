@@ -75,6 +75,11 @@ namespace LLAvatarSkin
         void collectTextureIds(std::set<LLUUID>& ids) const;
     };
 
+    // Composite one straight-alpha layer over an existing straight-alpha color.
+    // Inputs and output are linear [0,1] values; opacity is clamped internally.
+    LLColor4 compositeLayer(const LLColor4& base, const LLColor4& layer,
+                            F32 opacity, BlendMode mode);
+
     // CPU-side description only. Texture UUIDs are resolved by the viewer's
     // texture manager; this structure must never own GPU texture pointers.
     struct MaterialData
