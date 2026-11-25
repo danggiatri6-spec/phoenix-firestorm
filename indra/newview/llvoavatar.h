@@ -1173,6 +1173,7 @@ private:
     LLFrameTimer    mLipSyncTimer;
     LLFrameTimer    mFacialExpressionTimer;
     F32             mFacialHeadPitchBias; // Per-avatar emotional hint consumed by head_rot idle motion.
+    F32             mFacialEyePitchBias;  // Per-avatar emotional hint consumed by eye idle motion.
     F32             mLipSyncOohWeight;
     F32             mLipSyncAahWeight;
 
