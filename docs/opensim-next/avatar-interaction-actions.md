@@ -552,3 +552,12 @@ The conflict gate is also re-evaluated while the social TALK lease is active. If
 Added a read-only body-region classifier over active motion pose joint states. It labels medium-or-higher-priority joints as face, head/neck, arms, hands, torso, legs, or unknown. Joint-level priority is preferred; motion base priority is the fallback. Unrecognized joint names are classified as unknown rather than silently assumed safe.
 
 The first compatibility rule is intentionally narrow: automatic TALK conflicts with arms, hands, torso, or unknown regions; face-only, head/neck-only, and leg-only motion may coexist. Unknown future social motion kinds fail closed. This is an initial policy layer, not a complete coordinator: it does not yet arbitrate facial expression leases, nod/wave leases, paired motions, or motion transitions as one shared queue. The joint-name classifier needs validation against standard and custom avatar rigs. No C++ build or runtime tests have been run.
+
+
+### Local single-avatar idle posture refinement (2026-11-25)
+
+The current scope is restricted to the local quality of an individual avatar's expression and posture. No two-avatar interaction behavior, interaction capability, partner gaze, paired animation, or server protocol is changed in this step.
+
+Extended the existing `LLHeadRotMotion` with a very low-amplitude procedural idle head drift when there is no explicit `LookAtPoint`. The motion changes its yaw/pitch target at randomized 2.5–5.5 second intervals, stays within approximately 1.5 degrees yaw and 0.7 degrees pitch, and eases toward each target with a 0.8-second half-life. Any explicit look target immediately drives the idle target back to neutral and suppresses the drift, preserving normal gaze behavior. The existing head/neck/torso pose blender remains responsible for applying the result; no joint is written outside the motion system and no network animation is sent.
+
+This is intentionally a subtle first pass, not a breathing or full-body idle system. It must be visually checked with standard avatars, Bento/custom rigs, AO, LSL head animations, mouselook, and camera attention. Static source inspection only; no C++ build or runtime test has been performed.
