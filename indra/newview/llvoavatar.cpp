@@ -3724,7 +3724,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     F32 surprised_brow_weight = 0.f;
     F32 worried_brow_weight = 0.f;
     F32 furrowed_brow_weight = 0.f;
-    bool widen_eyes = false;
+    F32 widen_eyes_weight = 0.f;
     bool has_active_expression = false;
     LLMotionController::motion_list_t& active_motions =
         getMotionController().getActiveMotions();
@@ -3777,7 +3777,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
             if (motion_id == ANIM_AGENT_EXPRESS_SURPRISE
                 || motion_id == ANIM_AGENT_EXPRESS_AFRAID)
             {
-                widen_eyes = true;
+                widen_eyes_weight = llmax(widen_eyes_weight, weight);
             }
             surprised_brow_weight = llmax(surprised_brow_weight, weight * 0.42f);
         }
@@ -3859,15 +3859,16 @@ void LLVOAvatar::updateFacialExpressionComposition()
 
     // Wide_Eyes is an animatable stock-rig parameter (group 1), unlike
     // Blink_Left/Right which remain exclusively owned by LLEyeMotion.
-    // Apply only a restrained positive opening for surprise/fear; restore
-    // the avatar's own default for every other expression.
+    // Apply a restrained, expression-weighted opening for surprise/fear.
+    // Scaling by the blended pose weight lets the eyes follow the same fade
+    // in and fade out as the brows instead of jumping to a fixed amount.
     LLVisualParam* wide_eyes = getVisualParam("Wide_Eyes");
     if (wide_eyes)
     {
         const F32 default_weight = wide_eyes->getDefaultWeight();
-        const F32 target = widen_eyes
-            ? default_weight + (wide_eyes->getMaxWeight() - default_weight) * 0.10f
-            : default_weight;
+        const F32 target = default_weight
+            + (wide_eyes->getMaxWeight() - default_weight)
+                * (0.10f * widen_eyes_weight);
         const F32 current = wide_eyes->getCurrentWeight();
         const F32 smoothed = current + (target - current) * facial_blend;
         if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
