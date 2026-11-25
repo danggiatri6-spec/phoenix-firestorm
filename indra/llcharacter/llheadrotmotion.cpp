@@ -303,16 +303,21 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
 
     // A short glance should not recruit the torso. Require a sustained turn,
     // then ease the torso contribution in and out to avoid a sudden posture shift.
-    if (abs_head_yaw > 18.f * DEG_TO_RAD)
+    // Use separate enter/exit thresholds so small tracking fluctuations
+    // around the activation angle do not repeatedly restart the timer.
+    if (!mTorsoTurnActive && abs_head_yaw > 18.f * DEG_TO_RAD)
     {
-        // Keep the timer running while the head remains turned.
-    }
-    else
-    {
+        mTorsoTurnActive = true;
         mTorsoTurnTimer.reset();
     }
-    const F32 sustained_turn = llclamp(
-        mTorsoTurnTimer.getElapsedTimeF32() / 0.45f, 0.f, 1.f);
+    else if (mTorsoTurnActive && abs_head_yaw < 12.f * DEG_TO_RAD)
+    {
+        mTorsoTurnActive = false;
+        mTorsoTurnTimer.reset();
+    }
+    const F32 sustained_turn = mTorsoTurnActive
+        ? llclamp(mTorsoTurnTimer.getElapsedTimeF32() / 0.45f, 0.f, 1.f)
+        : 0.f;
     const F32 target_recruitment = yaw_recruitment * sustained_turn;
     const F32 recruitment_blend = LLSmoothInterpolation::getInterpolant(0.35f);
     mTorsoRecruitment +=
