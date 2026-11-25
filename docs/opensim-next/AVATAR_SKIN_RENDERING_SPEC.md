@@ -211,3 +211,16 @@ Not yet completed:
 - No texture resolver/cache or asset distribution protocol exists yet.
 
 This is source implementation only, not a build- or runtime-verified feature.
+
+
+### Phase B unit-test coverage added
+
+A Viewer TUT test source has been added at `indra/newview/tests/llavatarskinmaterial_test.cpp`, and `llavatarskinmaterial.cpp` is registered in the Viewer unit-test source list under `LL_TESTS`.
+
+The test cases cover:
+- Legacy-safe defaults and absent optional maps.
+- Clamping of roughness, specular, subsurface, detail and color channels.
+- Disabling an unsupported schema version.
+- Null optional texture UUIDs remaining valid.
+
+These tests are authored and registered but have **not yet been compiled or executed**. A passing test result must not be inferred from source registration.
