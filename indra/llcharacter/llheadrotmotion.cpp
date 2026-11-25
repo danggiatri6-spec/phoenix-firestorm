@@ -68,8 +68,9 @@ const F32 EYE_BLINK_MAX_TIME = 6.8f; // ordinary blink interval upper bound
 const F32 EYE_BLINK_DOUBLE_MIN = 0.55f; // occasional natural double-blink interval
 const F32 EYE_BLINK_DOUBLE_MAX = 0.95f;
 const F32 EYE_BLINK_DOUBLE_CHANCE = 0.12f;
-const F32 EYE_BLINK_CLOSE_TIME = 0.03f; // how long the eye stays closed in a blink
-const F32 EYE_BLINK_SPEED = 0.015f;     // seconds it takes for a eye open/close movement
+const F32 EYE_BLINK_HOLD_TIME = 0.045f; // brief pause at full closure
+const F32 EYE_BLINK_CLOSE_SPEED = 0.06f; // gradual eyelid closure
+const F32 EYE_BLINK_OPEN_SPEED = 0.085f; // slightly slower reopening
 const F32 EYE_BLINK_TIME_DELTA = 0.005f; // time between one eye starting a blink and the other following
 
 //-----------------------------------------------------------------------------
@@ -577,8 +578,8 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
         F32 leftEyeBlinkMorph = mEyeBlinkTimer.getElapsedTimeF32() - mEyeBlinkTime;
         F32 rightEyeBlinkMorph = leftEyeBlinkMorph - EYE_BLINK_TIME_DELTA;
 
-        leftEyeBlinkMorph = llclamp(leftEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-        rightEyeBlinkMorph = llclamp(rightEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
+        leftEyeBlinkMorph = llclamp(leftEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
+        rightEyeBlinkMorph = llclamp(rightEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
         mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
         mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
         mCharacter->updateVisualParams();
@@ -586,7 +587,7 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
         if (rightEyeBlinkMorph == 1.f)
         {
             mEyesClosed = true;
-            mEyeBlinkTime = EYE_BLINK_CLOSE_TIME;
+            mEyeBlinkTime = EYE_BLINK_HOLD_TIME;
             mEyeBlinkTimer.reset();
         }
     }
@@ -597,8 +598,8 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
             F32 leftEyeBlinkMorph = mEyeBlinkTimer.getElapsedTimeF32() - mEyeBlinkTime;
             F32 rightEyeBlinkMorph = leftEyeBlinkMorph - EYE_BLINK_TIME_DELTA;
 
-            leftEyeBlinkMorph = 1.f - llclamp(leftEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-            rightEyeBlinkMorph = 1.f - llclamp(rightEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
+            leftEyeBlinkMorph = 1.f - llclamp(leftEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
+            rightEyeBlinkMorph = 1.f - llclamp(rightEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
             mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
             mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
             mCharacter->updateVisualParams();
