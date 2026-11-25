@@ -45,6 +45,8 @@
 // Needed for inline variable for the crash check
 #include <atomic>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 // </FS:minerjr> [FIRE-36022]
 
 #ifdef LL_MAKEDLL
