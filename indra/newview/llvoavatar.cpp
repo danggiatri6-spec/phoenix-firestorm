@@ -772,6 +772,8 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     // Per-avatar, lifetime-stable signal consumed by LLHeadRotMotion.
     mFacialHeadPitchBias = 0.f;
     setAnimationData("FacialHeadPitchBias", &mFacialHeadPitchBias);
+    mFacialEyePitchBias = 0.f;
+    setAnimationData("FacialEyePitchBias", &mFacialEyePitchBias);
 
     // set up animation variables
     mSpeed = 0.f;
@@ -3829,6 +3831,17 @@ void LLVOAvatar::updateFacialExpressionComposition()
     }
     mFacialHeadPitchBias +=
         (target_head_pitch_bias - mFacialHeadPitchBias) * facial_blend;
+
+    // Keep the eye cue smaller than the head cue. It is consumed only by the
+    // procedural idle eye direction when no explicit LookAtPoint is active.
+    const F32 target_eye_pitch_bias = worried_head_weight > 0.f
+        && worried_head_weight >= surprised_head_weight
+        ? 1.2f * DEG_TO_RAD * llclamp(worried_head_weight, 0.f, 1.f)
+        : (surprised_head_weight > 0.f
+            ? -0.45f * DEG_TO_RAD * llclamp(surprised_head_weight, 0.f, 1.f)
+            : 0.f);
+    mFacialEyePitchBias +=
+        (target_eye_pitch_bias - mFacialEyePitchBias) * facial_blend;
 
     // The three brow shapes are competing emotional cues. When two
     // expression families overlap during a cross-fade, let the strongest
