@@ -216,3 +216,11 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Closing the Nearby Chat floater now explicitly stops local speech-to-text dictation, disables the WebRTC capture tap through the Viewer service, joins the recognizer worker, and restores the button to its idle `Mic` state.
 - This affects only the local dictation feature. It does not disable the user's normal voice connection, microphone, or push-to-talk state.
 - The close callback uses the existing `LLFloater::onClose(bool)` lifecycle hook. This change is source-level and still requires Windows x64 compile and runtime verification.
+
+
+## Windows x64 Whisper dependency build failure (2026-11-25)
+
+- The Windows x64 compile-validation run `45558146764` configured successfully and reached the Viewer build, but failed while compiling the fetched whisper.cpp v1.9.6 dependency.
+- MSVC reported warning-as-error failures in upstream files: GGML `tiled-kernel.cpp` warning C4068 (unknown GCC pragma), Whisper `whisper.cpp` warning C4267 (size_t-to-int conversion), and `parakeet.cpp` warning C4244 (double-to-float conversion). These were promoted to errors by the build's warning policy. The log did not show a failure in the OpenSim-next Whisper adapter itself.
+- The targeted CMake mitigation applies only to the optional upstream Whisper/GGML targets under MSVC: turn off warnings-as-errors for those dependency targets and suppress the three known upstream warning classes. Firestorm Viewer targets retain their existing warning policy.
+- This mitigation is not yet validated. A new Windows x64 build must confirm that the dependency compiles and then proceeds through the Viewer adapter and link stages.
