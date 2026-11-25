@@ -143,6 +143,15 @@ bool LLEmote::onUpdate(F32 time, U8* joint_mask)
 //-----------------------------------------------------------------------------
 void LLEmote::onDeactivate()
 {
+    // The avatar can be torn down before the motion controller releases this
+    // motion. Do not dereference the cached character or visual parameters in
+    // that case.
+    if (!mCharacter)
+    {
+        mParam = NULL;
+        return;
+    }
+
     if( mParam )
     {
         // <FS:Ansariel> [Legacy Bake]
@@ -159,6 +168,7 @@ void LLEmote::onDeactivate()
     }
 
     mCharacter->updateVisualParams();
+    mParam = NULL;
 }
 
 
