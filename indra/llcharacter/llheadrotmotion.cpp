@@ -474,6 +474,7 @@ bool LLEyeMotion::onActivate()
     // Start with a short natural settling period instead of an immediate
     // blink/look-away on the first rendered frame after activation.
     mEyeJitterTimer.reset();
+    mLastEyeUpdateTimer.reset();
     mEyeBlinkTimer.reset();
     mEyeJitterTime = EYE_JITTER_MIN_TIME + ll_frand(EYE_JITTER_MAX_TIME - EYE_JITTER_MIN_TIME);
     mEyeJitterYaw = 0.f;
@@ -604,6 +605,28 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
 bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_AVATAR;
+
+    // Hidden/culled avatars use minimal motion updates. If eye motion resumes
+    // after a long gap, discard any partially evaluated blink rather than
+    // replaying an expired close phase on the first visible frame.
+    if (mLastEyeUpdateTimer.getElapsedTimeF32() > 0.5f)
+    {
+        mEyesClosed = false;
+        mEyeBlinkTimer.reset();
+        mEyeBlinkTime = 1.5f + ll_frand(3.0f);
+        mEyeJitterTimer.reset();
+        mEyeJitterYaw = 0.f;
+        mEyeJitterPitch = 0.f;
+        mEyeLookAwayYaw = 0.f;
+        mEyeLookAwayPitch = 0.f;
+        mEyeLookAwayTime = EYE_LOOK_AWAY_MIN_TIME +
+            ll_frand(EYE_LOOK_AWAY_MAX_TIME - EYE_LOOK_AWAY_MIN_TIME);
+        mCharacter->setVisualParamWeight("Blink_Left", 0.f);
+        mCharacter->setVisualParamWeight("Blink_Right", 0.f);
+        mCharacter->updateVisualParams();
+    }
+    mLastEyeUpdateTimer.reset();
+
     //calculate jitter
     if (mEyeJitterTimer.getElapsedTimeF32() > mEyeJitterTime)
     {
