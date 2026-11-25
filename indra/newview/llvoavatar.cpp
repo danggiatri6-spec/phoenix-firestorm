@@ -3728,6 +3728,8 @@ void LLVOAvatar::updateFacialExpressionComposition()
     F32 strongest_expression = 0.f;
     F32 surprised_brow_weight = 0.f;
     F32 worried_brow_weight = 0.f;
+    F32 sad_head_weight = 0.f;
+    F32 concern_head_weight = 0.f;
     F32 furrowed_brow_weight = 0.f;
     F32 widen_eyes_weight = 0.f;
     bool has_active_expression = false;
@@ -3792,6 +3794,15 @@ void LLVOAvatar::updateFacialExpressionComposition()
                  || motion_id == ANIM_AGENT_EXPRESS_EMBARRASSED)
         {
             worried_brow_weight = llmax(worried_brow_weight, weight * 0.34f);
+            if (motion_id == ANIM_AGENT_EXPRESS_WORRY)
+            {
+                concern_head_weight = llmax(concern_head_weight, weight);
+            }
+            else if (motion_id == ANIM_AGENT_EXPRESS_SAD
+                     || motion_id == ANIM_AGENT_EXPRESS_CRY)
+            {
+                sad_head_weight = llmax(sad_head_weight, weight);
+            }
         }
         else if (motion_id == ANIM_AGENT_EXPRESS_ANGER
                  || motion_id == ANIM_AGENT_EXPRESS_FROWN
@@ -3829,10 +3840,18 @@ void LLVOAvatar::updateFacialExpressionComposition()
     const F32 worried_head_weight = worried_brow_weight / 0.34f;
     const F32 surprised_head_weight = widen_eyes_weight;
     F32 target_head_pitch_bias = 0.f;
-    if (worried_head_weight > 0.f
-        && worried_head_weight >= surprised_head_weight)
+    if (sad_head_weight > 0.f
+        && sad_head_weight >= concern_head_weight
+        && sad_head_weight >= surprised_head_weight)
     {
-        target_head_pitch_bias = 0.8f * DEG_TO_RAD * llclamp(worried_head_weight, 0.f, 1.f);
+        target_head_pitch_bias = 0.9f * DEG_TO_RAD * llclamp(sad_head_weight, 0.f, 1.f);
+    }
+    else if (concern_head_weight > 0.f
+             && concern_head_weight >= surprised_head_weight)
+    {
+        // Concern remains more upright and alert than sadness.
+        target_head_pitch_bias = 0.3f * DEG_TO_RAD
+            * llclamp(concern_head_weight, 0.f, 1.f);
     }
     else if (surprised_head_weight > 0.f)
     {
@@ -3844,9 +3863,10 @@ void LLVOAvatar::updateFacialExpressionComposition()
 
     // Keep the eye cue smaller than the head cue. It is consumed only by the
     // procedural idle eye direction when no explicit LookAtPoint is active.
-    const F32 target_eye_pitch_bias = worried_head_weight > 0.f
-        && worried_head_weight >= surprised_head_weight
-        ? 1.2f * DEG_TO_RAD * llclamp(worried_head_weight, 0.f, 1.f)
+    const F32 target_eye_pitch_bias = sad_head_weight > 0.f
+        && sad_head_weight >= concern_head_weight
+        && sad_head_weight >= surprised_head_weight
+        ? 1.2f * DEG_TO_RAD * llclamp(sad_head_weight, 0.f, 1.f)
         : (surprised_head_weight > 0.f
             ? -0.45f * DEG_TO_RAD * llclamp(surprised_head_weight, 0.f, 1.f)
             : 0.f);
