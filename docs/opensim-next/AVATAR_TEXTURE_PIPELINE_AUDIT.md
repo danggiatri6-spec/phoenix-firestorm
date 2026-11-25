@@ -38,6 +38,23 @@ Observed:
 
 Fix committed: changed the guard to `bakedTexIdx < avatar->getNumBakes()`, so only indices in `[0, count)` are uploaded. This protects non-BOM regions from attempting the first BOM-only bake. The change is source-reviewed and read back from GitHub; it has not yet been built or runtime-tested.
 
+### 2.3 Terminal baked-upload failure could leave appearance permanently pending
+
+File: `indra/newview/llviewertexlayer.cpp`, `LLViewerTexLayerSetBuffer::onTextureUploadComplete()`.
+
+Observed:
+- `requestUpload()` sets `mUploadPending = true`.
+- A successful upload clears it.
+- On failure, the callback retries while `failures < max_attempts`.
+- Before the fix, when the final allowed attempt failed, the callback did not clear `mUploadPending`.
+- `LLVOAvatarSelf::hasPendingBakedUploads()` uses this flag to gate `sendAgentSetAppearance()`.
+
+Impact: after the last failed upload, the old baked texture remains in use, but the pending flag can remain set indefinitely and prevent the updated appearance message from being sent.
+
+Fix committed: on terminal failure (retry budget exhausted), clear `mUploadPending`. The previously assigned baked texture is left untouched; this does not pretend the failed upload succeeded. A later appearance change can request a new bake/upload.
+
+This is a source-level control-flow defect. Build and runtime failure-injection validation remain pending.
+
 ### 2.3 Existing baked/local texture update path
 
 File: `indra/newview/llvoavatar.cpp`, `LLVOAvatar::updateTextures()`.
@@ -151,6 +168,7 @@ Record fetch route, UUID, load state, GPU residency, screenshots and logs. Do no
 - Legacy texture pipeline: inherited code inspected; full behavior audit and runtime reproduction remain incomplete.
 - Empty-URL legacy bake fallback: inspected through texture-list lookup; no overwrite defect established, no code change made.
 - OpenSim bake-count guard: fixed inclusive-boundary error in `llviewertexlayer.cpp`; source read-back verified, build/runtime validation pending.
+- Terminal bake upload failure: fixed stale `mUploadPending` state after retry exhaustion; prevents `hasPendingBakedUploads()` from blocking the next AgentSetAppearance indefinitely; source read-back verified, runtime failure-injection pending.
 - Optional skin material data: implemented.
 - Optional skin texture resolver: implemented but not connected to runtime consumers.
 - Native Avatar shader material integration: not implemented.
