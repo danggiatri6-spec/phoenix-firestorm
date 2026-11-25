@@ -6,6 +6,7 @@
 
 #include "llspeechtotext.h"
 
+#include <exception>
 #include <utility>
 
 LLSpeechToText::~LLSpeechToText()
@@ -28,6 +29,8 @@ bool LLSpeechToText::start(std::unique_ptr<LLSpeechToTextRecognizer> recognizer)
         mFrames.clear();
         mResults.clear();
         mStopping = false;
+        mFailed = false;
+        mError.clear();
         mRunning = true;
     }
 
@@ -43,6 +46,8 @@ bool LLSpeechToText::start(std::unique_ptr<LLSpeechToTextRecognizer> recognizer)
         mRecognizer.reset();
         mRunning = false;
         mStopping = false;
+        mFailed = false;
+        mError.clear();
         return false;
     }
     return true;
@@ -79,13 +84,27 @@ void LLSpeechToText::stop()
         mResults.clear();
         mRunning = false;
         mStopping = false;
+        mFailed = false;
+        mError.clear();
     }
 }
 
 bool LLSpeechToText::isRunning() const
 {
     std::lock_guard<std::mutex> lock(mMutex);
-    return mRunning && !mStopping;
+    return mRunning && !mStopping && !mFailed;
+}
+
+bool LLSpeechToText::hasFailed() const
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mFailed;
+}
+
+std::string LLSpeechToText::getError() const
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mError;
 }
 
 bool LLSpeechToText::submitFrame(
@@ -159,10 +178,21 @@ void LLSpeechToText::workerLoop()
             {
                 mRecognizer->processAudio(frame, results);
             }
+            catch (const std::exception& error)
+            {
+                std::lock_guard<std::mutex> lock(mMutex);
+                mFailed = true;
+                mError = error.what();
+                mFrames.clear();
+                break;
+            }
             catch (...)
             {
-                // A model/backend failure must not terminate the Viewer worker.
-                results.clear();
+                std::lock_guard<std::mutex> lock(mMutex);
+                mFailed = true;
+                mError = "Unknown speech recognition backend failure";
+                mFrames.clear();
+                break;
             }
         }
 
