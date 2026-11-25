@@ -85,6 +85,35 @@ jobs:
         shell: cmd
         run: autobuild build -A 64 -c ReleaseOS --no-configure
 
+      - name: Package portable Windows x64 Viewer
+        shell: pwsh
+        run: |
+          $viewerDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release"
+          $viewerExe = Join-Path $viewerDir "FirestormSecondLifeTest.exe"
+          if (-not (Test-Path $viewerExe)) {
+            throw "Compiled Viewer executable not found: $viewerExe"
+          }
+          @(
+            "OpenSim-next Windows x64 portable test build"
+            "Commit: $env:GITHUB_SHA"
+            "Configuration: ReleaseOS"
+            "This is an unsigned CI test package, not a production installer."
+            "Whisper.cpp is built into this configuration; provide a compatible external GGML model file in the Viewer UI."
+          ) | Set-Content (Join-Path $viewerDir "OPENSIMNEXT-TEST-BUILD.txt")
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+          Compress-Archive -Path (Join-Path $viewerDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+          Write-Host "Created portable package: $zipPath"
+          Get-Item $zipPath | Format-List FullName,Length
+
+      - name: Upload portable Windows x64 Viewer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenSimNext-Windows-x64-Portable
+          path: OpenSimNext-Windows-x64-Portable.zip
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Collect build diagnostics
         if: always()
         shell: pwsh
