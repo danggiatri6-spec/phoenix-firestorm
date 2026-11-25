@@ -57,6 +57,42 @@ include(ColladaDom)
 include(jemalloc)
 include(Discord)
 
+# OpenSim-next: optional, CPU-only local speech recognition.
+# Disabled by default: normal Viewer builds do not download or link Whisper.cpp.
+option(OPENSIMNEXT_ENABLE_WHISPER_CPP "Build local Whisper.cpp speech-to-text support" OFF)
+if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
+    include(FetchContent)
+
+    # Pin an immutable upstream release commit rather than tracking a moving branch.
+    set(_opensimnext_saved_build_shared_libs ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF)
+
+    set(WHISPER_BUILD_IS_DEV OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    set(WHISPER_SDL2 OFF CACHE BOOL "" FORCE)
+    set(WHISPER_CURL OFF CACHE BOOL "" FORCE)
+    set(WHISPER_OPENVINO OFF CACHE BOOL "" FORCE)
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+    set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+    set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
+    set(GGML_SYCL OFF CACHE BOOL "" FORCE)
+    set(GGML_METAL OFF CACHE BOOL "" FORCE)
+    set(GGML_BLAS OFF CACHE BOOL "" FORCE)
+    set(GGML_RPC OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        opensimnext_whisper_cpp
+        GIT_REPOSITORY https://github.com/ggml-org/whisper.cpp.git
+        GIT_TAG 96ec4d9823e9d0211944172da35f9f29134af990
+    )
+    FetchContent_MakeAvailable(opensimnext_whisper_cpp)
+    set(BUILD_SHARED_LIBS ${_opensimnext_saved_build_shared_libs})
+    unset(_opensimnext_saved_build_shared_libs)
+endif ()
+
 if (HAVOK)
    # When using HAVOK_TPV, the library is precompiled, so no need for this
 
@@ -2660,6 +2696,11 @@ target_link_libraries(${VIEWER_BINARY_NAME}
         fs::glod # <FS:Beq/> restore GLOD dependencies
         fs::discord # <FS:Ansariel> Discord  support
         )
+
+if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
+    target_compile_definitions(${VIEWER_BINARY_NAME} PRIVATE LL_HAS_WHISPER_CPP)
+    target_link_libraries(${VIEWER_BINARY_NAME} whisper)
+endif ()
 
 if (USE_DISCORD)
    target_link_libraries(${VIEWER_BINARY_NAME} ll::discord_sdk )
