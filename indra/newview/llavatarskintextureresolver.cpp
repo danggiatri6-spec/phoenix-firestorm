@@ -32,7 +32,7 @@ namespace LLAvatarSkin
                 texture_id,
                 FTT_DEFAULT,
                 true,
-                LLViewerTexture::BOOST_NONE,
+                LLGLTexture::BOOST_NONE,
                 LLViewerTexture::FETCHED_TEXTURE);
 
         if (!texture)
@@ -44,7 +44,7 @@ namespace LLAvatarSkin
         return texture;
     }
 
-    TextureResolver::State TextureResolver::getState(const LLUUID& texture_id) const
+    TextureResolver::State TextureResolver::getState(const LLUUID& texture_id)
     {
         if (texture_id.isNull())
         {
