@@ -87,7 +87,8 @@ LLHeadRotMotion::LLHeadRotMotion(const LLUUID &id) :
     mIdleHeadPitch(0.f),
     mIdleHeadTargetYaw(0.f),
     mIdleHeadTargetPitch(0.f),
-    mTorsoRecruitment(0.f)
+    mTorsoRecruitment(0.f),
+    mTorsoTurnActive(false)
 {
     mName = "head_rot";
 
@@ -191,6 +192,7 @@ bool LLHeadRotMotion::onActivate()
     mIdleHeadTargetPitch = 0.f;
     mTorsoTurnTimer.reset();
     mTorsoRecruitment = 0.f;
+    mTorsoTurnActive = false;
     return true;
 }
 
