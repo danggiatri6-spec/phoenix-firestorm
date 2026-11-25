@@ -3,7 +3,8 @@
  * @brief Optional CPU Whisper.cpp recognizer adapter.
  *
  * Define LL_HAS_WHISPER_CPP and link the pinned whisper.cpp target to enable.
- * Standard Viewer builds remain independent of the optional dependency. *
+ * Standard Viewer builds remain independent of the optional dependency.
+ *
  * $LicenseInfo:firstyear=2026&license=viewerlgpl$
  * OpenSim-next Viewer Extension
  * Copyright (C) 2026, OpenSim-next contributors.
