@@ -27,7 +27,6 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llappviewer.h"
-#include "llvoiceclient.h"
 #include "llvoicewebrtc.h"
 #include "fsfloaternearbychat.h"
 
@@ -5917,12 +5916,9 @@ bool LLAppViewer::startSpeechToTextDictation(const std::string& model_path,
 
 void LLAppViewer::stopSpeechToTextDictation()
 {
-    if (LLVoiceClient::instanceExists())
+    if (LLWebRTCVoiceClient::instanceExists())
     {
-        if (auto* voice = dynamic_cast<LLWebRTCVoiceClient*>(LLVoiceClient::getInstance()))
-        {
-            voice->setSpeechCaptureEnabled(false);
-        }
+        LLWebRTCVoiceClient::getInstance()->setSpeechCaptureEnabled(false);
     }
     mSpeechToText.stop();
 }
@@ -5934,26 +5930,23 @@ void LLAppViewer::idle()
 
     // Local dictation is opt-in: this path does nothing until the user starts
     // a recognizer through startSpeechToTextDictation().
-    if (mSpeechToText.isRunning() && LLVoiceClient::instanceExists())
+    if (mSpeechToText.isRunning() && LLWebRTCVoiceClient::instanceExists())
     {
-        if (auto* voice = dynamic_cast<LLWebRTCVoiceClient*>(LLVoiceClient::getInstance()))
-        {
-            voice->pumpSpeechCapture(mSpeechToText, 8);
+        LLWebRTCVoiceClient::getInstance()->pumpSpeechCapture(mSpeechToText, 8);
 
-            // Keep completed transcripts editable in Nearby Chat. Never call
-            // the chat commit/send path from speech recognition.
-            if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+        // Keep completed transcripts editable in Nearby Chat. Never call
+        // the chat commit/send path from speech recognition.
+        if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+        {
+            LLSpeechToTextResult result;
+            std::size_t delivered = 0;
+            while (delivered < 8 && mSpeechToText.tryPopResult(result))
             {
-                LLSpeechToTextResult result;
-                std::size_t delivered = 0;
-                while (delivered < 8 && mSpeechToText.tryPopResult(result))
+                if (result.is_final && !result.text.empty())
                 {
-                    if (result.is_final && !result.text.empty())
-                    {
-                        nearby_chat->insertSpeechToText(result.text);
-                    }
-                    ++delivered;
+                    nearby_chat->insertSpeechToText(result.text);
                 }
+                ++delivered;
             }
         }
     }
