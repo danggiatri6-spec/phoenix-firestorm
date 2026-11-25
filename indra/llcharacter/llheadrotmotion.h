@@ -125,6 +125,11 @@ public:
     F32                 mIdleHeadPitch;
     F32                 mIdleHeadTargetYaw;
     F32                 mIdleHeadTargetPitch;
+
+    // Delay torso recruitment until a head turn is sustained, so brief glances
+    // remain in the neck/head instead of pulling the upper body along.
+    LLFrameTimer        mTorsoTurnTimer;
+    F32                 mTorsoRecruitment;
 };
 
 //-----------------------------------------------------------------------------
