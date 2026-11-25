@@ -130,6 +130,7 @@ public:
     // remain in the neck/head instead of pulling the upper body along.
     LLFrameTimer        mTorsoTurnTimer;
     F32                 mTorsoRecruitment;
+    bool                mTorsoTurnActive;
 };
 
 //-----------------------------------------------------------------------------
