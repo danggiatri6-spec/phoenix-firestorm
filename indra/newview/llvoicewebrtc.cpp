@@ -300,6 +300,25 @@ bool LLWebRTCVoiceClient::getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioF
         : false;
 }
 
+std::size_t LLWebRTCVoiceClient::pumpSpeechCapture(LLSpeechToText& service, std::size_t max_frames)
+{
+    if (!service.isRunning() || sShuttingDown || !mWebRTCDeviceInterface)
+    {
+        return 0;
+    }
+
+    std::size_t submitted = 0;
+    llwebrtc::LLWebRTCCapturedAudioFrame frame;
+    while (submitted < max_frames && getSpeechCaptureFrame(frame))
+    {
+        if (service.submitFrame(frame))
+        {
+            ++submitted;
+        }
+    }
+    return submitted;
+}
+
 void LLWebRTCVoiceClient::initWebRTC()
 {
     llwebrtc::init(this);
