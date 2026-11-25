@@ -9,6 +9,19 @@
 
 #include <algorithm>
 
+namespace
+{
+    F32 clampUnitValue(F32 value)
+    {
+        // The ordered comparisons also turn NaN into a safe zero value.
+        if (!(value >= 0.0f))
+        {
+            return 0.0f;
+        }
+        return value > 1.0f ? 1.0f : value;
+    }
+}
+
 namespace LLAvatarSkin
 {
     MaterialData::MaterialData()
@@ -24,18 +37,16 @@ namespace LLAvatarSkin
 
     void MaterialData::sanitize()
     {
-        roughness_factor = std::max(0.0f, std::min(1.0f, roughness_factor));
-        specular_factor = std::max(0.0f, std::min(1.0f, specular_factor));
-        subsurface_strength = std::max(0.0f, std::min(1.0f, subsurface_strength));
-        detail_strength = std::max(0.0f, std::min(1.0f, detail_strength));
+        roughness_factor = clampUnitValue(roughness_factor);
+        specular_factor = clampUnitValue(specular_factor);
+        subsurface_strength = clampUnitValue(subsurface_strength);
+        detail_strength = clampUnitValue(detail_strength);
 
         for (U32 channel = 0; channel < 3; ++channel)
         {
-            subsurface_color.mV[channel] =
-                std::max(0.0f, std::min(1.0f, subsurface_color.mV[channel]));
+            subsurface_color.mV[channel] = clampUnitValue(subsurface_color.mV[channel]);
         }
-        subsurface_color.mV[3] =
-            std::max(0.0f, std::min(1.0f, subsurface_color.mV[3]));
+        subsurface_color.mV[3] = clampUnitValue(subsurface_color.mV[3]);
 
         if (!isSupportedVersion())
         {
