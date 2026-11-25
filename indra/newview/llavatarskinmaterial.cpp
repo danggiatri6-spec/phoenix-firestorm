@@ -27,8 +27,11 @@ namespace
     bool isValidImage(const LLImageRaw& image, bool allow_single_channel)
     {
         const S8 components = image.getComponents();
+        const S32 expected_size = static_cast<S32>(image.getWidth()) *
+                                  image.getHeight() * components;
         return !image.isBufferInvalid() &&
             image.getWidth() > 0 && image.getHeight() > 0 &&
+            image.getDataSize() >= expected_size &&
             (components == 3 || components == 4 ||
              (allow_single_channel && components == 1));
     }
@@ -51,11 +54,9 @@ namespace
         return static_cast<U8>(value * 255.0f + 0.5f);
     }
 
-    F32 readScalar(const LLImageRaw* image, S32 pixel, F32 fallback)
+    F32 readScalar(const U8* data, S8 components, S32 pixel)
     {
-        if (!image) return fallback;
-        const U8* data = image->getData();
-        return static_cast<F32>(data[pixel * image->getComponents()]) / 255.0f;
+        return static_cast<F32>(data[pixel * components]) / 255.0f;
     }
 
     bool isValidLayerType(LLAvatarSkin::LayerType type)
@@ -244,16 +245,19 @@ namespace LLAvatarSkin
         if (!out_data) return false;
 
         const S32 pixels = static_cast<S32>(reference->getWidth()) * reference->getHeight();
+        const U8* spec_data = specular ? specular->getData() : nullptr;
+        const U8* rough_data = roughness ? roughness->getData() : nullptr;
+        if ((specular && !spec_data) || (roughness && !rough_data)) return false;
         const U8 spec_default = encodeUnitChannel(default_specular);
         const U8 rough_default = encodeUnitChannel(default_roughness);
         for (S32 i = 0; i < pixels; ++i)
         {
             const S32 oi = i * 4;
             out_data[oi] = specular
-                ? encodeUnitChannel(readScalar(specular, i, default_specular))
+                ? encodeUnitChannel(readScalar(spec_data, specular->getComponents(), i))
                 : spec_default;
             out_data[oi + 1] = roughness
-                ? encodeUnitChannel(readScalar(roughness, i, default_roughness))
+                ? encodeUnitChannel(readScalar(rough_data, roughness->getComponents(), i))
                 : rough_default;
             out_data[oi + 2] = 0;   // Reserved subsurface mask.
             out_data[oi + 3] = 255; // Reserved detail mask; neutral by default.
