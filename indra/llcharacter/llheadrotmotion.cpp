@@ -280,11 +280,24 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     mIdleHeadYaw += (mIdleHeadTargetYaw - mIdleHeadYaw) * idle_blend;
     mIdleHeadPitch += (mIdleHeadTargetPitch - mIdleHeadPitch) * idle_blend;
 
+    // Facial expression composition publishes a per-avatar, smoothed pitch
+    // hint. Keep it inside the existing idle layer: explicit look targets and
+    // externally driven head poses are never modified by this contribution.
+    F32 facial_head_pitch_bias = 0.f;
+    if (!targetPos)
+    {
+        F32* facial_bias = (F32*)mCharacter->getAnimationData("FacialHeadPitchBias");
+        if (facial_bias)
+        {
+            facial_head_pitch_bias = llclamp(*facial_bias, -1.f * DEG_TO_RAD, 1.f * DEG_TO_RAD);
+        }
+    }
+
     LLQuaternion head_rot_local = targetHeadRotWorld * currentInvRootRotWorld;
     if (!targetPos)
     {
         LLQuaternion idle_yaw(mIdleHeadYaw, LLVector3::z_axis);
-        LLQuaternion idle_pitch(mIdleHeadPitch, LLVector3::y_axis);
+        LLQuaternion idle_pitch(mIdleHeadPitch + facial_head_pitch_bias, LLVector3::y_axis);
         head_rot_local = idle_yaw * idle_pitch * head_rot_local;
     }
     head_rot_local.constrain(HEAD_ROTATION_CONSTRAINT);
