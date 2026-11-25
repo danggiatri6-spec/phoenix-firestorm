@@ -109,7 +109,96 @@ static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, c
 #include "lltimer.h"
 #include "llvoiceclient.h"
 
-static bool has_social_upper_body_motion_conflict(LLVOAvatarSelf* avatar)
+// Coarse body regions used by the first social-motion compatibility policy.
+// These are observational labels only; they never alter the simulator's motion
+// priority or the Viewer pose blender.
+enum SocialMotionRegion
+{
+    SOCIAL_REGION_NONE  = 0,
+    SOCIAL_REGION_FACE  = 1 << 0,
+    SOCIAL_REGION_HEAD  = 1 << 1,
+    SOCIAL_REGION_ARMS  = 1 << 2,
+    SOCIAL_REGION_HANDS = 1 << 3,
+    SOCIAL_REGION_TORSO = 1 << 4,
+    SOCIAL_REGION_LEGS  = 1 << 5
+};
+
+enum SocialMotionKind
+{
+    SOCIAL_MOTION_TALK
+};
+
+static U32 get_social_motion_region_mask(LLMotion* motion)
+{
+    if (!motion)
+        return SOCIAL_REGION_NONE;
+
+    LLPose* pose = motion->getPose();
+    if (!pose)
+        return SOCIAL_REGION_NONE;
+
+    U32 regions = SOCIAL_REGION_NONE;
+    for (LLJointState* state = pose->getFirstJointState(); state;
+         state = pose->getNextJointState())
+    {
+        const LLJoint* joint = state->getJoint();
+        if (!joint)
+            continue;
+
+        LLJoint::JointPriority priority = state->getPriority();
+        if (priority == LLJoint::USE_MOTION_PRIORITY)
+            priority = motion->getPriority();
+
+        // Ignore very low-priority procedural noise when deciding whether
+        // social gestures should be suppressed.
+        if (priority < LLJoint::MEDIUM_PRIORITY)
+            continue;
+
+        std::string joint_name = joint->getName();
+        LLStringUtil::toLower(joint_name);
+
+        if (joint_name.find("eye") != std::string::npos ||
+            joint_name.find("face") != std::string::npos ||
+            joint_name.find("mouth") != std::string::npos ||
+            joint_name.find("brow") != std::string::npos)
+            regions |= SOCIAL_REGION_FACE;
+        else if (joint_name.find("head") != std::string::npos ||
+                 joint_name.find("neck") != std::string::npos)
+            regions |= SOCIAL_REGION_HEAD;
+        else if (joint_name.find("hand") != std::string::npos)
+            regions |= SOCIAL_REGION_HANDS;
+        else if (joint_name.find("shoulder") != std::string::npos ||
+                 joint_name.find("collar") != std::string::npos ||
+                 joint_name.find("elbow") != std::string::npos ||
+                 joint_name.find("wrist") != std::string::npos)
+            regions |= SOCIAL_REGION_ARMS;
+        else if (joint_name.find("chest") != std::string::npos ||
+                 joint_name.find("torso") != std::string::npos ||
+                 joint_name.find("spine") != std::string::npos)
+            regions |= SOCIAL_REGION_TORSO;
+        else if (joint_name.find("hip") != std::string::npos ||
+                 joint_name.find("knee") != std::string::npos ||
+                 joint_name.find("ankle") != std::string::npos ||
+                 joint_name.find("foot") != std::string::npos)
+            regions |= SOCIAL_REGION_LEGS;
+    }
+    return regions;
+}
+
+static bool social_motion_conflicts(SocialMotionKind requested, U32 active_regions)
+{
+    switch (requested)
+    {
+        case SOCIAL_MOTION_TALK:
+            // TALK is currently treated as an upper-body gesture. Facial,
+            // head-only and leg-only motion may continue alongside it.
+            return (active_regions &
+                (SOCIAL_REGION_ARMS | SOCIAL_REGION_HANDS | SOCIAL_REGION_TORSO)) != 0;
+    }
+    return true; // Unknown future motion kinds fail closed.
+}
+
+static bool has_social_motion_conflict(LLVOAvatarSelf* avatar, SocialMotionKind requested)
 {
     if (!avatar)
         return true;
@@ -124,36 +213,8 @@ static bool has_social_upper_body_motion_conflict(LLVOAvatarSelf* avatar)
         if (!motion || motion->getID() == ANIM_AGENT_TALK)
             continue;
 
-        LLPose* pose = motion->getPose();
-        if (!pose)
-            continue;
-
-        for (LLJointState* state = pose->getFirstJointState(); state;
-             state = pose->getNextJointState())
-        {
-            const LLJoint* joint = state->getJoint();
-            if (!joint)
-                continue;
-
-            std::string joint_name = joint->getName();
-            LLStringUtil::toLower(joint_name);
-            const bool upper_body_joint =
-                joint_name.find("shoulder") != std::string::npos ||
-                joint_name.find("collar") != std::string::npos ||
-                joint_name.find("elbow") != std::string::npos ||
-                joint_name.find("wrist") != std::string::npos ||
-                joint_name.find("hand") != std::string::npos ||
-                joint_name.find("chest") != std::string::npos ||
-                joint_name.find("torso") != std::string::npos ||
-                joint_name.find("spine") != std::string::npos;
-
-            LLJoint::JointPriority priority = state->getPriority();
-            if (priority == LLJoint::USE_MOTION_PRIORITY)
-                priority = motion->getPriority();
-
-            if (upper_body_joint && priority >= LLJoint::MEDIUM_PRIORITY)
-                return true;
-        }
+        if (social_motion_conflicts(requested, get_social_motion_region_mask(motion)))
+            return true;
     }
     return false;
 }
@@ -1720,7 +1781,7 @@ void LLAgentCamera::updateSocialSpeechGesture()
 
     // Re-evaluate conflicts while TALK is owned, not only at acquisition time.
     // A newly started AO/LSL/user gesture must be allowed to take precedence.
-    const bool upper_body_conflict = has_social_upper_body_motion_conflict(avatar);
+    const bool upper_body_conflict = has_social_motion_conflict(avatar, SOCIAL_MOTION_TALK);
 
     // Briefly hold the gesture across voice-activity packet gaps to avoid flicker.
     // An upper-body conflict overrides the grace period immediately.
