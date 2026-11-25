@@ -7,6 +7,7 @@
 #include "../test/lltut.h"
 
 #include "../llavatarskinmaterial.h"
+#include "llimage.h"
 
 #include <limits>
 #include <set>
@@ -277,4 +278,86 @@ namespace tut
         ensure_equals("transparent base receives layer blue", result.mV[2], 0.8f);
         ensure_equals("opacity clamps to one", result.mV[3], 1.0f);
     }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<17>()
+    {
+        LLImageRaw base;
+        LLImageRaw detail;
+        LLImageRaw output;
+        ensure("allocate base normal", base.resize(1, 1, 3));
+        ensure("allocate detail normal", detail.resize(1, 1, 3));
+        U8* b = base.getData();
+        U8* d = detail.getData();
+        b[0] = 128; b[1] = 128; b[2] = 255;
+        d[0] = 255; d[1] = 128; d[2] = 128;
+        ensure("normal composite succeeds",
+               LLAvatarSkin::compositeNormalMap(base, detail, 1.0f, output));
+        const U8* out = output.getData();
+        ensure_equals("normal output has RGB components", output.getComponents(), static_cast<S8>(3));
+        ensure("detail normal points toward positive X", out[0] > 240);
+        ensure("detail normal is normalized toward tangent plane", out[2] < 150);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<18>()
+    {
+        LLImageRaw base;
+        LLImageRaw detail;
+        LLImageRaw output;
+        ensure("allocate base normal", base.resize(1, 1, 3));
+        ensure("allocate RGBA detail normal", detail.resize(1, 1, 4));
+        U8* b = base.getData();
+        U8* d = detail.getData();
+        b[0] = 128; b[1] = 128; b[2] = 255;
+        d[0] = 255; d[1] = 128; d[2] = 128; d[3] = 0;
+        ensure("transparent detail normal composite succeeds",
+               LLAvatarSkin::compositeNormalMap(base, detail, 1.0f, output));
+        const U8* out = output.getData();
+        ensure_equals("zero alpha preserves base X", out[0], static_cast<U8>(128));
+        ensure_equals("zero alpha preserves base Y", out[1], static_cast<U8>(128));
+        ensure_equals("zero alpha preserves base Z", out[2], static_cast<U8>(255));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<19>()
+    {
+        LLImageRaw specular;
+        LLImageRaw output;
+        ensure("allocate specular scalar", specular.resize(1, 1, 1));
+        specular.getData()[0] = 64;
+        ensure("pack specular with missing roughness",
+               LLAvatarSkin::packSpecularRoughness(&specular, nullptr, 0.2f, 0.7f, output));
+        const U8* out = output.getData();
+        ensure_equals("packed output has RGBA components", output.getComponents(), static_cast<S8>(4));
+        ensure_equals("specular stored in red", out[0], static_cast<U8>(64));
+        ensure("missing roughness uses configured default", out[1] >= 178 && out[1] <= 180);
+        ensure_equals("subsurface channel is neutral", out[2], static_cast<U8>(0));
+        ensure_equals("detail channel is neutral", out[3], static_cast<U8>(255));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<20>()
+    {
+        LLImageRaw specular;
+        LLImageRaw roughness;
+        LLImageRaw output;
+        ensure("allocate specular", specular.resize(1, 1, 1));
+        ensure("allocate mismatched roughness", roughness.resize(2, 1, 1));
+        ensure("mismatched material maps are rejected",
+               !LLAvatarSkin::packSpecularRoughness(&specular, &roughness, 0.2f, 0.7f, output));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<21>()
+    {
+        LLImageRaw base;
+        LLImageRaw detail;
+        LLImageRaw output;
+        ensure("allocate base normal", base.resize(1, 1, 3));
+        ensure("allocate invalid two-channel detail", detail.resize(1, 1, 2));
+        ensure("unsupported normal component count is rejected",
+               !LLAvatarSkin::compositeNormalMap(base, detail, 1.0f, output));
+    }
+
 }
