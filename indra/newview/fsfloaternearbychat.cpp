@@ -516,6 +516,25 @@ void FSFloaterNearbyChat::setMinimized(bool b)
     LLFloater::setMinimized(b);
 }
 
+void FSFloaterNearbyChat::onClose(bool app_quitting)
+{
+    if (mSpeechToTextActive)
+    {
+        if (LLAppViewer* app = LLAppViewer::instance())
+        {
+            app->stopSpeechToTextDictation();
+        }
+        mSpeechToTextActive = false;
+        if (mSpeechToTextButton)
+        {
+            mSpeechToTextButton->setLabel("Mic");
+            mSpeechToTextButton->setToolTip("Start local speech-to-text dictation");
+        }
+    }
+
+    LLFloater::onClose(app_quitting);
+}
+
 void FSFloaterNearbyChat::onOpen(const LLSD& key )
 {
     FSFloaterIMContainer* floater_container = FSFloaterIMContainer::getInstance();
