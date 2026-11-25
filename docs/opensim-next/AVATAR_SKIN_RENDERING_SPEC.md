@@ -261,3 +261,12 @@ Current scope and limitations:
 The resolver is now held as a value member by `LLVOAvatar` and exposed through `getSkinTextureResolver()` for later Viewer-side material integration. Both `markDead()` and the Avatar destructor call `clear()`; this is intentionally idempotent and releases only the Avatar's retained `LLPointer` references. Self and remote Avatars therefore have separate resolver caches while continuing to share the global Viewer texture manager.
 
 A focused TUT test file now covers the resolver's null-UUID, empty-cache, and safe release-of-uncached-UUID behavior, and the resolver source is registered in the Viewer unit-test source list. These tests do not exercise a real texture fetch, missing-asset transition, GPU upload, or Avatar destruction. No build or test execution has been performed.
+
+
+## Phase B4: Avatar material binding
+
+`LLVOAvatar` now owns a viewer-local `MaterialData` value alongside its per-Avatar texture resolver. The public API exposes the material as a const reference and accepts replacements through `setSkinMaterial()`; callers cannot mutate the stored value while bypassing validation or cache reconciliation.
+
+The setter copies and sanitizes incoming data, disables unsupported schema versions, and computes unique active texture UUID sets from the four optional map slots. It releases an old resolver entry only when that UUID is absent from every slot in the replacement material. Reusing one UUID in Normal and Roughness (or any other combination) therefore does not cause premature release. Disabled or unsupported materials have no active map references; their UUID metadata is retained in the value but cached resolver references are released.
+
+Texture fetching remains lazy: setting a material does not initiate network fetches. The draw path has not yet been connected to these accessors, and no shader or rendering behavior changes in this phase. Unit coverage now includes unique UUID collection when slots share a texture. Tests are authored and registered but have not been compiled or executed.
