@@ -30,6 +30,7 @@
 #include <future>
 #include <thread>
 #include <string.h>
+#include <cstring>
 // <FS:minerjr> [FIRE-36022] - Removing my USB headset crashes entire viewer
 // Needed for accessing the inline timed mutex for accessing audio hardware.
 #include <mutex>
