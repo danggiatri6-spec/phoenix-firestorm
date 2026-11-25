@@ -3806,8 +3806,13 @@ void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
 
     if (mLipSyncUsesFallbackMorphs && facial_expression_active)
     {
-        // Keep the timer current, but leave the shared legacy morphs entirely
-        // to the expression motion until that expression has finished.
+        // Legacy expression morphs own the shared mouth parameters while an
+        // expression is active. Do not write them from voice lip-sync, and
+        // discard the previous voice envelope so it cannot reappear as a
+        // stale syllable when the expression finishes.
+        mLipSyncOohWeight = mOohMorph ? mOohMorph->getMinWeight() : 0.f;
+        mLipSyncAahWeight = mAahMorph ? mAahMorph->getMinWeight() : 0.f;
+        mLipSyncActive = false;
         mLipSyncTimer.reset();
         return;
     }
