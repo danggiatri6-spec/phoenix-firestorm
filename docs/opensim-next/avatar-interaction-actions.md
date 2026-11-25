@@ -583,3 +583,10 @@ Refined only the local eye-motion blink scheduler. Ordinary blink intervals now 
 - When the character is already unavailable, the cached visual-parameter pointer is cleared and cleanup returns without touching avatar state.
 - On the normal path, the expression morph and `Express_Closed_Mouth` are restored as before, visual parameters are updated, and the cached morph pointer is cleared.
 - Standard expression ease-in/ease-out timing remains owned by `LLMotionController`; no extra timing curve or protocol change was introduced.
+
+
+## LLEmote morph-pointer lifecycle
+
+- `LLEmote` now initializes its cached expression morph pointer to null in the constructor and clears it at the beginning of each activation before resolving the current avatar visual parameter.
+- This complements the teardown guard: a motion that is activated/deactivated across avatar or appearance lifecycle transitions cannot carry an uninitialized or stale cached morph pointer into cleanup.
+- Expression overlap research: `LLMotionController::updateMotionsByType()` updates active motions in chronological order, and each `LLEmote` independently writes the shared `Express_Closed_Mouth` morph. Thus simultaneous standard expressions can be order-dependent. A correct fix needs per-avatar aggregation of active expression weights after motion updates; changing the per-motion write in isolation would risk breaking legacy expression semantics. No such aggregation change is made in this step.
