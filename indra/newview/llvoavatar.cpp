@@ -806,6 +806,9 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mLipSyncActive = false;
     mOohMorph      = NULL;
     mAahMorph      = NULL;
+    mLipSyncOohWeight = 0.f;
+    mLipSyncAahWeight = 0.f;
+    mLipSyncTimer.reset();
 
     mCurrentGesticulationLevel = 0;
 
