@@ -171,8 +171,13 @@ public:
 
     float GetMicrophoneEnergy() { return mMicrophoneEnergy.load(std::memory_order_relaxed); }
     void  SetGain(float gain) { mGain.store(gain, std::memory_order_relaxed); }
+    bool GetCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame);
 
 private:
+    static constexpr uint32_t CAPTURE_QUEUE_SIZE = 16;
+    std::array<LLWebRTCCapturedAudioFrame, CAPTURE_QUEUE_SIZE> mCaptureQueue{};
+    std::atomic<uint32_t> mCaptureWrite{ 0 };
+    std::atomic<uint32_t> mCaptureRead{ 0 };
     std::atomic<webrtc::AudioTransport*> engine_{ nullptr };
     static const int                     NUM_PACKETS_TO_FILTER = 30; // 300 ms of smoothing (30 frames)
     float                                mSumVector[NUM_PACKETS_TO_FILTER];
@@ -214,6 +219,7 @@ public:
     bool    Initialized() const override { return inner_->Initialized(); }
 
     int32_t ForceTerminate() { return inner_->Terminate(); }
+    bool GetCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame) { return audio_transport_.GetCapturedAudioFrame(frame); }
 
     // --- Device enumeration/selection (forward) ---
     int16_t PlayoutDevices() override { return inner_->PlayoutDevices(); }
@@ -451,6 +457,7 @@ class LLWebRTCImpl : public LLWebRTCDeviceInterface, public webrtc::AudioDeviceO
     void setTuningMicGain(float gain) override;
 
     void setMute(bool mute, int delay_ms = 20) override;
+    bool getCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame) override;
 
     void intSetMute(bool mute, int delay_ms = 20);
 
