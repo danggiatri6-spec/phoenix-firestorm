@@ -50,6 +50,7 @@ class LLWebRTCProtocolParser;
 # include "expat/expat.h"
 #endif
 #include "llvoiceclient.h"
+#include "llspeechtotext.h"
 
 // WebRTC Includes
 #include <llwebrtc.h>
@@ -92,6 +93,7 @@ public:
     // requested by the user; polling is non-blocking and intended for the viewer thread.
     void setSpeechCaptureEnabled(bool enabled);
     bool getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioFrame& frame);
+    std::size_t pumpSpeechCapture(LLSpeechToText& service, std::size_t max_frames = 8);
 
     const LLVoiceVersionInfo& getVersion() override;
     void                      updateVersion();
