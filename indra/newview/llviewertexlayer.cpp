@@ -221,6 +221,11 @@ void LLViewerTexLayerSetBuffer::midRenderTexLayerSet(bool success, LLRenderTarge
                 else
                 {
                     LL_DEBUGS("Avatar") << "Skipping bake for unsupported layer on this region" << LL_ENDL;
+                    // This layer has no valid bake slot on the current region.
+                    // Do not leave an upload request permanently pending.
+                    mUploadPending = false;
+                    mNeedsUpload = false;
+                    mNeedsUploadTimer.pause();
                 }
                 // <FS:Beq>
             }
