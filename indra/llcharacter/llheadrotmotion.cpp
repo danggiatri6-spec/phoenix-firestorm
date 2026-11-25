@@ -40,6 +40,11 @@
 // Constants
 //-----------------------------------------------------------------------------
 const F32 TORSO_LAG = 0.35f;    // torso rotation factor
+const F32 IDLE_HEAD_UPDATE_MIN = 2.5f;
+const F32 IDLE_HEAD_UPDATE_MAX = 5.5f;
+const F32 IDLE_HEAD_MAX_YAW = 1.5f * DEG_TO_RAD;
+const F32 IDLE_HEAD_MAX_PITCH = 0.7f * DEG_TO_RAD;
+const F32 IDLE_HEAD_BLEND_HALF_LIFE = 0.8f;
 const F32 NECK_LAG = 0.5f;      // neck rotation factor
 const F32 HEAD_LOOKAT_LAG_HALF_LIFE = 0.15f;        // half-life of lookat targeting for head
 const F32 TORSO_LOOKAT_LAG_HALF_LIFE    = 0.27f;        // half-life of lookat targeting for torso
@@ -71,7 +76,12 @@ LLHeadRotMotion::LLHeadRotMotion(const LLUUID &id) :
     LLMotion(id),
     mCharacter(NULL),
     mTorsoJoint(NULL),
-    mHeadJoint(NULL)
+    mHeadJoint(NULL),
+    mIdleHeadNextUpdate(IDLE_HEAD_UPDATE_MIN),
+    mIdleHeadYaw(0.f),
+    mIdleHeadPitch(0.f),
+    mIdleHeadTargetYaw(0.f),
+    mIdleHeadTargetPitch(0.f)
 {
     mName = "head_rot";
 
@@ -166,6 +176,13 @@ LLMotion::LLMotionInitStatus LLHeadRotMotion::onInitialize(LLCharacter *characte
 //-----------------------------------------------------------------------------
 bool LLHeadRotMotion::onActivate()
 {
+    mIdleHeadTimer.reset();
+    mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN +
+        ll_frand(IDLE_HEAD_UPDATE_MAX - IDLE_HEAD_UPDATE_MIN);
+    mIdleHeadYaw = 0.f;
+    mIdleHeadPitch = 0.f;
+    mIdleHeadTargetYaw = 0.f;
+    mIdleHeadTargetPitch = 0.f;
     return true;
 }
 
@@ -230,7 +247,36 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
         targetHeadRotWorld = currentRootRotWorld;
     }
 
+    // Add a very small local idle head drift only when no explicit look target
+    // is active. It is a procedural pose hint, not a network animation, and
+    // remains subject to the normal motion-controller joint blending.
+    if (targetPos)
+    {
+        mIdleHeadTargetYaw = 0.f;
+        mIdleHeadTargetPitch = 0.f;
+        mIdleHeadTimer.reset();
+        mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN;
+    }
+    else if (mIdleHeadTimer.getElapsedTimeF32() >= mIdleHeadNextUpdate)
+    {
+        mIdleHeadTargetYaw = (ll_frand(2.f) - 1.f) * IDLE_HEAD_MAX_YAW;
+        mIdleHeadTargetPitch = (ll_frand(2.f) - 1.f) * IDLE_HEAD_MAX_PITCH;
+        mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN +
+            ll_frand(IDLE_HEAD_UPDATE_MAX - IDLE_HEAD_UPDATE_MIN);
+        mIdleHeadTimer.reset();
+    }
+
+    const F32 idle_blend = LLSmoothInterpolation::getInterpolant(IDLE_HEAD_BLEND_HALF_LIFE);
+    mIdleHeadYaw += (mIdleHeadTargetYaw - mIdleHeadYaw) * idle_blend;
+    mIdleHeadPitch += (mIdleHeadTargetPitch - mIdleHeadPitch) * idle_blend;
+
     LLQuaternion head_rot_local = targetHeadRotWorld * currentInvRootRotWorld;
+    if (!targetPos)
+    {
+        LLQuaternion idle_yaw(mIdleHeadYaw, LLVector3::z_axis);
+        LLQuaternion idle_pitch(mIdleHeadPitch, LLVector3::y_axis);
+        head_rot_local = idle_yaw * idle_pitch * head_rot_local;
+    }
     head_rot_local.constrain(HEAD_ROTATION_CONSTRAINT);
 
     // set final torso rotation
