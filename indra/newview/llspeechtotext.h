@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <deque>
 #include <memory>
+#include <string>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -75,5 +76,10 @@ private:
     bool mRunning{ false };
     bool mStopping{ false };
 };
+
+// Returns a Whisper.cpp recognizer when the optional backend is compiled in.
+// Returns nullptr in standard builds without LL_HAS_WHISPER_CPP.
+std::unique_ptr<LLSpeechToTextRecognizer> createWhisperSpeechRecognizer(
+    const std::string& model_path, const std::string& language = "auto");
 
 #endif // LL_LLSPEECHTOTEXT_H
