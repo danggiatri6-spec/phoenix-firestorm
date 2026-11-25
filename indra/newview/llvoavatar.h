@@ -1172,6 +1172,7 @@ private:
     bool            mLipSyncUsesFallbackMorphs; // legacy mouth morphs overlap facial expressions
     LLFrameTimer    mLipSyncTimer;
     LLFrameTimer    mFacialExpressionTimer;
+    F32             mFacialHeadPitchBias; // Per-avatar emotional hint consumed by head_rot idle motion.
     F32             mLipSyncOohWeight;
     F32             mLipSyncAahWeight;
 
