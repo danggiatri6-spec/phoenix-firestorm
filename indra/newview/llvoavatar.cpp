@@ -3807,6 +3807,20 @@ void LLVOAvatar::updateFacialExpressionComposition()
         ? facial_delta / (facial_tau + facial_delta)
         : 0.f;
 
+    // The three brow shapes are competing emotional cues. When two
+    // expression families overlap during a cross-fade, let the strongest
+    // weighted cue lead instead of stacking opposing brow shapes. The
+    // morphs still use the shared smoothing below, so a hand-off is gradual.
+    const bool use_surprised_brows = surprised_brow_weight > 0.f
+        && surprised_brow_weight >= worried_brow_weight
+        && surprised_brow_weight >= furrowed_brow_weight;
+    const bool use_worried_brows = worried_brow_weight > 0.f
+        && worried_brow_weight > surprised_brow_weight
+        && worried_brow_weight >= furrowed_brow_weight;
+    const bool use_furrowed_brows = furrowed_brow_weight > 0.f
+        && furrowed_brow_weight > surprised_brow_weight
+        && furrowed_brow_weight > worried_brow_weight;
+
     bool facial_params_changed = false;
     LLVisualParam* surprised_brows = getVisualParam("Surprised_Eyebrows");
     LLVisualParam* worried_brows = getVisualParam("Worried_Eyebrows");
@@ -3816,7 +3830,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     // Do not manufacture parameters on non-standard/custom avatar rigs.
     if (surprised_brows)
     {
-        const F32 target = surprised_brow_weight > 0.f
+        const F32 target = use_surprised_brows
             ? surprised_brows->getMinWeight()
                 + surprised_brow_weight * (surprised_brows->getMaxWeight() - surprised_brows->getMinWeight())
             : surprised_brows->getDefaultWeight();
@@ -3830,7 +3844,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     }
     if (worried_brows)
     {
-        const F32 target = worried_brow_weight > 0.f
+        const F32 target = use_worried_brows
             ? worried_brows->getMinWeight()
                 + worried_brow_weight * (worried_brows->getMaxWeight() - worried_brows->getMinWeight())
             : worried_brows->getDefaultWeight();
@@ -3844,7 +3858,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     }
     if (furrowed_brows)
     {
-        const F32 target = furrowed_brow_weight > 0.f
+        const F32 target = use_furrowed_brows
             ? furrowed_brows->getMinWeight()
                 + furrowed_brow_weight * (furrowed_brows->getMaxWeight() - furrowed_brows->getMinWeight())
             : furrowed_brows->getDefaultWeight();
