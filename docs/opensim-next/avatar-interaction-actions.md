@@ -561,3 +561,8 @@ The current scope is restricted to the local quality of an individual avatar's e
 Extended the existing `LLHeadRotMotion` with a very low-amplitude procedural idle head drift when there is no explicit `LookAtPoint`. The motion changes its yaw/pitch target at randomized 2.5–5.5 second intervals, stays within approximately 1.5 degrees yaw and 0.7 degrees pitch, and eases toward each target with a 0.8-second half-life. Any explicit look target immediately drives the idle target back to neutral and suppresses the drift, preserving normal gaze behavior. The existing head/neck/torso pose blender remains responsible for applying the result; no joint is written outside the motion system and no network animation is sent.
 
 This is intentionally a subtle first pass, not a breathing or full-body idle system. It must be visually checked with standard avatars, Bento/custom rigs, AO, LSL head animations, mouselook, and camera attention. Static source inspection only; no C++ build or runtime test has been performed.
+
+
+### Natural blink cadence refinement (2026-11-25)
+
+Refined only the local eye-motion blink scheduler. Ordinary blink intervals now vary between 2.2 and 6.8 seconds, with a 12% chance of a short 0.55–0.95 second follow-up blink to create occasional double blinks. The first blink still uses the existing 1.5–4.5 second settling delay, and the existing eyelid easing, left/right offset, eye look-away behavior, and deactivation cleanup are retained. This changes no avatar-to-avatar behavior, animation protocol, AO/LSL requests, or server code. Static source checks only; no C++ build or in-world visual test has been run.
