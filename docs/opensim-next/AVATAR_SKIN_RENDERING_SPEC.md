@@ -255,3 +255,9 @@ Current scope and limitations:
 - No draw-pool, shader, sampler, material upload, wearable, bake, or network protocol changes have been made.
 - No resolver unit test, Windows build, or runtime texture-fetch test has been executed yet.
 - Before shader integration, define fallback behavior for missing/failed optional maps and verify the GL texture is usable at bind time.
+
+### Phase B3: Avatar lifetime ownership
+
+The resolver is now held as a value member by `LLVOAvatar` and exposed through `getSkinTextureResolver()` for later Viewer-side material integration. Both `markDead()` and the Avatar destructor call `clear()`; this is intentionally idempotent and releases only the Avatar's retained `LLPointer` references. Self and remote Avatars therefore have separate resolver caches while continuing to share the global Viewer texture manager.
+
+A focused TUT test file now covers the resolver's null-UUID and empty-cache behavior, and the resolver source is registered in the Viewer unit-test source list. These tests do not exercise a real texture fetch, missing-asset transition, GPU upload, or Avatar destruction. No build or test execution has been performed.
