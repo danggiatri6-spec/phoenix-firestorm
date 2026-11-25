@@ -769,6 +769,9 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mMeshTexturesDirty = false;
     mHeadp = NULL;
 
+    // Per-avatar, lifetime-stable signal consumed by LLHeadRotMotion.
+    mFacialHeadPitchBias = 0.f;
+    setAnimationData("FacialHeadPitchBias", &mFacialHeadPitchBias);
 
     // set up animation variables
     mSpeed = 0.f;
