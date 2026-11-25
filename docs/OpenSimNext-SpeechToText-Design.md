@@ -179,3 +179,14 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Capture is disabled when dictation is stopped and before both normal disconnect and application-exit voice teardown.
 - This is a source integration, not yet a user-facing feature: no Nearby Chat microphone button or settings action invokes the start method yet. A model path must be supplied by a future UI/settings layer.
 - Whisper.cpp is still not pinned or linked; standard builds return a null recognizer. No Windows x64 build or runtime test has been performed.
+
+
+## Nearby Chat control and optional Whisper build update (2026-11-25)
+
+- Added a Nearby Chat `Mic` button. The button is user-initiated; it opens the local model file picker only when no model path has been saved. A successful start changes the control to `Stop`.
+- Added the persistent `SpeechToTextModelPath` setting. Its default is empty. The selected model remains external; no model is downloaded or bundled.
+- The control calls the existing Viewer lifecycle methods. Transcript results continue to be inserted into the editable chat field and are not sent automatically.
+- Added the opt-in CMake option `OPENSIMNEXT_ENABLE_WHISPER_CPP` (default `OFF`). When explicitly enabled, CMake fetches whisper.cpp release v1.9.6 at immutable commit `96ec4d9823e9d0211944172da35f9f29134af990`, disables optional GPU/accelerator and example/test targets, and links the static `whisper` target into the Viewer.
+- Normal builds do not fetch or link Whisper.cpp. Enabling the option requires network access at CMake configure time and increases build time and binary size.
+- The current five-second-window adapter and CPU-only inference settings remain prototypes. This wiring has not been compiled or exercised on Windows x64; API compatibility, model loading, redistributable/runtime packaging, latency, memory use, and transcription quality still require validation.
+- Remote Avatar captions remain a separate unimplemented task. The local microphone path must not be mistaken for per-participant audio capture.
