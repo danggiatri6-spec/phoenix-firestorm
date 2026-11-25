@@ -820,6 +820,12 @@ void LLViewerTexLayerSetBuffer::onTextureUploadComplete(const LLUUID& uuid,
                     layerset_buffer->mUploadRetryTimer.start();
                     layerset_buffer->requestUpload();
                 }
+                else
+                {
+                    // No more retries: release the pending-appearance gate.
+                    // Keep the previous baked texture; a later appearance update can retry.
+                    layerset_buffer->mUploadPending = false;
+                }
             }
         }
         else
