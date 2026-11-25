@@ -246,7 +246,7 @@ Resolver state values are:
 - `MISSING`: the Viewer texture reports a missing asset.
 - `DELETED`: a cached texture has entered the deleted state.
 
-A deleted entry is discarded and may be resolved again. `clear()` releases only the resolver's references; it does not directly destroy textures managed by the Viewer texture list.
+A deleted entry is discarded and may be resolved again. `clear()` releases only the resolver's references; it does not directly destroy textures managed by the Viewer texture list. The `release(texture_id)` method also drops one no-longer-used UUID entry, so a future material owner can release superseded maps without clearing unrelated active maps.
 
 Current scope and limitations:
 
@@ -260,4 +260,4 @@ Current scope and limitations:
 
 The resolver is now held as a value member by `LLVOAvatar` and exposed through `getSkinTextureResolver()` for later Viewer-side material integration. Both `markDead()` and the Avatar destructor call `clear()`; this is intentionally idempotent and releases only the Avatar's retained `LLPointer` references. Self and remote Avatars therefore have separate resolver caches while continuing to share the global Viewer texture manager.
 
-A focused TUT test file now covers the resolver's null-UUID and empty-cache behavior, and the resolver source is registered in the Viewer unit-test source list. These tests do not exercise a real texture fetch, missing-asset transition, GPU upload, or Avatar destruction. No build or test execution has been performed.
+A focused TUT test file now covers the resolver's null-UUID, empty-cache, and safe release-of-uncached-UUID behavior, and the resolver source is registered in the Viewer unit-test source list. These tests do not exercise a real texture fetch, missing-asset transition, GPU upload, or Avatar destruction. No build or test execution has been performed.
