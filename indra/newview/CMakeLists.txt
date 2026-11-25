@@ -854,6 +854,7 @@ set(viewer_SOURCE_FILES
     llvlcomposition.cpp
     llvlmanager.cpp
     llavatarskinmaterial.cpp
+    llavatarskintextureresolver.cpp
     llvoavatar.cpp
     llvoavatarself.cpp
     llvocache.cpp
@@ -1720,6 +1721,7 @@ set(viewer_HEADER_FILES
     llvlcomposition.h
     llvlmanager.h
     llavatarskinmaterial.h
+    llavatarskintextureresolver.h
     llvoavatar.h
     llvoavatarself.h
     llvocache.h
