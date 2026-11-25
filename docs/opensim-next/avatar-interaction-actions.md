@@ -575,3 +575,11 @@ Refined only the local eye-motion blink scheduler. Ordinary blink intervals now 
 - The lip-sync timer is reset during this guard so resuming lip-sync does not inherit a stale elapsed interval.
 - Avatars with both dedicated lip-sync morphs retain the existing amplitude-driven lip-sync path unchanged.
 - This is a conservative compatibility behavior: legacy avatars may temporarily show the facial expression without moving lip-sync mouth shapes while that expression is active. It avoids morph corruption but does not provide additive mouth composition. Runtime appearance and compilation remain unverified.
+
+
+## Facial expression teardown safety
+
+- `LLEmote::onDeactivate()` now checks whether its cached `LLCharacter` is still valid before accessing facial visual parameters. Avatar teardown can precede motion-controller cleanup, so the previous unconditional dereference could access a destroyed character.
+- When the character is already unavailable, the cached visual-parameter pointer is cleared and cleanup returns without touching avatar state.
+- On the normal path, the expression morph and `Express_Closed_Mouth` are restored as before, visual parameters are updated, and the cached morph pointer is cleared.
+- Standard expression ease-in/ease-out timing remains owned by `LLMotionController`; no extra timing curve or protocol change was introduced.
