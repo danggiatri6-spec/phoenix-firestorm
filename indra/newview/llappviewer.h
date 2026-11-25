@@ -44,6 +44,7 @@
 #define LL_LLAPPVIEWER_H
 
 #include "llapp.h"
+#include "llspeechtotext.h"
 #include "llapr.h"
 #include "llcontrol.h"
 #include "llsys.h"          // for LLOSInfo
@@ -227,6 +228,11 @@ public:
 
     void addOnIdleCallback(const std::function<void()>& cb); // add a callback to fire (once) when idle
 
+    // OpenSim-next: explicitly start/stop local microphone dictation.
+    bool startSpeechToTextDictation(const std::string& model_path,
+                                    const std::string& language = "auto");
+    void stopSpeechToTextDictation();
+
     void initGeneralThread();
     void purgeUserDataOnExit() { mPurgeUserDataOnExit = true; }
     void purgeCefStaleCaches();  // Remove old, stale CEF cache folders
@@ -339,6 +345,7 @@ private:
     static LLAppViewer* sInstance;
 
     bool mSecondInstance; // Is this a second instance of the app?
+    LLSpeechToText mSpeechToText;
 
     std::string mMarkerFileName;
     LLAPRFile mMarkerFile; // A file created to indicate the app is running.
