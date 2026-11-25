@@ -89,9 +89,13 @@ jobs:
         shell: pwsh
         run: |
           $viewerDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release"
-          $viewerExe = Join-Path $viewerDir "FirestormSecondLifeTest.exe"
+          # The OpenSim-next CI configuration names the linked Viewer target
+          # firestorm-bin.exe; do not assume the branded Release installer name.
+          $viewerExe = Join-Path $viewerDir "firestorm-bin.exe"
           if (-not (Test-Path $viewerExe)) {
-            throw "Compiled Viewer executable not found: $viewerExe"
+            $candidates = Get-ChildItem $viewerDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty Name
+            throw "Compiled Viewer executable not found: $viewerExe. Executables in output directory: $($candidates -join ', ')"
           }
           @(
             "OpenSim-next Windows x64 portable test build"
