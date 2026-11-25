@@ -37,6 +37,9 @@ public:
         std::vector<LLSpeechToTextResult>& results) = 0;
 
     virtual void reset() = 0;
+
+    // Optional cooperative cancellation for long-running inference.
+    virtual void requestStop() {}
 };
 
 class LLSpeechToText
