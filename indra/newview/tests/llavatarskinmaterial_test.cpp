@@ -1,6 +1,6 @@
 /**
  * @file llavatarskinmaterial_test.cpp
- * @brief Tests for viewer-local Avatar skin material data.
+ * @brief Tests for native Avatar skin material and layer data.
  */
 
 #include "../llviewerprecompiledheaders.h"
@@ -25,9 +25,7 @@ namespace tut
     void avatarskinmaterial_object_t::test<1>()
     {
         LLAvatarSkin::MaterialData material;
-
-        ensure_equals("schema version", material.schema_version,
-                      static_cast<U32>(1));
+        ensure_equals("schema version", material.schema_version, static_cast<U32>(1));
         ensure("disabled by default", !material.enabled);
         ensure("normal map absent by default", material.normal_map_id.isNull());
         ensure("roughness map absent by default", material.roughness_map_id.isNull());
@@ -52,9 +50,7 @@ namespace tut
         material.subsurface_color.mV[1] = 1.2f;
         material.subsurface_color.mV[2] = 0.5f;
         material.subsurface_color.mV[3] = 2.0f;
-
         material.sanitize();
-
         ensure_equals("roughness lower clamp", material.roughness_factor, 0.0f);
         ensure_equals("specular upper clamp", material.specular_factor, 1.0f);
         ensure_equals("subsurface upper clamp", material.subsurface_strength, 1.0f);
@@ -72,7 +68,6 @@ namespace tut
         LLAvatarSkin::MaterialData material;
         material.schema_version = LLAvatarSkin::MATERIAL_SCHEMA_VERSION + 1;
         material.enabled = true;
-
         ensure("unknown version rejected", !material.isSupportedVersion());
         material.sanitize();
         ensure("unknown version disables material", !material.enabled);
@@ -83,38 +78,12 @@ namespace tut
     {
         LLAvatarSkin::MaterialData material;
         material.enabled = true;
-        material.normal_map_id.setNull();
-        material.roughness_map_id.setNull();
-        material.specular_map_id.setNull();
-        material.detail_mask_id.setNull();
-
         material.sanitize();
-
         ensure("null optional maps are valid", material.enabled);
         ensure("normal map remains null", material.normal_map_id.isNull());
         ensure("roughness map remains null", material.roughness_map_id.isNull());
         ensure("specular map remains null", material.specular_map_id.isNull());
         ensure("detail mask remains null", material.detail_mask_id.isNull());
-    }
-    template<> template<>
-    void avatarskinmaterial_object_t::test<6>()
-    {
-        LLAvatarSkin::MaterialData material;
-        LLUUID shared_id;
-        shared_id.generate();
-        LLUUID other_id;
-        other_id.generate();
-        material.normal_map_id = shared_id;
-        material.roughness_map_id = shared_id;
-        material.specular_map_id = other_id;
-
-        std::set<LLUUID> ids;
-        material.collectTextureIds(ids);
-
-        ensure_equals("shared slot UUID collected once", ids.size(), static_cast<std::set<LLUUID>::size_type>(2));
-        ensure("shared UUID present", ids.find(shared_id) != ids.end());
-        ensure("second UUID present", ids.find(other_id) != ids.end());
-        ensure("null UUID omitted", ids.find(LLUUID::null) == ids.end());
     }
 
     template<> template<>
@@ -126,9 +95,7 @@ namespace tut
         material.subsurface_strength = -std::numeric_limits<F32>::infinity();
         material.detail_strength = std::numeric_limits<F32>::quiet_NaN();
         material.subsurface_color.mV[1] = std::numeric_limits<F32>::quiet_NaN();
-
         material.sanitize();
-
         ensure_equals("NaN roughness becomes zero", material.roughness_factor, 0.0f);
         ensure_equals("infinite specular clamps to one", material.specular_factor, 1.0f);
         ensure_equals("negative infinite subsurface becomes zero", material.subsurface_strength, 0.0f);
@@ -136,4 +103,129 @@ namespace tut
         ensure_equals("NaN color channel becomes zero", material.subsurface_color.mV[1], 0.0f);
     }
 
+    template<> template<>
+    void avatarskinmaterial_object_t::test<6>()
+    {
+        LLAvatarSkin::MaterialData material;
+        LLUUID shared_id;
+        shared_id.generate();
+        LLUUID other_id;
+        other_id.generate();
+        material.normal_map_id = shared_id;
+        material.roughness_map_id = shared_id;
+        material.specular_map_id = other_id;
+        std::set<LLUUID> ids;
+        material.collectTextureIds(ids);
+        ensure_equals("shared slot UUID collected once", ids.size(), static_cast<std::set<LLUUID>::size_type>(2));
+        ensure("shared UUID present", ids.find(shared_id) != ids.end());
+        ensure("second UUID present", ids.find(other_id) != ids.end());
+        ensure("null UUID omitted", ids.find(LLUUID::null) == ids.end());
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<7>()
+    {
+        LLAvatarSkin::LayerDescriptor layer;
+        ensure("layer disabled by default", !layer.enabled);
+        ensure_equals("default opacity", layer.opacity, 1.0f);
+        ensure("missing identifiers make layer invalid", !layer.isValid());
+
+        layer.layer_id.generate();
+        layer.texture_id.generate();
+        layer.enabled = true;
+        layer.opacity = 1.5f;
+        layer.sanitize();
+        ensure("complete layer is valid", layer.isValid());
+        ensure_equals("opacity is clamped", layer.opacity, 1.0f);
+        ensure("valid layer remains enabled", layer.enabled);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<8>()
+    {
+        LLAvatarSkin::LayerStack stack;
+        LLAvatarSkin::LayerDescriptor first;
+        first.layer_id.generate();
+        first.texture_id.generate();
+        first.enabled = true;
+        first.order = 20;
+
+        LLAvatarSkin::LayerDescriptor second;
+        second.layer_id.generate();
+        second.texture_id.generate();
+        second.enabled = true;
+        second.order = 10;
+
+        stack.layers.push_back(first);
+        stack.layers.push_back(second);
+        stack.sanitize();
+
+        ensure_equals("enabled layer count", stack.getEnabledLayerCount(), static_cast<U32>(2));
+        ensure_equals("layers sorted by order", stack.layers[0].order, static_cast<U32>(10));
+        ensure_equals("second ordered layer", stack.layers[1].order, static_cast<U32>(20));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<9>()
+    {
+        LLAvatarSkin::LayerStack stack;
+        LLAvatarSkin::LayerDescriptor first;
+        first.layer_id.generate();
+        first.texture_id.generate();
+        first.enabled = true;
+        LLAvatarSkin::LayerDescriptor duplicate = first;
+        duplicate.order = 1;
+        stack.layers.push_back(first);
+        stack.layers.push_back(duplicate);
+        stack.sanitize();
+        ensure_equals("duplicate layer id disabled", stack.getEnabledLayerCount(), static_cast<U32>(1));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<10>()
+    {
+        LLAvatarSkin::LayerStack stack;
+        for (U32 i = 0; i < LLAvatarSkin::MAX_ENABLED_SKIN_LAYERS + 2; ++i)
+        {
+            LLAvatarSkin::LayerDescriptor layer;
+            layer.layer_id.generate();
+            layer.texture_id.generate();
+            layer.enabled = true;
+            layer.order = i;
+            stack.layers.push_back(layer);
+        }
+        stack.sanitize();
+        ensure_equals("enabled layer cap enforced", stack.getEnabledLayerCount(),
+                      LLAvatarSkin::MAX_ENABLED_SKIN_LAYERS);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<11>()
+    {
+        LLAvatarSkin::LayerStack stack;
+        LLAvatarSkin::LayerDescriptor layer;
+        layer.layer_id.generate();
+        layer.texture_id.generate();
+        layer.mask_id.generate();
+        layer.enabled = true;
+        stack.layers.push_back(layer);
+        std::set<LLUUID> ids;
+        stack.collectTextureIds(ids);
+        ensure_equals("texture and mask collected", ids.size(),
+                      static_cast<std::set<LLUUID>::size_type>(2));
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<12>()
+    {
+        LLAvatarSkin::LayerStack stack;
+        stack.schema_version = LLAvatarSkin::LAYER_STACK_SCHEMA_VERSION + 1;
+        LLAvatarSkin::LayerDescriptor layer;
+        layer.layer_id.generate();
+        layer.texture_id.generate();
+        layer.enabled = true;
+        stack.layers.push_back(layer);
+        stack.sanitize();
+        ensure("unknown layer schema disables content", stack.getEnabledLayerCount() == 0);
+    }
 }
