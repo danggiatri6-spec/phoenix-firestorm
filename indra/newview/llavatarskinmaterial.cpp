@@ -8,6 +8,7 @@
 #include "llavatarskinmaterial.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -56,6 +57,63 @@ namespace
 
 namespace LLAvatarSkin
 {
+    LLColor4 compositeLayer(const LLColor4& base, const LLColor4& layer,
+                            F32 opacity, BlendMode mode)
+    {
+        opacity = clampUnitValue(opacity);
+        F32 base_alpha = clampUnitValue(base.mV[3]);
+        F32 source_alpha = clampUnitValue(layer.mV[3]) * opacity;
+        F32 out_alpha = source_alpha + base_alpha * (1.0f - source_alpha);
+
+        LLColor4 result(0.0f, 0.0f, 0.0f, out_alpha);
+        if (out_alpha <= 0.0f)
+        {
+            return result;
+        }
+
+        for (U32 channel = 0; channel < 3; ++channel)
+        {
+            F32 cb = clampUnitValue(base.mV[channel]);
+            F32 cs = clampUnitValue(layer.mV[channel]);
+            F32 blend = cs;
+
+            switch (mode)
+            {
+            case BlendMode::MULTIPLY:
+                blend = cb * cs;
+                break;
+            case BlendMode::ADD:
+                blend = std::min(1.0f, cb + cs);
+                break;
+            case BlendMode::SOFT_LIGHT:
+                if (cs <= 0.5f)
+                {
+                    blend = cb - (1.0f - 2.0f * cs) * cb * (1.0f - cb);
+                }
+                else
+                {
+                    F32 curve = cb <= 0.25f
+                        ? ((16.0f * cb - 12.0f) * cb + 4.0f) * cb
+                        : std::sqrt(cb);
+                    blend = cb + (2.0f * cs - 1.0f) * (curve - cb);
+                }
+                break;
+            case BlendMode::NORMAL:
+            default:
+                blend = cs;
+                break;
+            }
+
+            // W3C source-over blend compositing in premultiplied-alpha space.
+            F32 premultiplied =
+                (1.0f - source_alpha) * cb * base_alpha +
+                (1.0f - base_alpha) * cs * source_alpha +
+                base_alpha * source_alpha * blend;
+            result.mV[channel] = clampUnitValue(premultiplied / out_alpha);
+        }
+        return result;
+    }
+
     LayerDescriptor::LayerDescriptor()
     :   type(LayerType::COLOR_OVERLAY),
         blend_mode(BlendMode::NORMAL),
