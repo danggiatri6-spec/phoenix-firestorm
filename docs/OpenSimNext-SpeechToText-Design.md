@@ -97,3 +97,11 @@ Vivox:
 - Captions identify a speaker only when the backend provides a verified participant mapping.
 - No audio is sent to a cloud service by default and no raw audio is persisted.
 - Feature can be disabled independently for microphone dictation and incoming captions.
+
+
+## Audit update (2026-11-25)
+
+- WebRTC local capture tap is technically feasible at the existing LLWebRTCAudioTransport::RecordedDataIsAvailable() boundary. The implementation must use a bounded preallocated handoff; do not run Whisper in the audio callback.
+- WebRTC remote decoded audio is observable at the received AudioTrack boundary in LLWebRTCPeerConnectionImpl::OnAddTrack(). The current code does not attach an AudioTrackSinkInterface. Before implementing captions, confirm the gateway's track cardinality and whether track/stream identifiers can be mapped to participant UUIDs from existing voice signaling metadata.
+- Vivox source audit found daemon command/event handling, device enumeration, mic tuning, and capture-buffer recording/playback commands, but no raw PCM frame callback exposed to Viewer code. Therefore native per-avatar captions and shared-pipeline dictation cannot currently be claimed for Vivox. A supported SDK API or a separately selected OS capture path would be required; do not capture system output as a false per-speaker substitute.
+- The initial implementation should target the WebRTC backend and keep Vivox capability explicitly unavailable until a supported audio-frame API is identified.
