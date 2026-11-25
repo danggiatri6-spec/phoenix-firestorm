@@ -339,6 +339,7 @@ void LLWebRTCVoiceClient::terminate()
 
     LL_INFOS("Voice") << "Terminating WebRTC" << LL_ENDL;
 
+    setSpeechCaptureEnabled(false);
     mVoiceEnabled = false;
     sShuttingDown = true; // so that coroutines won't post more work.
 
