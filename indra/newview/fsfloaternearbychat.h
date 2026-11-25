@@ -59,6 +59,7 @@ public:
     void addMessage(const LLChat& message, bool archive = true, const LLSD& args = LLSD());
 
     void onOpen(const LLSD& key) override;
+    void onClose(bool app_quitting) override;
     void setVisible(bool visible) override;
     void setMinimized(bool b) override;
 
