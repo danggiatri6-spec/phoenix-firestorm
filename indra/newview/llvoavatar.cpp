@@ -3691,6 +3691,91 @@ F32 LLVOAvatar::calcMorphAmount() const
     return morph_amt;
 }
 
+void LLVOAvatar::updateFacialExpressionComposition()
+{
+    // Standard Second Life facial expression animations are represented by
+    // LLEmote motions. Aggregate their blended pose weights per avatar rather
+    // than allowing the last-updated motion to own Express_Closed_Mouth.
+    static const LLUUID expression_ids[] =
+    {
+        ANIM_AGENT_EXPRESS_AFRAID,
+        ANIM_AGENT_EXPRESS_ANGER,
+        ANIM_AGENT_EXPRESS_BORED,
+        ANIM_AGENT_EXPRESS_CRY,
+        ANIM_AGENT_EXPRESS_DISDAIN,
+        ANIM_AGENT_EXPRESS_EMBARRASSED,
+        ANIM_AGENT_EXPRESS_FROWN,
+        ANIM_AGENT_EXPRESS_KISS,
+        ANIM_AGENT_EXPRESS_LAUGH,
+        ANIM_AGENT_EXPRESS_OPEN_MOUTH,
+        ANIM_AGENT_EXPRESS_REPULSED,
+        ANIM_AGENT_EXPRESS_SAD,
+        ANIM_AGENT_EXPRESS_SHRUG,
+        ANIM_AGENT_EXPRESS_SMILE,
+        ANIM_AGENT_EXPRESS_SURPRISE,
+        ANIM_AGENT_EXPRESS_TONGUE_OUT,
+        ANIM_AGENT_EXPRESS_TOOTHSMILE,
+        ANIM_AGENT_EXPRESS_WINK,
+        ANIM_AGENT_EXPRESS_WORRY
+    };
+
+    F32 strongest_expression = 0.f;
+    bool has_active_expression = false;
+    LLMotionController::motion_list_t& active_motions =
+        getMotionController().getActiveMotions();
+
+    for (LLMotionController::motion_list_t::iterator motion_it = active_motions.begin();
+         motion_it != active_motions.end(); ++motion_it)
+    {
+        LLMotion* motion = *motion_it;
+        if (!motion)
+        {
+            continue;
+        }
+
+        const LLUUID& motion_id = motion->getID();
+        bool is_standard_expression = false;
+        for (S32 i = 0; i < (S32)LL_ARRAY_SIZE(expression_ids); ++i)
+        {
+            if (motion_id == expression_ids[i])
+            {
+                is_standard_expression = true;
+                break;
+            }
+        }
+
+        if (!is_standard_expression || !motion->getPose())
+        {
+            continue;
+        }
+
+        has_active_expression = true;
+        strongest_expression = llmax(strongest_expression,
+                                     llclamp(motion->getPose()->getWeight(), 0.f, 1.f));
+    }
+
+    if (!has_active_expression)
+    {
+        return;
+    }
+
+    LLVisualParam* closed_mouth = getVisualParam("Express_Closed_Mouth");
+    if (!closed_mouth)
+    {
+        return;
+    }
+
+    const F32 closed_mouth_weight = closed_mouth->getMinWeight()
+        + (1.f - strongest_expression)
+            * (closed_mouth->getMaxWeight() - closed_mouth->getMinWeight());
+
+    // One final write per avatar/frame makes overlapping expression fades
+    // deterministic while preserving each expression's own morph weight.
+    closed_mouth->setWeight(closed_mouth_weight, false);
+    updateVisualParams();
+    dirtyMesh();
+}
+
 void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
 {
     // Legacy avatar meshes may lack dedicated lip-sync morphs. In that case
@@ -5912,6 +5997,11 @@ bool LLVOAvatar::updateCharacter(LLAgent &agent)
         // Might be better to do HIDDEN_UPDATE if cloud
         updateMotions(LLCharacter::NORMAL_UPDATE);
     }
+
+    // Compose the shared closed-mouth morph once after all expression motions
+    // have updated. LLEmote::onUpdate() writes this parameter per motion, so
+    // overlapping expressions otherwise make the result depend on update order.
+    updateFacialExpressionComposition();
 
     // Special handling for sitting on ground.
     if (!getParent() && (isSitting() || was_sit_ground_constrained))
