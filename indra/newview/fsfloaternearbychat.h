@@ -139,6 +139,7 @@ private:
     void onEmojiPickerClosed();
     void initEmojiRecentPanel();
     void onRecentEmojiPicked(const LLSD& value);
+    void onSpeechToTextButtonClicked();
 
     void onFocusLost() override;
     void onFocusReceived() override;
@@ -154,6 +155,7 @@ private:
     LLTextBox*            mEmojiRecentEmptyText;
     LLPanelEmojiComplete* mEmojiRecentIconsCtrl;
     LLButton*             mSendChatButton;
+    LLButton*             mSpeechToTextButton;
     LLComboBox*           mChatTypeCombo;
 
     LLLayoutPanel* mChatLayoutPanel;
