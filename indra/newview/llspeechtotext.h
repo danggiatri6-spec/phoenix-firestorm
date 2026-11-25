@@ -3,7 +3,8 @@
  * @brief Local speech-to-text worker and recognizer adapter contract.
  *
  * OpenSim-next extension. Recognition is deliberately isolated from the
- * WebRTC audio callback and from the Viewer UI thread. *
+ * WebRTC audio callback and from the Viewer UI thread.
+ *
  * $LicenseInfo:firstyear=2026&license=viewerlgpl$
  * OpenSim-next Viewer Extension
  * Copyright (C) 2026, OpenSim-next contributors.
