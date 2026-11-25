@@ -6,6 +6,7 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llavatarskinmaterial.h"
+#include "llimage.h"
 
 #include <algorithm>
 #include <cmath>
@@ -20,6 +21,41 @@ namespace
             return 0.0f;
         }
         return value > 1.0f ? 1.0f : value;
+    }
+
+
+    bool isValidImage(const LLImageRaw& image, bool allow_single_channel)
+    {
+        const S8 components = image.getComponents();
+        return !image.isBufferInvalid() &&
+            image.getWidth() > 0 && image.getHeight() > 0 &&
+            (components == 3 || components == 4 ||
+             (allow_single_channel && components == 1));
+    }
+
+    bool fitsSkinCompositeBudget(U16 width, U16 height, S32 components)
+    {
+        const U64 bytes = static_cast<U64>(width) * height * components;
+        return width <= 4096 && height <= 4096 &&
+               bytes <= LLAvatarSkin::MAX_SKIN_COMPOSITE_BYTES;
+    }
+
+    F32 decodeNormalChannel(U8 value)
+    {
+        return (static_cast<F32>(value) / 127.5f) - 1.0f;
+    }
+
+    U8 encodeUnitChannel(F32 value)
+    {
+        value = value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
+        return static_cast<U8>(value * 255.0f + 0.5f);
+    }
+
+    F32 readScalar(const LLImageRaw* image, S32 pixel, F32 fallback)
+    {
+        if (!image) return fallback;
+        const U8* data = image->getData();
+        return static_cast<F32>(data[pixel * image->getComponents()]) / 255.0f;
     }
 
     bool isValidLayerType(LLAvatarSkin::LayerType type)
@@ -112,6 +148,117 @@ namespace LLAvatarSkin
             result.mV[channel] = clampUnitValue(premultiplied / out_alpha);
         }
         return result;
+    }
+
+
+    bool compositeNormalMap(const LLImageRaw& base, const LLImageRaw& detail,
+                            F32 detail_strength, LLImageRaw& output)
+    {
+        if (&base == &output || &detail == &output ||
+            !isValidImage(base, false) || !isValidImage(detail, false) ||
+            base.getWidth() != detail.getWidth() ||
+            base.getHeight() != detail.getHeight() ||
+            !fitsSkinCompositeBudget(base.getWidth(), base.getHeight(), 3))
+        {
+            return false;
+        }
+
+        detail_strength = clampUnitValue(detail_strength);
+        if (!output.resize(base.getWidth(), base.getHeight(), 3))
+        {
+            return false;
+        }
+
+        const U8* base_data = base.getData();
+        const U8* detail_data = detail.getData();
+        U8* out_data = output.getData();
+        if (!base_data || !detail_data || !out_data) return false;
+
+        const S32 pixels = static_cast<S32>(base.getWidth()) * base.getHeight();
+        const S32 base_components = base.getComponents();
+        const S32 detail_components = detail.getComponents();
+        for (S32 i = 0; i < pixels; ++i)
+        {
+            const S32 bi = i * base_components;
+            const S32 di = i * detail_components;
+            const F32 coverage = detail_components == 4
+                ? static_cast<F32>(detail_data[di + 3]) / 255.0f : 1.0f;
+            const F32 amount = detail_strength * coverage;
+
+            F32 nx = decodeNormalChannel(base_data[bi]) * (1.0f - amount) +
+                     decodeNormalChannel(detail_data[di]) * amount;
+            F32 ny = decodeNormalChannel(base_data[bi + 1]) * (1.0f - amount) +
+                     decodeNormalChannel(detail_data[di + 1]) * amount;
+            F32 nz = decodeNormalChannel(base_data[bi + 2]) * (1.0f - amount) +
+                     decodeNormalChannel(detail_data[di + 2]) * amount;
+            const F32 length_sq = nx * nx + ny * ny + nz * nz;
+            if (length_sq > 1.0e-12f)
+            {
+                const F32 inv_length = 1.0f / std::sqrt(length_sq);
+                nx *= inv_length;
+                ny *= inv_length;
+                nz *= inv_length;
+            }
+            else
+            {
+                nx = 0.0f;
+                ny = 0.0f;
+                nz = 1.0f;
+            }
+
+            const S32 oi = i * 3;
+            out_data[oi] = encodeUnitChannel(nx * 0.5f + 0.5f);
+            out_data[oi + 1] = encodeUnitChannel(ny * 0.5f + 0.5f);
+            out_data[oi + 2] = encodeUnitChannel(nz * 0.5f + 0.5f);
+        }
+        return true;
+    }
+
+    bool packSpecularRoughness(const LLImageRaw* specular, const LLImageRaw* roughness,
+                               F32 default_specular, F32 default_roughness,
+                               LLImageRaw& output)
+    {
+        if (!specular && !roughness) return false;
+        if ((specular && !isValidImage(*specular, true)) ||
+            (roughness && !isValidImage(*roughness, true)))
+        {
+            return false;
+        }
+        const LLImageRaw* reference = specular ? specular : roughness;
+        if ((specular && roughness &&
+             (specular->getWidth() != roughness->getWidth() ||
+              specular->getHeight() != roughness->getHeight())) ||
+            &output == specular || &output == roughness ||
+            !fitsSkinCompositeBudget(reference->getWidth(), reference->getHeight(), 4))
+        {
+            return false;
+        }
+
+        default_specular = clampUnitValue(default_specular);
+        default_roughness = clampUnitValue(default_roughness);
+        if (!output.resize(reference->getWidth(), reference->getHeight(), 4))
+        {
+            return false;
+        }
+        U8* out_data = output.getData();
+        if (!out_data) return false;
+
+        const S32 pixels = static_cast<S32>(reference->getWidth()) * reference->getHeight();
+        const U8 spec_default = encodeUnitChannel(default_specular);
+        const U8 rough_default = encodeUnitChannel(default_roughness);
+        for (S32 i = 0; i < pixels; ++i)
+        {
+            const S32 oi = i * 4;
+            out_data[oi] = specular
+                ? encodeUnitChannel(readScalar(specular, i, default_specular))
+                : spec_default;
+            out_data[oi + 1] = roughness
+                ? encodeUnitChannel(readScalar(roughness, i, default_roughness))
+                : rough_default;
+            out_data[oi + 2] = 0;   // Reserved subsurface mask.
+            out_data[oi + 3] = 255; // Reserved detail mask; neutral by default.
+        }
+        return true;
     }
 
     LayerDescriptor::LayerDescriptor()
