@@ -90,6 +90,8 @@ public:
     static bool isWordsName(const std::string& name);
 
     LLChatEntry* getChatBox() { return mInputEditor; }
+    // Insert local dictation into the editable input only; never sends chat.
+    void         insertSpeechToText(const std::string& text);
     void         setChatMentionPickerEnabled(bool enabled);
 
     S32 getMessageArchiveLength() { return static_cast<S32>(mMessageArchive.size()); }
