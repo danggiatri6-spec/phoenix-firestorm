@@ -1726,6 +1726,7 @@ set(viewer_HEADER_FILES
     llvoicechannel.h
     llvoiceclient.h
     llvoicevisualizer.h
+    llspeechtotext.h
     llvoicewebrtc.h
     llvoinventorylistener.h
     llvopartgroup.h
