@@ -3724,6 +3724,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     F32 surprised_brow_weight = 0.f;
     F32 worried_brow_weight = 0.f;
     F32 furrowed_brow_weight = 0.f;
+    bool widen_eyes = false;
     bool has_active_expression = false;
     LLMotionController::motion_list_t& active_motions =
         getMotionController().getActiveMotions();
@@ -3764,6 +3765,11 @@ void LLVOAvatar::updateFacialExpressionComposition()
             || motion_id == ANIM_AGENT_EXPRESS_AFRAID
             || motion_id == ANIM_AGENT_EXPRESS_OPEN_MOUTH)
         {
+            if (motion_id == ANIM_AGENT_EXPRESS_SURPRISE
+                || motion_id == ANIM_AGENT_EXPRESS_AFRAID)
+            {
+                widen_eyes = true;
+            }
             surprised_brow_weight = llmax(surprised_brow_weight, weight * 0.42f);
         }
         else if (motion_id == ANIM_AGENT_EXPRESS_WORRY
@@ -3838,6 +3844,26 @@ void LLVOAvatar::updateFacialExpressionComposition()
         if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
         {
             furrowed_brows->setWeight(smoothed, false);
+            facial_params_changed = true;
+        }
+    }
+
+    // Wide_Eyes is an animatable stock-rig parameter (group 1), unlike
+    // Blink_Left/Right which remain exclusively owned by LLEyeMotion.
+    // Apply only a restrained positive opening for surprise/fear; restore
+    // the avatar's own default for every other expression.
+    LLVisualParam* wide_eyes = getVisualParam("Wide_Eyes");
+    if (wide_eyes)
+    {
+        const F32 default_weight = wide_eyes->getDefaultWeight();
+        const F32 target = widen_eyes
+            ? default_weight + (wide_eyes->getMaxWeight() - default_weight) * 0.10f
+            : default_weight;
+        const F32 current = wide_eyes->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
+        {
+            wide_eyes->setWeight(smoothed, false);
             facial_params_changed = true;
         }
     }
