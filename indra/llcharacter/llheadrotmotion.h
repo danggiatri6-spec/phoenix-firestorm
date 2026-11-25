@@ -207,6 +207,8 @@ public:
     LLCharacter         *mCharacter;
 
     LLJoint             *mHeadJoint;
+    // True when the complete alternate eye pair is used as the primary rig.
+    bool                mUseAltEyesAsPrimary;
     LLPointer<LLJointState> mLeftEyeState;
     LLPointer<LLJointState> mRightEyeState;
     LLPointer<LLJointState> mAltLeftEyeState;
