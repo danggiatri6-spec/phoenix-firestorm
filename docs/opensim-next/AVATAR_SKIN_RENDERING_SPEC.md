@@ -115,3 +115,72 @@ A phase is not complete because source code compiles or a setting exists. Requir
 - No replacement of the existing animation, eye gaze, blink, facial expression or lip-sync systems.
 - No change to the server-side baked texture format.
 - No claim of GTA-level skin rendering until measured visual and performance results demonstrate it.
+
+
+## 7. Phase B — Material data contract (design decision)
+
+### 7.1 Keep three material systems separate
+
+The source audit found an existing `LLMaterial` class in `indra/llprimitive/llmaterial.h/.cpp`. It represents the legacy object-material protocol, including normal/specular texture IDs, UV transforms, specular color/exponent, environment intensity and alpha behavior. GLTF/PBR has its own material family.
+
+Do not extend either class to represent Avatar skin. Reusing them would conflate object-face material semantics, GLTF PBR semantics and the Avatar appearance/bake lifecycle. The Avatar skin contract is a separate viewer-side domain model.
+
+### 7.2 Proposed viewer-side type
+
+Initial implementation target (not yet created):
+
+- Header: `indra/newview/llavatarskinmaterial.h`
+- Source: `indra/newview/llavatarskinmaterial.cpp`
+- Namespace: `LLAvatarSkin`
+- Value type: `MaterialData`
+
+The value type should contain only stable material description data, not owning GPU objects or raw `LLViewerTexture*` pointers.
+
+Proposed fields:
+
+| Field | Type / default | Purpose |
+|---|---|---|
+| schema_version | U32 / 1 | Version the optional local material description |
+| base_color | existing baked texture / unchanged | Compatibility color source; no new required map |
+| normal_map_id | LLUUID / null | Optional tangent-space detail normal |
+| roughness_map_id | LLUUID / null | Optional roughness channel |
+| specular_map_id | LLUUID / null | Optional specular intensity/color data |
+| detail_mask_id | LLUUID / null | Optional mask for pores, freckles, lines or makeup |
+| roughness_factor | F32 / 0.65 | Scalar fallback when no roughness map exists |
+| specular_factor | F32 / 0.15 | Conservative scalar fallback |
+| subsurface_strength | F32 / 0.0 | Disabled by default |
+| subsurface_color | LLColor4 / neutral warm default | Tunable scattering tint, clamped by validation |
+| detail_strength | F32 / 0.0 | Disabled by default |
+| enabled | bool / false | Explicit opt-in; legacy rendering remains default |
+
+The proposed defaults are starting engineering values, not calibrated skin-science constants. They must be tuned against reference captures.
+
+### 7.3 Validation and ownership rules
+
+- Null map UUID means the channel is absent; shader code must use a neutral constant or skip the sample.
+- Clamp all scalar values to documented safe ranges at the data boundary.
+- Reject unsupported schema versions and fall back to legacy Avatar shading.
+- Store UUIDs and scalar metadata in the value object; resolve UUIDs to viewer-managed fetched textures through a separate resolver/cache layer.
+- Do not retain raw GPU texture pointers in persistent Avatar appearance data.
+- Material lifetime must follow the Avatar instance and texture cache rules; removal/replacement must release references safely.
+- Do not serialize this structure into existing appearance messages, baked texture comments, wearable assets or object-material LLSD in the first iteration.
+
+### 7.4 Ownership boundary
+
+The initial owner should be a viewer-side Avatar rendering component associated with `LLVOAvatar`, not `LLAvatarAppearance` and not `LLTexLayerSet`.
+
+Reason: `LLAvatarAppearance` is shared appearance/skeleton infrastructure, while `LLTexLayerSet` is the self-Avatar compositing/bake path. A viewer-only render material should not become a new appearance protocol dependency or be accidentally baked into the legacy color texture.
+
+A small accessor on `LLVOAvatar` may expose immutable `MaterialData` to the draw pool once implementation begins. The draw pool should not own asset parsing or network serialization.
+
+### 7.5 First implementation boundary
+
+The first code change should add only the value type, defaults, validation and unit tests. It must not yet:
+
+- bind new shader samplers;
+- alter `LLDrawPoolAvatar` draw state;
+- change shader source or G-buffer layout;
+- change avatar appearance messages, wearable assets or bake output;
+- add a creator UI or upload workflow.
+
+This isolates data-contract correctness before touching the render path.
