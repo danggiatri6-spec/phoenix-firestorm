@@ -3035,6 +3035,7 @@ if (LL_TESTS)
   include(LLAddBuildTest)
   SET(viewer_TEST_SOURCE_FILES
     llavatarskinmaterial.cpp
+     llavatarskintextureresolver.cpp
     llagentaccess.cpp
     lldateutil.cpp
 #    llmediadataclient.cpp
