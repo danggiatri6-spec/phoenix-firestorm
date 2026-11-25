@@ -8,6 +8,8 @@
 
 #include "../llavatarskinmaterial.h"
 
+#include <limits>
+
 namespace tut
 {
     struct avatarskinmaterial
@@ -93,4 +95,23 @@ namespace tut
         ensure("specular map remains null", material.specular_map_id.isNull());
         ensure("detail mask remains null", material.detail_mask_id.isNull());
     }
+    template<> template<>
+    void avatarskinmaterial_object_t::test<5>()
+    {
+        LLAvatarSkin::MaterialData material;
+        material.roughness_factor = std::numeric_limits<F32>::quiet_NaN();
+        material.specular_factor = std::numeric_limits<F32>::infinity();
+        material.subsurface_strength = -std::numeric_limits<F32>::infinity();
+        material.detail_strength = std::numeric_limits<F32>::quiet_NaN();
+        material.subsurface_color.mV[1] = std::numeric_limits<F32>::quiet_NaN();
+
+        material.sanitize();
+
+        ensure_equals("NaN roughness becomes zero", material.roughness_factor, 0.0f);
+        ensure_equals("infinite specular clamps to one", material.specular_factor, 1.0f);
+        ensure_equals("negative infinite subsurface becomes zero", material.subsurface_strength, 0.0f);
+        ensure_equals("NaN detail becomes zero", material.detail_strength, 0.0f);
+        ensure_equals("NaN color channel becomes zero", material.subsurface_color.mV[1], 0.0f);
+    }
+
 }
