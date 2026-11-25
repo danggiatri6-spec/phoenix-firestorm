@@ -3755,6 +3755,15 @@ void LLVOAvatar::updateFacialExpressionComposition()
         }
 
         const F32 weight = llclamp(motion->getPose()->getWeight(), 0.f, 1.f);
+        // A motion can remain in the controller while its pose is fading
+        // through zero. Do not treat a zero-weight pose as an active facial
+        // expression; doing so can hold the shared morph targets away from
+        // their defaults after the visible expression has already faded out.
+        if (weight <= 0.001f)
+        {
+            continue;
+        }
+
         has_active_expression = true;
         strongest_expression = llmax(strongest_expression, weight);
 
