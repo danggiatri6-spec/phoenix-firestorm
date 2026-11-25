@@ -24,7 +24,7 @@ namespace tut
         LLAvatarSkin::MaterialData material;
 
         ensure_equals("schema version", material.schema_version,
-                      LLAvatarSkin::MATERIAL_SCHEMA_VERSION);
+                      static_cast<U32>(1));
         ensure("disabled by default", !material.enabled);
         ensure("normal map absent by default", material.normal_map_id.isNull());
         ensure("roughness map absent by default", material.roughness_map_id.isNull());
