@@ -5941,9 +5941,21 @@ void LLAppViewer::idle()
     LL_PROFILE_ZONE_SCOPED_CATEGORY_APP;
     pingMainloopTimeout("Main:Idle");
 
+    // A backend/model error is reported by the worker without touching UI.
+    // Stop the microphone tap here on the Viewer thread and restore the Nearby
+    // Chat button to its idle state.
+    if (mSpeechToText.hasFailed())
+    {
+        const std::string error = mSpeechToText.getError();
+        stopSpeechToTextDictation();
+        if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+        {
+            nearby_chat->onSpeechToTextFailed(error);
+        }
+    }
     // Local dictation is opt-in: this path does nothing until the user starts
     // a recognizer through startSpeechToTextDictation().
-    if (mSpeechToText.isRunning() && LLWebRTCVoiceClient::instanceExists())
+    else if (mSpeechToText.isRunning() && LLWebRTCVoiceClient::instanceExists())
     {
         LLWebRTCVoiceClient::getInstance()->pumpSpeechCapture(mSpeechToText, 8);
 
