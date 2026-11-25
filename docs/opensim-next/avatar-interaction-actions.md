@@ -545,3 +545,10 @@ When a conflict is present, the social layer simply does not acquire TALK; it do
 
 
 The conflict gate is also re-evaluated while the social TALK lease is active. If a conflicting upper-body motion begins mid-speech, the speech grace period is overridden and the controller releases its own TALK lease through the existing sequence-aware stop guard. Once the conflict clears, ongoing voice activity may acquire TALK again. Other motions are never stopped or modified.
+
+
+### First body-region compatibility policy (2026-11-25)
+
+Added a read-only body-region classifier over active motion pose joint states. It labels medium-or-higher-priority joints as face, head/neck, arms, hands, torso, legs, or unknown. Joint-level priority is preferred; motion base priority is the fallback. Unrecognized joint names are classified as unknown rather than silently assumed safe.
+
+The first compatibility rule is intentionally narrow: automatic TALK conflicts with arms, hands, torso, or unknown regions; face-only, head/neck-only, and leg-only motion may coexist. Unknown future social motion kinds fail closed. This is an initial policy layer, not a complete coordinator: it does not yet arbitrate facial expression leases, nod/wave leases, paired motions, or motion transitions as one shared queue. The joint-name classifier needs validation against standard and custom avatar rigs. No C++ build or runtime tests have been run.
