@@ -5904,6 +5904,17 @@ bool LLAppViewer::startSpeechToTextDictation(const std::string& model_path,
         return false;
     }
 
+    // Validate the selected external model before starting the worker or
+    // enabling the microphone tap. The recognizer loads the model lazily on
+    // its worker thread, so without this check a missing path would look like
+    // a successful start while producing no transcript.
+    if (!LLFile::isfile(model_path))
+    {
+        LL_WARNS("SpeechToText") << "Whisper model file does not exist: "
+                                  << model_path << LL_ENDL;
+        return false;
+    }
+
     auto recognizer = createWhisperSpeechRecognizer(model_path, language);
     if (!recognizer)
     {
