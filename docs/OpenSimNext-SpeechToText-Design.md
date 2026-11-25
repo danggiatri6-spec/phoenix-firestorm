@@ -130,3 +130,14 @@ The Viewer-side worker boundary is now present:
 - Registered `llspeechtotext.cpp` in the Viewer CMake source list.
 
 The worker currently has no concrete recognition backend. This is intentional: Whisper.cpp model loading, CPU/thread settings, language selection, licensing, and model-file lifecycle must be integrated and tested before enabling dictation in the UI. No text is recognized or inserted into chat yet. The branch has not been built in this environment; a Windows x64 build remains a required validation step.
+
+## Capture/worker hardening update (2026-11-25)
+
+- Hardened worker startup: if std::thread creation fails, the service releases the recognizer and returns to a stopped state rather than remaining marked as running.
+- Tightened submitted-frame validation: accepted sample rates are 8–48 kHz, channels are limited to mono/stereo, and interleaved sample counts must align to the channel count.
+- Hardened the WebRTC capture tap against null audio buffers, zero-length frames, unsupported channel counts, and multiplication overflow when checking the fixed PCM frame capacity.
+- These are source changes only; no Windows x64 build or runtime test has been run in this environment.
+
+## Integration boundary remains unchanged
+
+The PCM tap and worker are not yet connected to an active Viewer idle callback or Nearby Chat UI. pumpSpeechCapture() is currently an available bridge method, not an automatically running loop. There is still no concrete recognizer backend, model loading, microphone dictation button, transcript-to-chat-editor insertion, or per-Avatar remote subtitle path. The next implementation step must wire a service lifecycle and main-thread result pump without enabling microphone capture until the user explicitly starts dictation.
