@@ -88,6 +88,11 @@ public:
 
     LL::WorkQueue::weak_t getVoiceWorkQueue() const { return mVoiceWorkQueue; }
 
+    // OpenSim-next speech input bridge. PCM capture is disabled until explicitly
+    // requested by the user; polling is non-blocking and intended for the viewer thread.
+    void setSpeechCaptureEnabled(bool enabled);
+    bool getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioFrame& frame);
+
     const LLVoiceVersionInfo& getVersion() override;
     void                      updateVersion();
 
