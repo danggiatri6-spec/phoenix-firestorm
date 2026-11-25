@@ -3810,6 +3810,26 @@ void LLVOAvatar::updateFacialExpressionComposition()
         ? facial_delta / (facial_tau + facial_delta)
         : 0.f;
 
+    // Publish a restrained emotional pitch hint for this avatar's existing
+    // idle head motion. Sad/worried expressions bias slightly downward;
+    // surprise/fear can bias slightly upward. The head motion consumes this
+    // only when no explicit look target is active.
+    const F32 worried_head_weight = worried_brow_weight / 0.34f;
+    const F32 surprised_head_weight = widen_eyes_weight;
+    F32 target_head_pitch_bias = 0.f;
+    if (worried_head_weight > 0.f
+        && worried_head_weight >= surprised_head_weight)
+    {
+        target_head_pitch_bias = 0.8f * DEG_TO_RAD * llclamp(worried_head_weight, 0.f, 1.f);
+    }
+    else if (surprised_head_weight > 0.f)
+    {
+        target_head_pitch_bias = -0.35f * DEG_TO_RAD
+            * llclamp(surprised_head_weight, 0.f, 1.f);
+    }
+    mFacialHeadPitchBias +=
+        (target_head_pitch_bias - mFacialHeadPitchBias) * facial_blend;
+
     // The three brow shapes are competing emotional cues. When two
     // expression families overlap during a cross-fade, let the strongest
     // weighted cue lead instead of stacking opposing brow shapes. The
