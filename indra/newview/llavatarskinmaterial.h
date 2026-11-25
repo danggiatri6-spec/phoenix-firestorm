@@ -14,6 +14,8 @@
 #include <vector>
 #include "v4color.h"
 
+class LLImageRaw;
+
 namespace LLAvatarSkin
 {
     static constexpr U32 MATERIAL_SCHEMA_VERSION = 1;
@@ -79,6 +81,18 @@ namespace LLAvatarSkin
     // Inputs and output are linear [0,1] values; opacity is clamped internally.
     LLColor4 compositeLayer(const LLColor4& base, const LLColor4& layer,
                             F32 opacity, BlendMode mode);
+
+    // CPU-side skin surface compositing. Inputs must have matching dimensions;
+    // output is independently allocated and never aliases an input.
+    static constexpr S32 MAX_SKIN_COMPOSITE_BYTES = 32 * 1024 * 1024;
+
+    bool compositeNormalMap(const LLImageRaw& base, const LLImageRaw& detail,
+                            F32 detail_strength, LLImageRaw& output);
+    // At least one map must be supplied. Scalar values are read from R (or the
+    // only channel); absent maps use the explicit defaults.
+    bool packSpecularRoughness(const LLImageRaw* specular, const LLImageRaw* roughness,
+                               F32 default_specular, F32 default_roughness,
+                               LLImageRaw& output);
 
     // CPU-side description only. Texture UUIDs are resolved by the viewer's
     // texture manager; this structure must never own GPU texture pointers.
