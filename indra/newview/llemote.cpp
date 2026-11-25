@@ -112,6 +112,15 @@ bool LLEmote::onActivate()
 //-----------------------------------------------------------------------------
 bool LLEmote::onUpdate(F32 time, U8* joint_mask)
 {
+    // The avatar/character may be torn down while a motion is still present in
+    // the controller. Validate the owner before dereferencing a cached visual
+    // parameter, then discard that cache for any later update.
+    if (!mCharacter)
+    {
+        mParam = NULL;
+        return true;
+    }
+
     if( mParam )
     {
         F32 weight = mParam->getMinWeight() + mPose.getWeight() * (mParam->getMaxWeight() - mParam->getMinWeight());
@@ -119,12 +128,7 @@ bool LLEmote::onUpdate(F32 time, U8* joint_mask)
         //mParam->setWeight(weight);
         mParam->setWeight(weight, false);
 
-        // <FS:ND> mCharacter being 0 might be one of the reasons for FIRE-11529
-        if( !mCharacter )
-            return true;
-        // </FS:ND>
-
-        // Cross fade against the default parameter
+        // Cross fade against the default parameter.
         LLVisualParam* default_param = mCharacter->getVisualParam( "Express_Closed_Mouth" );
         if( default_param )
         {
