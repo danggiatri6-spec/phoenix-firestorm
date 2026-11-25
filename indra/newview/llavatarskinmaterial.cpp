@@ -7,8 +7,6 @@
 
 #include "llavatarskinmaterial.h"
 
-#include <algorithm>
-
 namespace
 {
     F32 clampUnitValue(F32 value)
