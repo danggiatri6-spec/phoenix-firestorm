@@ -209,3 +209,10 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - The voice signaling DataChannel maintains participants keyed by Avatar UUID, while WebRTC connections are associated with voice channel/session state. The inspected code does not establish a deterministic mapping from an incoming receiver/track ID to one participant UUID.
 - Therefore no remote subtitle attribution has been added. A single receiver/track must not be assumed to represent an individual Avatar, and the local `RecordedDataIsAvailable()` capture tap is only the local microphone path. A server/gateway-level per-participant track guarantee or explicit authenticated track-to-participant metadata is required before implementing remote captions.
 - Source changes only. No Windows x64 compile, CI result, model load test, or live voice-session test has yet been confirmed for this update.
+
+
+## Nearby Chat close lifecycle update (2026-11-25)
+
+- Closing the Nearby Chat floater now explicitly stops local speech-to-text dictation, disables the WebRTC capture tap through the Viewer service, joins the recognizer worker, and restores the button to its idle `Mic` state.
+- This affects only the local dictation feature. It does not disable the user's normal voice connection, microphone, or push-to-talk state.
+- The close callback uses the existing `LLFloater::onClose(bool)` lifecycle hook. This change is source-level and still requires Windows x64 compile and runtime verification.
