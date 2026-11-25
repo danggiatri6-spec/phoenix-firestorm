@@ -62,8 +62,11 @@ const F32 EYE_LOOK_AWAY_MAX_YAW = 0.15f; // max yaw of eye look away motion
 const F32 EYE_LOOK_AWAY_MAX_PITCH = 0.12f; // max pitch of look away motion
 const F32 EYE_ROT_LIMIT_ANGLE = F_PI_BY_TWO * 0.3f; //max angle in radians for eye rotation
 
-const F32 EYE_BLINK_MIN_TIME = 0.5f; // minimum amount of time between blinks
-const F32 EYE_BLINK_MAX_TIME = 8.f; // maximum amount of time between blinks
+const F32 EYE_BLINK_MIN_TIME = 2.2f; // ordinary blink interval lower bound
+const F32 EYE_BLINK_MAX_TIME = 6.8f; // ordinary blink interval upper bound
+const F32 EYE_BLINK_DOUBLE_MIN = 0.55f; // occasional natural double-blink interval
+const F32 EYE_BLINK_DOUBLE_MAX = 0.95f;
+const F32 EYE_BLINK_DOUBLE_CHANCE = 0.12f;
 const F32 EYE_BLINK_CLOSE_TIME = 0.03f; // how long the eye stays closed in a blink
 const F32 EYE_BLINK_SPEED = 0.015f;     // seconds it takes for a eye open/close movement
 const F32 EYE_BLINK_TIME_DELTA = 0.005f; // time between one eye starting a blink and the other following
@@ -598,7 +601,19 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
             if (rightEyeBlinkMorph == 0.f)
             {
                 mEyesClosed = false;
-                mEyeBlinkTime = EYE_BLINK_MIN_TIME + ll_frand(EYE_BLINK_MAX_TIME - EYE_BLINK_MIN_TIME);
+                // Most blinks use a relaxed 2.2–6.8 second cadence. A small
+                // minority form a quick double blink, avoiding a perfectly
+                // uniform metronomic pattern without frequent twitching.
+                if (ll_frand() < EYE_BLINK_DOUBLE_CHANCE)
+                {
+                    mEyeBlinkTime = EYE_BLINK_DOUBLE_MIN +
+                        ll_frand(EYE_BLINK_DOUBLE_MAX - EYE_BLINK_DOUBLE_MIN);
+                }
+                else
+                {
+                    mEyeBlinkTime = EYE_BLINK_MIN_TIME +
+                        ll_frand(EYE_BLINK_MAX_TIME - EYE_BLINK_MIN_TIME);
+                }
                 mEyeBlinkTimer.reset();
             }
         }
