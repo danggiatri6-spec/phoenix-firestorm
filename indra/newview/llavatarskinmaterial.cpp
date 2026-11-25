@@ -1,11 +1,13 @@
 /**
  * @file llavatarskinmaterial.cpp
- * @brief Defaults and validation for viewer-local Avatar skin materials.
+ * @brief Defaults and validation for native Avatar skin material/layer data.
  */
 
 #include "llviewerprecompiledheaders.h"
 
 #include "llavatarskinmaterial.h"
+
+#include <algorithm>
 
 namespace
 {
@@ -18,10 +20,145 @@ namespace
         }
         return value > 1.0f ? 1.0f : value;
     }
+
+    bool isValidLayerType(LLAvatarSkin::LayerType type)
+    {
+        switch (type)
+        {
+        case LLAvatarSkin::LayerType::COLOR_OVERLAY:
+        case LLAvatarSkin::LayerType::MICRO_DETAIL:
+        case LLAvatarSkin::LayerType::MAKEUP:
+        case LLAvatarSkin::LayerType::TATTOO_OVERLAY:
+        case LLAvatarSkin::LayerType::SURFACE_NORMAL:
+        case LLAvatarSkin::LayerType::SURFACE_ROUGHNESS:
+        case LLAvatarSkin::LayerType::SURFACE_SPECULAR:
+        case LLAvatarSkin::LayerType::SUBSURFACE_MASK:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool isValidBlendMode(LLAvatarSkin::BlendMode mode)
+    {
+        switch (mode)
+        {
+        case LLAvatarSkin::BlendMode::NORMAL:
+        case LLAvatarSkin::BlendMode::MULTIPLY:
+        case LLAvatarSkin::BlendMode::ADD:
+        case LLAvatarSkin::BlendMode::SOFT_LIGHT:
+            return true;
+        default:
+            return false;
+        }
+    }
 }
 
 namespace LLAvatarSkin
 {
+    LayerDescriptor::LayerDescriptor()
+    :   type(LayerType::COLOR_OVERLAY),
+        blend_mode(BlendMode::NORMAL),
+        opacity(1.0f),
+        order(0),
+        enabled(false)
+    {
+    }
+
+    void LayerDescriptor::sanitize()
+    {
+        opacity = clampUnitValue(opacity);
+        if (!isValidLayerType(type) || !isValidBlendMode(blend_mode) ||
+            layer_id.isNull() || texture_id.isNull())
+        {
+            enabled = false;
+        }
+    }
+
+    bool LayerDescriptor::isValid() const
+    {
+        return isValidLayerType(type) && isValidBlendMode(blend_mode) &&
+               !layer_id.isNull() && !texture_id.isNull();
+    }
+
+    void LayerDescriptor::collectTextureIds(std::set<LLUUID>& ids) const
+    {
+        if (!texture_id.isNull()) ids.insert(texture_id);
+        if (!mask_id.isNull()) ids.insert(mask_id);
+    }
+
+    LayerStack::LayerStack()
+    :   schema_version(LAYER_STACK_SCHEMA_VERSION)
+    {
+    }
+
+    void LayerStack::sanitize()
+    {
+        if (!isSupportedVersion())
+        {
+            for (std::vector<LayerDescriptor>::iterator it = layers.begin();
+                 it != layers.end(); ++it)
+            {
+                it->enabled = false;
+            }
+            return;
+        }
+
+        std::stable_sort(layers.begin(), layers.end(),
+            [](const LayerDescriptor& lhs, const LayerDescriptor& rhs)
+            {
+                return lhs.order < rhs.order;
+            });
+
+        std::set<LLUUID> seen_layer_ids;
+        U32 enabled_count = 0;
+        for (std::vector<LayerDescriptor>::iterator it = layers.begin();
+             it != layers.end(); ++it)
+        {
+            it->sanitize();
+            if (!it->enabled)
+            {
+                continue;
+            }
+
+            if (!seen_layer_ids.insert(it->layer_id).second ||
+                enabled_count >= MAX_ENABLED_SKIN_LAYERS)
+            {
+                it->enabled = false;
+                continue;
+            }
+            ++enabled_count;
+        }
+    }
+
+    bool LayerStack::isSupportedVersion() const
+    {
+        return schema_version == LAYER_STACK_SCHEMA_VERSION;
+    }
+
+    U32 LayerStack::getEnabledLayerCount() const
+    {
+        U32 count = 0;
+        for (std::vector<LayerDescriptor>::const_iterator it = layers.begin();
+             it != layers.end(); ++it)
+        {
+            if (it->enabled && it->isValid())
+            {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    void LayerStack::collectTextureIds(std::set<LLUUID>& ids) const
+    {
+        for (std::vector<LayerDescriptor>::const_iterator it = layers.begin();
+             it != layers.end(); ++it)
+        {
+            it->collectTextureIds(ids);
+        }
+    }
+
     MaterialData::MaterialData()
     :   schema_version(MATERIAL_SCHEMA_VERSION),
         roughness_factor(0.65f),
