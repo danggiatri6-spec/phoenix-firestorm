@@ -36,6 +36,8 @@
 #include "fschatparticipants.h"
 #include "rlvhandler.h"
 
+#include <string>
+
 class FSChatHistory;
 class LLChatEntry;
 class LLComboBox;
