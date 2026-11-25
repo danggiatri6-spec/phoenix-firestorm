@@ -30,6 +30,19 @@ namespace tut
     }
 
     template<> template<>
+    void avatarskintextureresolver_object_t::test<3>()
+    {
+        LLAvatarSkin::TextureResolver resolver;
+        LLUUID texture_id;
+        texture_id.generate();
+
+        resolver.release(texture_id);
+
+        ensure("releasing an uncached UUID is safe",
+               resolver.getState(texture_id) == LLAvatarSkin::TextureResolver::State::UNASSIGNED);
+    }
+
+    template<> template<>
     void avatarskintextureresolver_object_t::test<2>()
     {
         LLAvatarSkin::TextureResolver resolver;
