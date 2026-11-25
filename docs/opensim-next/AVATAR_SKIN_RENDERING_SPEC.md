@@ -223,4 +223,8 @@ The test cases cover:
 - Disabling an unsupported schema version.
 - Null optional texture UUIDs remaining valid.
 
+
+- Non-finite floating-point inputs (NaN and positive/negative infinity) are normalized to safe [0, 1] values; NaN and negative infinity become zero, positive infinity becomes one.
+- A fifth TUT case covers these non-finite inputs.
+
 These tests are authored and registered but have **not yet been compiled or executed**. A passing test result must not be inferred from source registration.
