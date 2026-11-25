@@ -806,6 +806,7 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mLipSyncActive = false;
     mOohMorph      = NULL;
     mAahMorph      = NULL;
+    mLipSyncUsesFallbackMorphs = false;
     mLipSyncOohWeight = 0.f;
     mLipSyncAahWeight = 0.f;
     mLipSyncTimer.reset();
@@ -2555,6 +2556,7 @@ void LLVOAvatar::buildCharacter()
     //-------------------------------------------------------------------------
     mOohMorph     = getVisualParam( "Lipsync_Ooh" );
     mAahMorph     = getVisualParam( "Lipsync_Aah" );
+    mLipSyncUsesFallbackMorphs = !mOohMorph || !mAahMorph;
 
     // If we don't have the Ooh morph, use the Kiss morph
     if (!mOohMorph)
@@ -3691,6 +3693,40 @@ F32 LLVOAvatar::calcMorphAmount() const
 
 void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
 {
+    // Legacy avatar meshes may lack dedicated lip-sync morphs. In that case
+    // lip-sync falls back to Express_Kiss / Express_Open_Mouth, which are also
+    // driven by standard facial expression animations. Do not write those
+    // shared morphs while an expression owns the face; let LLEmote retain the
+    // expression instead of having the voice update overwrite it.
+    const bool facial_expression_active =
+        mSignaledAnimations.find(ANIM_AGENT_EXPRESS_AFRAID) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_ANGER) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_BORED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_CRY) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_DISDAIN) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_EMBARRASSED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_FROWN) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_KISS) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_LAUGH) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_OPEN_MOUTH) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_REPULSED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SAD) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SHRUG) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SMILE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SURPRISE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_TONGUE_OUT) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_TOOTHSMILE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_WINK) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_WORRY) != mSignaledAnimations.end();
+
+    if (mLipSyncUsesFallbackMorphs && facial_expression_active)
+    {
+        // Keep the timer current, but leave the shared legacy morphs entirely
+        // to the expression motion until that expression has finished.
+        mLipSyncTimer.reset();
+        return;
+    }
+
     const bool speaking = voice_enabled
         && mLastRezzedStatus > 0 // no point updating lip-sync for clouds
         && LLVoiceVisualizer::getLipSyncEnabled()
