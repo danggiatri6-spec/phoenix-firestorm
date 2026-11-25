@@ -56,4 +56,12 @@ namespace LLAvatarSkin
     {
         return schema_version == MATERIAL_SCHEMA_VERSION;
     }
+
+    void MaterialData::collectTextureIds(std::set<LLUUID>& ids) const
+    {
+        if (!normal_map_id.isNull()) ids.insert(normal_map_id);
+        if (!roughness_map_id.isNull()) ids.insert(roughness_map_id);
+        if (!specular_map_id.isNull()) ids.insert(specular_map_id);
+        if (!detail_mask_id.isNull()) ids.insert(detail_mask_id);
+    }
 }
