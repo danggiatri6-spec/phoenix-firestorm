@@ -86,7 +86,8 @@ LLHeadRotMotion::LLHeadRotMotion(const LLUUID &id) :
     mIdleHeadYaw(0.f),
     mIdleHeadPitch(0.f),
     mIdleHeadTargetYaw(0.f),
-    mIdleHeadTargetPitch(0.f)
+    mIdleHeadTargetPitch(0.f),
+    mTorsoRecruitment(0.f)
 {
     mName = "head_rot";
 
@@ -188,6 +189,8 @@ bool LLHeadRotMotion::onActivate()
     mIdleHeadPitch = 0.f;
     mIdleHeadTargetYaw = 0.f;
     mIdleHeadTargetPitch = 0.f;
+    mTorsoTurnTimer.reset();
+    mTorsoRecruitment = 0.f;
     return true;
 }
 
@@ -292,10 +295,27 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     F32 head_yaw = 0.f;
     head_rot_local.getEulerAngles(&head_roll, &head_pitch, &head_yaw);
     const F32 abs_head_yaw = head_yaw < 0.f ? -head_yaw : head_yaw;
-    const F32 torso_recruitment = llclamp(
+    const F32 yaw_recruitment = llclamp(
         (abs_head_yaw - 12.f * DEG_TO_RAD) / (33.f * DEG_TO_RAD),
         0.f, 1.f);
-    const F32 torso_follow = TORSO_LAG + 0.10f * torso_recruitment;
+
+    // A short glance should not recruit the torso. Require a sustained turn,
+    // then ease the torso contribution in and out to avoid a sudden posture shift.
+    if (abs_head_yaw > 18.f * DEG_TO_RAD)
+    {
+        // Keep the timer running while the head remains turned.
+    }
+    else
+    {
+        mTorsoTurnTimer.reset();
+    }
+    const F32 sustained_turn = llclamp(
+        mTorsoTurnTimer.getElapsedTimeF32() / 0.45f, 0.f, 1.f);
+    const F32 target_recruitment = yaw_recruitment * sustained_turn;
+    const F32 recruitment_blend = LLSmoothInterpolation::getInterpolant(0.35f);
+    mTorsoRecruitment +=
+        (target_recruitment - mTorsoRecruitment) * recruitment_blend;
+    const F32 torso_follow = TORSO_LAG + 0.10f * mTorsoRecruitment;
 
     // Set torso target rotation to lag behind the head, with a little more
     // participation as the avatar turns farther to either side.
