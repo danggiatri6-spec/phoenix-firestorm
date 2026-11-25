@@ -26,6 +26,7 @@
 
 #include "llviewerprecompiledheaders.h"
 #include "llagentcamera.h"
+#include "llvoavatarself.h"
 
 #include "pipeline.h"
 
@@ -97,7 +98,6 @@ static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, c
 #include "llviewerobjectlist.h"
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
-#include "llvoavatarself.h"
 #include "llwindow.h"
 #include "llworld.h"
 // [RLVa:KB] - Checked: 2010-05-10 (RLVa-1.2.0g)
