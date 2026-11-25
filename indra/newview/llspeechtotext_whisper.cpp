@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(LL_HAS_WHISPER_CPP)
@@ -85,7 +86,7 @@ public:
                 static_cast<std::size_t>(source), input_frames - 1);
             const std::size_t right = std::min(left + 1, input_frames - 1);
             const float fraction = source - static_cast<float>(left);
-            mAudio.insert(mAudio.end(), mono[left] * (1.0f - fraction) +
+            mAudio.push_back(mono[left] * (1.0f - fraction) +
                 mono[right] * fraction);
         }
 
