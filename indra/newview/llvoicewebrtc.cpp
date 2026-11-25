@@ -303,10 +303,19 @@ bool LLWebRTCVoiceClient::getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioF
 
 std::size_t LLWebRTCVoiceClient::pumpSpeechCapture(LLSpeechToText& service, std::size_t max_frames)
 {
-    if (!service.isRunning() || sShuttingDown || !mWebRTCDeviceInterface)
+    if (sShuttingDown || !mWebRTCDeviceInterface)
     {
         return 0;
     }
+
+    // The service is started only by an explicit user dictation action.
+    // Keep the hardware tap synchronized with that service's lifetime.
+    if (!service.isRunning())
+    {
+        setSpeechCaptureEnabled(false);
+        return 0;
+    }
+    setSpeechCaptureEnabled(true);
 
     std::size_t submitted = 0;
     llwebrtc::LLWebRTCCapturedAudioFrame frame;
