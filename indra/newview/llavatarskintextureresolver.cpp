@@ -71,6 +71,14 @@ namespace LLAvatarSkin
         return texture->isFullyLoaded() ? State::READY : State::LOADING;
     }
 
+    void TextureResolver::release(const LLUUID& texture_id)
+    {
+        if (!texture_id.isNull())
+        {
+            mTextures.erase(texture_id);
+        }
+    }
+
     void TextureResolver::clear()
     {
         mTextures.clear();
