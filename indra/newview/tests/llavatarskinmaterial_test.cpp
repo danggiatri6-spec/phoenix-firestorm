@@ -228,4 +228,53 @@ namespace tut
         stack.sanitize();
         ensure("unknown layer schema disables content", stack.getEnabledLayerCount() == 0);
     }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<13>()
+    {
+        LLColor4 base(1.0f, 0.0f, 0.0f, 1.0f);
+        LLColor4 layer(0.0f, 0.0f, 1.0f, 1.0f);
+        LLColor4 result = LLAvatarSkin::compositeLayer(
+            base, layer, 0.5f, LLAvatarSkin::BlendMode::NORMAL);
+        ensure_equals("normal blend red", result.mV[0], 0.5f);
+        ensure_equals("normal blend blue", result.mV[2], 0.5f);
+        ensure_equals("opaque base remains opaque", result.mV[3], 1.0f);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<14>()
+    {
+        LLColor4 base(0.8f, 0.4f, 0.2f, 1.0f);
+        LLColor4 layer(0.5f, 0.5f, 0.5f, 1.0f);
+        LLColor4 result = LLAvatarSkin::compositeLayer(
+            base, layer, 1.0f, LLAvatarSkin::BlendMode::MULTIPLY);
+        ensure_equals("multiply red", result.mV[0], 0.4f);
+        ensure_equals("multiply green", result.mV[1], 0.2f);
+        ensure_equals("multiply blue", result.mV[2], 0.1f);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<15>()
+    {
+        LLColor4 base(0.2f, 0.3f, 0.4f, 1.0f);
+        LLColor4 transparent_layer(1.0f, 0.0f, 0.0f, 0.0f);
+        LLColor4 result = LLAvatarSkin::compositeLayer(
+            base, transparent_layer, 1.0f, LLAvatarSkin::BlendMode::ADD);
+        ensure_equals("transparent layer leaves red", result.mV[0], base.mV[0]);
+        ensure_equals("transparent layer leaves green", result.mV[1], base.mV[1]);
+        ensure_equals("transparent layer leaves blue", result.mV[2], base.mV[2]);
+    }
+
+    template<> template<>
+    void avatarskinmaterial_object_t::test<16>()
+    {
+        LLColor4 base(0.0f, 0.0f, 0.0f, 0.0f);
+        LLColor4 layer(0.4f, 0.6f, 0.8f, 1.0f);
+        LLColor4 result = LLAvatarSkin::compositeLayer(
+            base, layer, 2.0f, LLAvatarSkin::BlendMode::NORMAL);
+        ensure_equals("transparent base receives layer red", result.mV[0], 0.4f);
+        ensure_equals("transparent base receives layer green", result.mV[1], 0.6f);
+        ensure_equals("transparent base receives layer blue", result.mV[2], 0.8f);
+        ensure_equals("opacity clamps to one", result.mV[3], 1.0f);
+    }
 }
