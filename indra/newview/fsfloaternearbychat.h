@@ -156,6 +156,7 @@ private:
     LLPanelEmojiComplete* mEmojiRecentIconsCtrl;
     LLButton*             mSendChatButton;
     LLButton*             mSpeechToTextButton;
+    bool                  mSpeechToTextActive;
     LLComboBox*           mChatTypeCombo;
 
     LLLayoutPanel* mChatLayoutPanel;
