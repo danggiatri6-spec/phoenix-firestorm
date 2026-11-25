@@ -33,7 +33,7 @@ namespace LLAvatarSkin
         // the entry is cached; the texture manager remains the resource owner.
         LLViewerFetchedTexture* resolve(const LLUUID& texture_id);
 
-        State getState(const LLUUID& texture_id) const;
+        State getState(const LLUUID& texture_id);
 
         // Release this Avatar's references. The global texture manager/cache
         // continues to manage the underlying fetched texture.
