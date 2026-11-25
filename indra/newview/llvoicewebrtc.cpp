@@ -262,6 +262,7 @@ void LLWebRTCVoiceClient::cleanupSingleton()
         mAvatarNameCacheConnection.disconnect();
     }
 
+    setSpeechCaptureEnabled(false);
     sShuttingDown = true;
     if (mSession)
     {
