@@ -198,3 +198,14 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - A Windows CI run was created for the branch. Subsequent commits can supersede/cancel earlier runs through the workflow's existing concurrency policy; the latest run must be checked before treating validation as complete.
 - Added cooperative backend cancellation to the recognizer contract. The worker requests cancellation before joining; the Whisper adapter sets an atomic stop flag and wires it to whisper.cpp's supported GGML abort callback. This should allow an active inference to stop at a computation boundary instead of forcing the UI to wait for the entire five-second decode.
 - Model file loading itself is not yet cancellable. Windows CI and runtime testing must verify that the pinned release exposes the callback fields and that stopping during inference behaves as expected.
+
+
+## Backend failure reporting and remote-track identity audit (2026-11-25)
+
+- `LLSpeechToText` now exposes a worker failure state and error text. Exceptions from model initialization or inference are captured on the worker thread instead of being silently discarded.
+- The Whisper adapter reports an explicit error when the selected file cannot initialize a Whisper context, and reports non-zero inference return codes.
+- The Viewer idle loop observes worker failure on the main thread, disables the speech capture tap, stops/joins the worker, and asks Nearby Chat to restore its `Mic` / `Stop` control with the failure reason in its tooltip and log. Model loading and inference remain off the UI/audio callback threads.
+- The remote-audio audit found that `LLWebRTCPeerConnectionImpl::OnAddTrack()` receives a WebRTC receiver and stream list, but currently only adjusts receiver codec parameters. It does not register a per-track PCM sink or retain a receiver-to-avatar mapping.
+- The voice signaling DataChannel maintains participants keyed by Avatar UUID, while WebRTC connections are associated with voice channel/session state. The inspected code does not establish a deterministic mapping from an incoming receiver/track ID to one participant UUID.
+- Therefore no remote subtitle attribution has been added. A single receiver/track must not be assumed to represent an individual Avatar, and the local `RecordedDataIsAvailable()` capture tap is only the local microphone path. A server/gateway-level per-participant track guarantee or explicit authenticated track-to-participant metadata is required before implementing remote captions.
+- Source changes only. No Windows x64 compile, CI result, model load test, or live voice-session test has yet been confirmed for this update.
