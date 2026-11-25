@@ -3893,11 +3893,17 @@ void LLVOAvatar::updateFacialExpressionComposition()
         + (1.f - strongest_expression)
             * (closed_mouth->getMaxWeight() - closed_mouth->getMinWeight());
 
-    // One final write per avatar/frame makes overlapping expression fades
-    // deterministic while preserving each expression's own morph weight.
-    if (fabsf(closed_mouth->getWeight() - closed_mouth_weight) > 0.001f)
+    // Smooth the shared mouth-closure correction with the same facial
+    // transition as the brows and eye opening. Read the current morph value,
+    // not its animation target, so overlapping expression fades remain
+    // continuous instead of snapping the mouth on each frame.
+    const F32 current_closed_mouth = closed_mouth->getCurrentWeight();
+    const F32 smoothed_closed_mouth = current_closed_mouth
+        + (closed_mouth_weight - current_closed_mouth) * facial_blend;
+    if (fabsf(current_closed_mouth - closed_mouth_weight) > 0.001f
+        && fabsf(current_closed_mouth - smoothed_closed_mouth) > 0.0001f)
     {
-        closed_mouth->setWeight(closed_mouth_weight, false);
+        closed_mouth->setWeight(smoothed_closed_mouth, false);
         facial_params_changed = true;
     }
 
