@@ -228,3 +228,30 @@ The test cases cover:
 - A fifth TUT case covers these non-finite inputs.
 
 These tests are authored and registered but have **not yet been compiled or executed**. A passing test result must not be inferred from source registration.
+
+## Phase B2: Viewer texture resolver
+
+The first Viewer-side resolver adapter is now present:
+
+- `indra/newview/llavatarskintextureresolver.h`
+- `indra/newview/llavatarskintextureresolver.cpp`
+
+The resolver keeps `MaterialData` UUID-only and stores its own `LLPointer<LLViewerFetchedTexture>` references in a per-resolver cache. It obtains textures through `LLViewerTextureManager::getFetchedTexture()`, reusing the existing `gTextureList` lookup/fetch/cache path rather than creating a parallel texture system.
+
+Resolver state values are:
+
+- `UNASSIGNED`: null UUID or no cached entry yet.
+- `LOADING`: a cached texture has not completed fetching.
+- `READY`: the texture reports complete downloaded dimensions and no active fetcher. This does not prove GPU upload or successful rendering.
+- `MISSING`: the Viewer texture reports a missing asset.
+- `DELETED`: a cached texture has entered the deleted state.
+
+A deleted entry is discarded and may be resolved again. `clear()` releases only the resolver's references; it does not directly destroy textures managed by the Viewer texture list.
+
+Current scope and limitations:
+
+- The resolver is registered in the Viewer CMake source/header lists.
+- It is not yet owned by `LLVOAvatar`; Avatar construction, `markDead()`, and destruction wiring remain a separate integration step.
+- No draw-pool, shader, sampler, material upload, wearable, bake, or network protocol changes have been made.
+- No resolver unit test, Windows build, or runtime texture-fetch test has been executed yet.
+- Before shader integration, define fallback behavior for missing/failed optional maps and verify the GL texture is usable at bind time.
