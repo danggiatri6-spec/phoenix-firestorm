@@ -950,6 +950,34 @@ LLVOAvatar::~LLVOAvatar()
     LL_DEBUGS() << "LLVOAvatar Destructor end" << LL_ENDL;
 }
 
+void LLVOAvatar::setSkinMaterial(const LLAvatarSkin::MaterialData& material)
+{
+    LLAvatarSkin::MaterialData sanitized(material);
+    sanitized.sanitize();
+
+    std::set<LLUUID> old_ids;
+    std::set<LLUUID> new_ids;
+    if (mSkinMaterial.enabled && mSkinMaterial.isSupportedVersion())
+    {
+        mSkinMaterial.collectTextureIds(old_ids);
+    }
+    if (sanitized.enabled && sanitized.isSupportedVersion())
+    {
+        sanitized.collectTextureIds(new_ids);
+    }
+
+    // Assign first, then release only IDs absent from every new active slot.
+    // This preserves a texture shared by multiple channels.
+    mSkinMaterial = sanitized;
+    for (const LLUUID& old_id : old_ids)
+    {
+        if (new_ids.find(old_id) == new_ids.end())
+        {
+            mSkinTextureResolver.release(old_id);
+        }
+    }
+}
+
 void LLVOAvatar::markDead()
 {
     mSkinTextureResolver.clear();
