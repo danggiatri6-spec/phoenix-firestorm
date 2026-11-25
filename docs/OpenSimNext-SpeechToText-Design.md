@@ -170,3 +170,12 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Added `FSFloaterNearbyChat::insertSpeechToText()` as a main-thread UI helper. It appends recognized text to the existing editable Nearby Chat input, places the cursor at the end, and does not invoke the chat commit/send callback.
 - This helper is not yet called by a transcript-result pump. The Viewer idle integration, explicit dictation start/stop control, model-path setting, and recognizer startup are still pending.
 - The insertion helper is source-level work only and has not been compiled or runtime-tested.
+
+## Viewer main-loop integration update (2026-11-25)
+
+- `LLAppViewer` now owns the `LLSpeechToText` worker and exposes explicit `startSpeechToTextDictation(model_path, language)` / `stopSpeechToTextDictation()` lifecycle methods.
+- The Viewer idle loop polls the WebRTC PCM tap only while the recognizer service is running, then consumes final transcript events on the main thread.
+- Final text is inserted through `FSFloaterNearbyChat::insertSpeechToText()` into the editable Nearby Chat field. No send/commit callback is called.
+- Capture is disabled when dictation is stopped and before both normal disconnect and application-exit voice teardown.
+- This is a source integration, not yet a user-facing feature: no Nearby Chat microphone button or settings action invokes the start method yet. A model path must be supplied by a future UI/settings layer.
+- Whisper.cpp is still not pinned or linked; standard builds return a null recognizer. No Windows x64 build or runtime test has been performed.
