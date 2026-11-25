@@ -27,6 +27,8 @@
 #include "llviewerprecompiledheaders.h"
 
 #include "llappviewer.h"
+
+#include <utility>
 #include "llvoicewebrtc.h"
 #include "fsfloaternearbychat.h"
 
