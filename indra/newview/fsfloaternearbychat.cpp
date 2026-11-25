@@ -815,6 +815,25 @@ bool FSFloaterNearbyChat::handleKeyHere( KEY key, MASK mask )
     return handled;
 }
 
+void FSFloaterNearbyChat::insertSpeechToText(const std::string& text)
+{
+    if (!mInputEditor || text.empty())
+    {
+        return;
+    }
+
+    // Dictation is deliberately inserted into the editable field. The normal
+    // chat commit callback is not invoked here, so recognition never auto-sends.
+    std::string current = mInputEditor->getText();
+    if (!current.empty() && !LLStringUtil::isSpace(current.back()))
+    {
+        current.push_back(' ');
+    }
+    current += text;
+    mInputEditor->setText(LLStringExplicit(current));
+    mInputEditor->setCursorAndScrollToEnd();
+}
+
 void FSFloaterNearbyChat::onChatBoxKeystroke()
 {
     S32 channel = 0;
