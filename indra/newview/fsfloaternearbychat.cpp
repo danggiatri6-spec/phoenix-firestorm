@@ -1146,7 +1146,7 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
         app->stopSpeechToTextDictation();
         mSpeechToTextActive = false;
         mSpeechToTextButton->setLabel("Mic");
-        mSpeechToTextButton->setToolTip("Start local speech-to-text dictation");
+        mSpeechToTextButton->setToolTip(LLStringExplicit("Start local speech-to-text dictation"));
         return;
     }
 
