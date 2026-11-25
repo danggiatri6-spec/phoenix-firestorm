@@ -55,6 +55,17 @@ Fix committed: on terminal failure (retry budget exhausted), clear `mUploadPendi
 
 This is a source-level control-flow defect. Build and runtime failure-injection validation remain pending.
 
+### 2.3 Unsupported-region bake slot could retain a stale upload request
+
+File: `indra/newview/llviewertexlayer.cpp`, `LLViewerTexLayerSetBuffer::midRenderTexLayerSet()`.
+
+Observed:
+- When the bake index is outside `avatar->getNumBakes()`, the OpenSim guard skips the upload.
+- Before the fix, that branch did not clear `mUploadPending` or `mNeedsUpload`, unlike the invisible-layer and failed-render paths.
+- This left the layer buffer in a state that continued to request work despite the current region not supporting that bake slot.
+
+Fix committed: clear pending/needed flags and pause the upload timer when the bake slot is unsupported. This is defensive state cleanup; runtime reproduction is still required to confirm whether this path is reached in normal region transitions.
+
 ### 2.3 Existing baked/local texture update path
 
 File: `indra/newview/llvoavatar.cpp`, `LLVOAvatar::updateTextures()`.
@@ -169,6 +180,7 @@ Record fetch route, UUID, load state, GPU residency, screenshots and logs. Do no
 - Empty-URL legacy bake fallback: inspected through texture-list lookup; no overwrite defect established, no code change made.
 - OpenSim bake-count guard: fixed inclusive-boundary error in `llviewertexlayer.cpp`; source read-back verified, build/runtime validation pending.
 - Terminal bake upload failure: fixed stale `mUploadPending` state after retry exhaustion; prevents `hasPendingBakedUploads()` from blocking the next AgentSetAppearance indefinitely; source read-back verified, runtime failure-injection pending.
+- Unsupported-region bake slot: clear stale upload-needed/pending state when the bake index is outside the region's supported count; source read-back verified, region-transition runtime validation pending.
 - Optional skin material data: implemented.
 - Optional skin texture resolver: implemented but not connected to runtime consumers.
 - Native Avatar shader material integration: not implemented.
