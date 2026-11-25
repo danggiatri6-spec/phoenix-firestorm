@@ -61,6 +61,7 @@ const F32 EYE_LOOK_BACK_MAX_TIME = 5.f; // max amount of time before looking bac
 const F32 EYE_LOOK_AWAY_MAX_YAW = 0.15f; // max yaw of eye look away motion
 const F32 EYE_LOOK_AWAY_MAX_PITCH = 0.12f; // max pitch of look away motion
 const F32 EYE_ROT_LIMIT_ANGLE = F_PI_BY_TWO * 0.3f; //max angle in radians for eye rotation
+const F32 EYE_LOOKAT_LAG_HALF_LIFE = 0.06f; // eyes lead head, but ease into a changed target
 
 const F32 EYE_BLINK_MIN_TIME = 2.2f; // ordinary blink interval lower bound
 const F32 EYE_BLINK_MAX_TIME = 6.8f; // ordinary blink interval upper bound
@@ -525,8 +526,12 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
     vergence_quat.transQuat();
     right_eye_rot = vergence_quat * eye_jitter_rot * right_eye_rot;
 
-    left_eye_state.setRotation( left_eye_rot );
-    right_eye_state.setRotation( right_eye_rot );
+    // Ease eye direction changes over a few frames. The head motion already
+    // follows LookAtPoint with a longer half-life, so this keeps the eyes in
+    // the lead without snapping them instantly to a new target.
+    const F32 eye_slerp_amt = LLSmoothInterpolation::getInterpolant(EYE_LOOKAT_LAG_HALF_LIFE);
+    left_eye_state.setRotation(nlerp(eye_slerp_amt, left_eye_state.getRotation(), left_eye_rot));
+    right_eye_state.setRotation(nlerp(eye_slerp_amt, right_eye_state.getRotation(), right_eye_rot));
 }
 
 //-----------------------------------------------------------------------------
