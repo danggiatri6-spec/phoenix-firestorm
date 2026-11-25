@@ -284,11 +284,23 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     }
     head_rot_local.constrain(HEAD_ROTATION_CONSTRAINT);
 
-    // set final torso rotation
-    // Set torso target rotation such that it lags behind the head rotation
-    // by a fixed amount.
-    LLQuaternion torso_rot_local = nlerp(TORSO_LAG, LLQuaternion::DEFAULT, head_rot_local );
-    mTorsoState->setRotation( nlerp(torso_slerp_amt, mTorsoState->getRotation(), torso_rot_local) );
+    // Recruit the torso progressively for larger horizontal head turns.
+    // Small glances remain mostly in the neck/head; sustained side-looking
+    // shares more rotation with the torso without changing motion priority.
+    F32 head_roll = 0.f;
+    F32 head_pitch = 0.f;
+    F32 head_yaw = 0.f;
+    head_rot_local.getEulerAngles(&head_roll, &head_pitch, &head_yaw);
+    const F32 abs_head_yaw = head_yaw < 0.f ? -head_yaw : head_yaw;
+    const F32 torso_recruitment = llclamp(
+        (abs_head_yaw - 12.f * DEG_TO_RAD) / (33.f * DEG_TO_RAD),
+        0.f, 1.f);
+    const F32 torso_follow = TORSO_LAG + 0.10f * torso_recruitment;
+
+    // Set torso target rotation to lag behind the head, with a little more
+    // participation as the avatar turns farther to either side.
+    LLQuaternion torso_rot_local = nlerp(torso_follow, LLQuaternion::DEFAULT, head_rot_local);
+    mTorsoState->setRotation(nlerp(torso_slerp_amt, mTorsoState->getRotation(), torso_rot_local));
 
     head_rot_local = nlerp(head_slerp_amt, mLastHeadRot, head_rot_local);
     mLastHeadRot = head_rot_local;
