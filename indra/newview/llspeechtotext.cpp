@@ -31,7 +31,20 @@ bool LLSpeechToText::start(std::unique_ptr<LLSpeechToTextRecognizer> recognizer)
         mRunning = true;
     }
 
-    mWorker = std::thread(&LLSpeechToText::workerLoop, this);
+    try
+    {
+        mWorker = std::thread(&LLSpeechToText::workerLoop, this);
+    }
+    catch (...)
+    {
+        // Thread creation can fail (for example, under resource pressure).
+        // Restore the stopped state so callers can report failure cleanly.
+        std::lock_guard<std::mutex> lock(mMutex);
+        mRecognizer.reset();
+        mRunning = false;
+        mStopping = false;
+        return false;
+    }
     return true;
 }
 
@@ -74,7 +87,9 @@ bool LLSpeechToText::submitFrame(
 {
     if (frame.mSampleCount == 0 ||
         frame.mSampleCount > llwebrtc::LLWebRTCCapturedAudioFrame::MAX_SAMPLES ||
-        frame.mSampleRate == 0 || frame.mChannels == 0)
+        frame.mSampleRate < 8000 || frame.mSampleRate > 48000 ||
+        frame.mChannels == 0 || frame.mChannels > 2 ||
+        frame.mSampleCount % frame.mChannels != 0)
     {
         return false;
     }
