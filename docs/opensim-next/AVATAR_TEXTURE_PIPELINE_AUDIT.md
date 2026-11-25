@@ -23,13 +23,22 @@ Observed behavior:
 - Default Avatar/default/invisible UUIDs are looked up in the standard texture list.
 - Other baked UUIDs call `getImageURL(te, uuid)`.
 - When the URL is empty, the function requests the legacy bake from the object's simulator host using `FTT_HOST_BAKE`.
-- Immediately after that conditional, the function unconditionally calls `getFetchedTextureFromUrl(url, FTT_SERVER_BAKE, ...)`, even when `url` is empty, replacing the earlier host-bake result.
+- It then calls `getFetchedTextureFromUrl()` with the same UUID and an empty URL. However, `LLViewerTextureList::getImageFromUrl()` first looks up that forced UUID; when the Host Bake object already exists, it returns the existing object (logging that it has no URL) rather than replacing it with a new URL-backed object.
 
-This exact implementation is present in both `opensim-next/integration` and the untouched `Firestorm_7.2.5` baseline. It is therefore inherited behavior, not a regression introduced by OpenSim-next.
+Conclusion: the apparent overwrite is not established as a defect. The Host Bake object remains the returned object in this path. This suspicion was closed without changing `getBakedTextureImage()`.
 
-Risk to investigate: the empty-URL path appears to discard the host-bake fetch result. Before changing it, verify the empty-URL behavior of `getFetchedTextureFromUrl()`, the legacy bake protocol expectations, and actual host-bake use cases. A safe intended control flow would ordinarily select either host-bake fetch or server-URL fetch, not both, but this must be proven against the underlying texture-manager contract.
+### 2.2 OpenSim bake-count boundary in local bake upload
 
-### 2.2 Existing baked/local texture update path
+File: `indra/newview/llviewertexlayer.cpp`, `LLViewerTexLayerSetBuffer::on...` upload-success path.
+
+Observed:
+- The OpenSim guard previously used `bakedTexIdx <= avatar->getNumBakes()`.
+- `getNumBakes()` is a count, not a highest valid index: non-BOM regions set the count to `BAKED_LEFT_ARM`, whose enum value is the first BOM-only bake index. Existing loops and `getLayerSet()` use the strict `< getNumBakes()` convention.
+- The inclusive comparison therefore allowed the first unsupported bake index through on non-BOM regions.
+
+Fix committed: changed the guard to `bakedTexIdx < avatar->getNumBakes()`, so only indices in `[0, count)` are uploaded. This protects non-BOM regions from attempting the first BOM-only bake. The change is source-reviewed and read back from GitHub; it has not yet been built or runtime-tested.
+
+### 2.3 Existing baked/local texture update path
 
 File: `indra/newview/llvoavatar.cpp`, `LLVOAvatar::updateTextures()`.
 
@@ -140,7 +149,8 @@ Record fetch route, UUID, load state, GPU residency, screenshots and logs. Do no
 ## 5. Explicit status
 
 - Legacy texture pipeline: inherited code inspected; full behavior audit and runtime reproduction remain incomplete.
-- Empty-URL legacy bake fallback: suspicious inherited control flow identified; not changed pending confirmation of texture-manager behavior and reproduction.
+- Empty-URL legacy bake fallback: inspected through texture-list lookup; no overwrite defect established, no code change made.
+- OpenSim bake-count guard: fixed inclusive-boundary error in `llviewertexlayer.cpp`; source read-back verified, build/runtime validation pending.
 - Optional skin material data: implemented.
 - Optional skin texture resolver: implemented but not connected to runtime consumers.
 - Native Avatar shader material integration: not implemented.
