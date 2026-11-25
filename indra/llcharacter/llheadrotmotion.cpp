@@ -373,6 +373,7 @@ void LLHeadRotMotion::onDeactivate()
 LLEyeMotion::LLEyeMotion(const LLUUID &id) : LLMotion(id)
 {
     mCharacter = NULL;
+    mUseAltEyesAsPrimary = false;
     mEyeJitterTime = 0.f;
     mEyeJitterYaw = 0.f;
     mEyeJitterPitch = 0.f;
@@ -409,57 +410,74 @@ LLEyeMotion::~LLEyeMotion()
 //-----------------------------------------------------------------------------
 LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
 {
-    mCharacter = character;
+    if (!character)
+    {
+        LL_INFOS() << getName() << ": Can't initialize without a character." << LL_ENDL;
+        return STATUS_FAILURE;
+    }
 
+    mCharacter = character;
     mHeadJoint = character->getJoint("mHead");
-    if ( ! mHeadJoint )
+    if (!mHeadJoint)
     {
         LL_INFOS() << getName() << ": Can't get head joint." << LL_ENDL;
         return STATUS_FAILURE;
     }
 
-    mLeftEyeState->setJoint( character->getJoint("mEyeLeft") );
-    if ( ! mLeftEyeState->getJoint() )
+    // Prefer the standard eye pair. If a custom rig omits either standard
+    // joint, use the alternate pair only when both alternate joints exist.
+    // Never combine joints from different rigs: vergence requires a matched pair.
+    LLJoint* primary_left = character->getJoint("mEyeLeft");
+    LLJoint* primary_right = character->getJoint("mEyeRight");
+    LLJoint* alternate_left = character->getJoint("mFaceEyeAltLeft");
+    LLJoint* alternate_right = character->getJoint("mFaceEyeAltRight");
+
+    const bool has_primary_pair = primary_left && primary_right;
+    const bool has_alternate_pair = alternate_left && alternate_right;
+
+    if (!has_primary_pair && !has_alternate_pair)
     {
-        LL_INFOS() << getName() << ": Can't get left eyeball joint." << LL_ENDL;
+        LL_INFOS() << getName()
+                   << ": No complete left/right eyeball joint pair; eye motion disabled."
+                   << LL_ENDL;
         return STATUS_FAILURE;
     }
 
-    // Alternate face-eye joints are optional. Some compatible avatar rigs
-    // expose only the primary eye joints; missing optional joints must not
-    // disable the entire eye motion.
-    mAltLeftEyeState->setJoint( character->getJoint("mFaceEyeAltLeft") );
-    if ( ! mAltLeftEyeState->getJoint() )
+    mUseAltEyesAsPrimary = !has_primary_pair;
+    if (mUseAltEyesAsPrimary)
     {
-        LL_DEBUGS("Avatar") << getName() << ": No alternate left eyeball joint; using primary eyes." << LL_ENDL;
+        LL_DEBUGS("Avatar") << getName()
+                            << ": Standard eye pair incomplete; using alternate eye pair."
+                            << LL_ENDL;
+        mLeftEyeState->setJoint(alternate_left);
+        mRightEyeState->setJoint(alternate_right);
     }
-
-    mRightEyeState->setJoint( character->getJoint("mEyeRight") );
-    if ( ! mRightEyeState->getJoint() )
+    else
     {
-        LL_INFOS() << getName() << ": Can't get right eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
-    }
-
-    mAltRightEyeState->setJoint( character->getJoint("mFaceEyeAltRight") );
-    if ( ! mAltRightEyeState->getJoint() )
-    {
-        LL_DEBUGS("Avatar") << getName() << ": No alternate right eyeball joint; using primary eyes." << LL_ENDL;
+        mLeftEyeState->setJoint(primary_left);
+        mRightEyeState->setJoint(primary_right);
     }
 
     mLeftEyeState->setUsage(LLJointState::ROT);
     mRightEyeState->setUsage(LLJointState::ROT);
-    addJointState( mLeftEyeState );
-    addJointState( mRightEyeState );
+    addJointState(mLeftEyeState);
+    addJointState(mRightEyeState);
 
-    // Register alternate eye joints only when present. The update path below
-    // treats the alternate pair as an optional second eye rig.
-    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    // A complete alternate pair may be driven in parallel with the standard
+    // pair. When it is serving as the primary pair, do not register it twice.
+    if (!mUseAltEyesAsPrimary && has_alternate_pair)
     {
+        mAltLeftEyeState->setJoint(alternate_left);
+        mAltRightEyeState->setJoint(alternate_right);
         mAltLeftEyeState->setUsage(LLJointState::ROT);
         mAltRightEyeState->setUsage(LLJointState::ROT);
-        addJointState( mAltLeftEyeState );
-        addJointState( mAltRightEyeState );
+        addJointState(mAltLeftEyeState);
+        addJointState(mAltRightEyeState);
+    }
+    else
+    {
+        mAltLeftEyeState->setJoint(NULL);
+        mAltRightEyeState->setJoint(NULL);
     }
 
     return STATUS_SUCCESS;
@@ -714,7 +732,8 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
     LLVector3* targetPos = (LLVector3*)mCharacter->getAnimationData("LookAtPoint");
 
     adjustEyeTarget(targetPos, *mLeftEyeState, *mRightEyeState);
-    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    if (!mUseAltEyesAsPrimary &&
+        mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
     {
         adjustEyeTarget(targetPos, *mAltLeftEyeState, *mAltRightEyeState);
     }
@@ -740,9 +759,11 @@ void LLEyeMotion::onDeactivate()
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
-    // Alternate joints are animated only as a complete pair; leave a
-    // partially exposed alternate rig untouched during deactivation.
-    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    // The selected pair is stored in mLeftEyeState/mRightEyeState,
+    // including when the alternate rig is serving as the primary pair.
+    // Reset a secondary alternate pair only when it was also registered.
+    if (!mUseAltEyesAsPrimary &&
+        mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
     {
         mAltLeftEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
         mAltRightEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
