@@ -117,6 +117,14 @@ public:
     LLPointer<LLJointState> mHeadState;
 
     LLQuaternion        mLastHeadRot;
+
+    // Local-only, low-amplitude idle head drift; suppressed by explicit look targets.
+    LLFrameTimer        mIdleHeadTimer;
+    F32                 mIdleHeadNextUpdate;
+    F32                 mIdleHeadYaw;
+    F32                 mIdleHeadPitch;
+    F32                 mIdleHeadTargetYaw;
+    F32                 mIdleHeadTargetPitch;
 };
 
 //-----------------------------------------------------------------------------
