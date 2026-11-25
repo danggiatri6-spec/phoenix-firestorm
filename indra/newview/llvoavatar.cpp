@@ -3816,7 +3816,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     // Do not manufacture parameters on non-standard/custom avatar rigs.
     if (surprised_brows)
     {
-        const F32 target = has_active_expression
+        const F32 target = surprised_brow_weight > 0.f
             ? surprised_brows->getMinWeight()
                 + surprised_brow_weight * (surprised_brows->getMaxWeight() - surprised_brows->getMinWeight())
             : surprised_brows->getDefaultWeight();
@@ -3830,7 +3830,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     }
     if (worried_brows)
     {
-        const F32 target = has_active_expression
+        const F32 target = worried_brow_weight > 0.f
             ? worried_brows->getMinWeight()
                 + worried_brow_weight * (worried_brows->getMaxWeight() - worried_brows->getMinWeight())
             : worried_brows->getDefaultWeight();
@@ -3844,7 +3844,7 @@ void LLVOAvatar::updateFacialExpressionComposition()
     }
     if (furrowed_brows)
     {
-        const F32 target = has_active_expression
+        const F32 target = furrowed_brow_weight > 0.f
             ? furrowed_brows->getMinWeight()
                 + furrowed_brow_weight * (furrowed_brows->getMaxWeight() - furrowed_brows->getMinWeight())
             : furrowed_brows->getDefaultWeight();
