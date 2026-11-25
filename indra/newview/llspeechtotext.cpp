@@ -1,6 +1,7 @@
 /**
  * @file llspeechtotext.cpp
- * @brief Bounded worker-thread implementation for local speech recognition. *
+ * @brief Bounded worker-thread implementation for local speech recognition.
+ *
  * $LicenseInfo:firstyear=2026&license=viewerlgpl$
  * OpenSim-next Viewer Extension
  * Copyright (C) 2026, OpenSim-next contributors.
