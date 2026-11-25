@@ -1717,15 +1717,21 @@ void LLAgentCamera::updateSocialSpeechGesture()
 
     if (speaking)
         mSocialTalkLastActiveTime = now;
+
+    // Re-evaluate conflicts while TALK is owned, not only at acquisition time.
+    // A newly started AO/LSL/user gesture must be allowed to take precedence.
+    const bool upper_body_conflict = has_social_upper_body_motion_conflict(avatar);
+
     // Briefly hold the gesture across voice-activity packet gaps to avoid flicker.
-    const bool speech_active = speaking || (mSocialTalkOwned &&
-        now - mSocialTalkLastActiveTime < 0.65);
+    // An upper-body conflict overrides the grace period immediately.
+    const bool speech_active = !upper_body_conflict &&
+        (speaking || (mSocialTalkOwned && now - mSocialTalkLastActiveTime < 0.65));
 
     LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
     if (speaking && !mSocialTalkPending && !mSocialTalkOwned &&
         current == avatar->mSignaledAnimations.end() &&
         !has_external_social_animation_source(avatar, ANIM_AGENT_TALK) &&
-        !has_social_upper_body_motion_conflict(avatar))
+        !upper_body_conflict)
     {
         // Acquire the standard SL TALK animation only during actual local voice activity.
         gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_START);
