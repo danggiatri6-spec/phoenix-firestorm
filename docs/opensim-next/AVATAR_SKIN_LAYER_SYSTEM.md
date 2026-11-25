@@ -119,6 +119,17 @@ Capture logs and screenshots proving texture fetch, GPU residency, binding and f
 6. Existing tattoo, clothing, alpha-mask, host Bake and server Bake behavior remains unchanged.
 7. A successful fetch is not reported as a successful render until GPU upload, binding and visual sampling have been verified.
 
+### Phase 1 progress (source committed; tests not run)
+
+The first editor-independent data/math slice is now present:
+- `LayerDescriptor` and `LayerStack` define versioned logical layers, ordering, enabled state, texture/mask UUIDs, opacity, blend mode and an enforced maximum of 16 enabled layers.
+- Supported logical types: color overlay, micro detail, makeup, tattoo overlay, surface normal, surface roughness, surface specular and subsurface mask.
+- Supported blend modes: normal, multiply, add and soft light.
+- `compositeLayer()` implements straight-alpha source-over compositing with premultiplied-alpha math internally and bounded inputs.
+- TUT coverage has been authored for descriptors, ordering, duplicate IDs, layer cap, unknown schema, UUID collection and basic blend/alpha behavior (16 test cases total in the file).
+
+This is not yet an image compositor: it does not iterate LLImageRaw pixels, create GPU composite textures, load assets for the layer stack, or bind anything to Avatar shaders. No build or test execution is claimed. The original texture pipeline audit remains a blocking prerequisite before runtime activation.
+
 ## 8. Current repository status
 
 The existing `LLAvatarSkin::MaterialData` and texture resolver are infrastructure only. The resolver is not yet wired into the Avatar draw path, and the current deferred skinned Avatar fragment shader samples the legacy diffuse map only. This specification does not claim that skin layers are implemented or tested.
