@@ -3683,6 +3683,12 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
 //      LL_WARNS(LOG_TXT) << "Received header for non active worker: " << id << LL_ENDL;
         res = false;
     }
+    // A delayed packet from a previous simulator must not be applied to a
+    // replacement worker for the same asset UUID.
+    else if (worker->mHost != host)
+    {
+        res = false;
+    }
     else if (worker->mState != LLTextureFetchWorker::LOAD_FROM_NETWORK ||
              worker->mSentRequest != LLTextureFetchWorker::SENT_SIM)
     {
@@ -3741,6 +3747,12 @@ bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U1
     if (!worker)
     {
 //      LL_WARNS(LOG_TXT) << "Received packet " << packet_num << " for non active worker: " << id << LL_ENDL;
+        res = false;
+    }
+    // A delayed packet from a previous simulator must not be applied to a
+    // replacement worker for the same asset UUID.
+    else if (worker->mHost != host)
+    {
         res = false;
     }
     else if (worker->mLastPacket == -1)
