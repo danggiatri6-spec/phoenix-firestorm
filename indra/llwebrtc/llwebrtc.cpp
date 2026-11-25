@@ -81,6 +81,19 @@ void LLWebRTCAudioTransport::SetEngineTransport(webrtc::AudioTransport* t)
     engine_.store(t, std::memory_order_release);
 }
 
+bool LLWebRTCAudioTransport::GetCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame)
+{
+    const uint32_t read = mCaptureRead.load(std::memory_order_relaxed);
+    if (read == mCaptureWrite.load(std::memory_order_acquire))
+    {
+        return false;
+    }
+
+    frame = mCaptureQueue[read];
+    mCaptureRead.store((read + 1) % CAPTURE_QUEUE_SIZE, std::memory_order_release);
+    return true;
+}
+
 int32_t LLWebRTCAudioTransport::RecordedDataIsAvailable(const void* audio_data,
                                                         size_t      number_of_frames,
                                                         size_t      bytes_per_frame,
@@ -110,7 +123,27 @@ int32_t LLWebRTCAudioTransport::RecordedDataIsAvailable(const void* audio_data,
                                               new_mic_level);
     }
 
-    // 2) Calculate energy for microphone level monitoring
+    // 2) Optional local speech-recognition tap. This is strictly opt-in.
+    // The callback only copies bounded PCM data; it never blocks, allocates,
+    // performs inference, or changes the audio sent to the voice engine.
+    if (mCaptureTapEnabled.load(std::memory_order_acquire) &&
+        bytes_per_frame == sizeof(int16_t) * number_of_channels &&
+        number_of_frames * number_of_channels <= LLWebRTCCapturedAudioFrame::MAX_SAMPLES)
+    {
+        const uint32_t write = mCaptureWrite.load(std::memory_order_relaxed);
+        const uint32_t next = (write + 1) % CAPTURE_QUEUE_SIZE;
+        if (next != mCaptureRead.load(std::memory_order_acquire))
+        {
+            auto& frame = mCaptureQueue[write];
+            frame.mSampleCount = number_of_frames * number_of_channels;
+            frame.mSampleRate = samples_per_sec;
+            frame.mChannels = static_cast<uint32_t>(number_of_channels);
+            std::memcpy(frame.mSamples.data(), audio_data, frame.mSampleCount * sizeof(int16_t));
+            mCaptureWrite.store(next, std::memory_order_release);
+        }
+    }
+
+    // 3) Calculate energy for microphone level monitoring
     // calculate the energy
     float        energy  = 0;
     const short *samples = (const short *) audio_data;
@@ -1283,6 +1316,19 @@ void LLWebRTCImpl::deployDevices(bool reset_module)
             reset |= reset_module;
             workerDeployDevices(reset);
         });
+}
+
+void LLWebRTCImpl::setCaptureTapEnabled(bool enabled)
+{
+    if (mDeviceModule)
+    {
+        mDeviceModule->SetCaptureTapEnabled(enabled);
+    }
+}
+
+bool LLWebRTCImpl::getCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame)
+{
+    return mDeviceModule ? mDeviceModule->GetCapturedAudioFrame(frame) : false;
 }
 
 float LLWebRTCImpl::getTuningAudioLevel()
