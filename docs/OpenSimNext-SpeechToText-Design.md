@@ -157,3 +157,10 @@ The PCM tap and worker are not yet connected to an active Viewer idle callback o
 - Model loading is lazy on the worker's first audio frame. The model file is external and is not downloaded or bundled automatically.
 - This is an adapter prototype, not yet an end-user feature: no pinned whisper.cpp revision/package, CMake target linkage, user setting/model picker, start/stop UI, Viewer idle pump, or chat editor insertion has been completed. No Windows x64 compilation or runtime accuracy/performance test has been run.
 - The adapter currently emits final segments only after each five-second window; it does not claim word-level live captions or remote-speaker attribution.
+
+## Whisper adapter hardening update (2026-11-25)
+
+- Validate captured-frame sample count, channel count, channel alignment, and sample-rate range before model initialization or audio conversion.
+- Add a coarse RMS silence gate for completed five-second windows. Windows below the low energy threshold are discarded without invoking Whisper, reducing needless CPU use during silence. This is not a full VAD and does not yet provide speech endpointing.
+- Remove a duplicate standard-library include from the worker header.
+- The adapter remains optional and unbuilt: whisper.cpp is not pinned or linked, and no Windows x64 compile, runtime, latency, memory, or transcription-quality test has been performed.
