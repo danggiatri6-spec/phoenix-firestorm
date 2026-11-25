@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace
 {
@@ -155,8 +156,23 @@ namespace LLAvatarSkin
     bool compositeNormalMap(const LLImageRaw& base, const LLImageRaw& detail,
                             F32 detail_strength, LLImageRaw& output)
     {
-        if (&base == &output || &detail == &output ||
-            !isValidImage(base, false) || !isValidImage(detail, false) ||
+        if (&base == &detail || &base == &output || &detail == &output)
+        {
+            return false;
+        }
+
+        // Lock inputs in a stable address order to avoid lock-order inversion
+        // when multiple avatar composites run concurrently.
+        const LLImageRaw* first = &base;
+        const LLImageRaw* second = &detail;
+        if (std::less<const LLImageRaw*>()(second, first))
+        {
+            std::swap(first, second);
+        }
+        LLImageDataSharedLock first_lock(first);
+        LLImageDataSharedLock second_lock(second);
+
+        if (!isValidImage(base, false) || !isValidImage(detail, false) ||
             base.getWidth() != detail.getWidth() ||
             base.getHeight() != detail.getHeight() ||
             !fitsSkinCompositeBudget(base.getWidth(), base.getHeight(), 3))
@@ -170,6 +186,7 @@ namespace LLAvatarSkin
             return false;
         }
 
+        LLImageDataLock output_lock(&output);
         const U8* base_data = base.getData();
         const U8* detail_data = detail.getData();
         U8* out_data = output.getData();
@@ -219,17 +236,34 @@ namespace LLAvatarSkin
                                F32 default_specular, F32 default_roughness,
                                LLImageRaw& output)
     {
-        if (!specular && !roughness) return false;
+        if ((!specular && !roughness) ||
+            (specular && specular == roughness) ||
+            specular == &output || roughness == &output)
+        {
+            return false;
+        }
+
+        // Use a deterministic lock order for the source images. Null locks are
+        // supported by LLImageDataSharedLock for the single-map case.
+        const LLImageRaw* first = specular;
+        const LLImageRaw* second = roughness;
+        if (!first || (second && std::less<const LLImageRaw*>()(second, first)))
+        {
+            std::swap(first, second);
+        }
+        LLImageDataSharedLock first_lock(first);
+        LLImageDataSharedLock second_lock(second);
+
         if ((specular && !isValidImage(*specular, true)) ||
             (roughness && !isValidImage(*roughness, true)))
         {
             return false;
         }
+
         const LLImageRaw* reference = specular ? specular : roughness;
         if ((specular && roughness &&
              (specular->getWidth() != roughness->getWidth() ||
               specular->getHeight() != roughness->getHeight())) ||
-            &output == specular || &output == roughness ||
             !fitsSkinCompositeBudget(reference->getWidth(), reference->getHeight(), 4))
         {
             return false;
@@ -241,6 +275,8 @@ namespace LLAvatarSkin
         {
             return false;
         }
+
+        LLImageDataLock output_lock(&output);
         U8* out_data = output.getData();
         if (!out_data) return false;
 
@@ -250,14 +286,16 @@ namespace LLAvatarSkin
         if ((specular && !spec_data) || (roughness && !rough_data)) return false;
         const U8 spec_default = encodeUnitChannel(default_specular);
         const U8 rough_default = encodeUnitChannel(default_roughness);
+        const S8 spec_components = specular ? specular->getComponents() : 1;
+        const S8 rough_components = roughness ? roughness->getComponents() : 1;
         for (S32 i = 0; i < pixels; ++i)
         {
             const S32 oi = i * 4;
             out_data[oi] = specular
-                ? encodeUnitChannel(readScalar(spec_data, specular->getComponents(), i))
+                ? encodeUnitChannel(readScalar(spec_data, spec_components, i))
                 : spec_default;
             out_data[oi + 1] = roughness
-                ? encodeUnitChannel(readScalar(rough_data, roughness->getComponents(), i))
+                ? encodeUnitChannel(readScalar(rough_data, rough_components, i))
                 : rough_default;
             out_data[oi + 2] = 0;   // Reserved subsurface mask.
             out_data[oi + 3] = 255; // Reserved detail mask; neutral by default.
