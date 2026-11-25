@@ -10,6 +10,7 @@
 #include "llspeechtotext.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -28,7 +29,8 @@ public:
     LLWhisperSpeechRecognizer(const std::string& model_path, const std::string& language)
         : mModelPath(model_path),
           mLanguage(language),
-          mContext(nullptr)
+          mContext(nullptr),
+          mStopRequested(false)
     {
     }
 
@@ -129,6 +131,8 @@ public:
             params.print_progress = false;
             params.print_realtime = false;
             params.print_timestamps = false;
+            params.abort_callback = &LLWhisperSpeechRecognizer::abortCallback;
+            params.abort_callback_user_data = this;
             params.language = mLanguage.empty() ? "auto" : mLanguage.c_str();
 
             if (whisper_full(mContext, params, mAudio.data(),
@@ -156,7 +160,18 @@ public:
         mAudio.clear();
     }
 
+    void requestStop() override
+    {
+        mStopRequested.store(true, std::memory_order_relaxed);
+    }
+
 private:
+    static bool abortCallback(void* user_data)
+    {
+        const auto* recognizer = static_cast<const LLWhisperSpeechRecognizer*>(user_data);
+        return recognizer->mStopRequested.load(std::memory_order_relaxed);
+    }
+
     bool loadModel()
     {
         if (mModelPath.empty())
@@ -172,6 +187,7 @@ private:
     std::string mModelPath;
     std::string mLanguage;
     whisper_context* mContext;
+    std::atomic<bool> mStopRequested;
     std::vector<float> mAudio;
 };
 } // anonymous namespace
