@@ -30,6 +30,8 @@
 
 #include "llviewerprecompiledheaders.h"
 
+#include <cctype>
+
 #include "fsfloaternearbychat.h"
 
 #include "chatbar_as_cmdline.h"
@@ -528,7 +530,7 @@ void FSFloaterNearbyChat::onClose(bool app_quitting)
         if (mSpeechToTextButton)
         {
             mSpeechToTextButton->setLabel("Mic");
-            mSpeechToTextButton->setToolTip("Start local speech-to-text dictation");
+            mSpeechToTextButton->setToolTip(LLStringExplicit("Start local speech-to-text dictation"));
         }
     }
 
@@ -851,7 +853,7 @@ void FSFloaterNearbyChat::insertSpeechToText(const std::string& text)
     // Dictation is deliberately inserted into the editable field. The normal
     // chat commit callback is not invoked here, so recognition never auto-sends.
     std::string current = mInputEditor->getText();
-    if (!current.empty() && !LLStringUtil::isSpace(current.back()))
+    if (!current.empty() && !std::isspace(static_cast<unsigned char>(current.back())))
     {
         current.push_back(' ');
     }
@@ -1168,7 +1170,7 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
     {
         mSpeechToTextActive = true;
         mSpeechToTextButton->setLabel("Stop");
-        mSpeechToTextButton->setToolTip("Stop local speech-to-text dictation");
+        mSpeechToTextButton->setToolTip(LLStringExplicit("Stop local speech-to-text dictation"));
     }
 }
 
