@@ -853,6 +853,7 @@ set(viewer_SOURCE_FILES
     llvisualeffect.cpp
     llvlcomposition.cpp
     llvlmanager.cpp
+    llavatarskinmaterial.cpp
     llvoavatar.cpp
     llvoavatarself.cpp
     llvocache.cpp
@@ -1718,6 +1719,7 @@ set(viewer_HEADER_FILES
     llvisualeffect.h
     llvlcomposition.h
     llvlmanager.h
+    llavatarskinmaterial.h
     llvoavatar.h
     llvoavatarself.h
     llvocache.h
