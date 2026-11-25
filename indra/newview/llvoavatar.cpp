@@ -810,6 +810,7 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mLipSyncOohWeight = 0.f;
     mLipSyncAahWeight = 0.f;
     mLipSyncTimer.reset();
+    mFacialExpressionTimer.reset();
 
     mCurrentGesticulationLevel = 0;
 
@@ -3781,6 +3782,16 @@ void LLVOAvatar::updateFacialExpressionComposition()
         }
     }
 
+    // Smooth only the three expression-owned brow morphs. Use the current
+    // morph weight (not its animation target) so a transition has continuity.
+    // A short attack and a slightly slower release avoid a mechanical snap.
+    const F32 facial_delta = llclamp(mFacialExpressionTimer.getElapsedTimeF32(), 0.f, 0.25f);
+    mFacialExpressionTimer.reset();
+    const F32 facial_tau = has_active_expression ? 0.10f : 0.18f;
+    const F32 facial_blend = facial_delta > 0.f
+        ? facial_delta / (facial_tau + facial_delta)
+        : 0.f;
+
     bool facial_params_changed = false;
     LLVisualParam* surprised_brows = getVisualParam("Surprised_Eyebrows");
     LLVisualParam* worried_brows = getVisualParam("Worried_Eyebrows");
@@ -3794,9 +3805,11 @@ void LLVOAvatar::updateFacialExpressionComposition()
             ? surprised_brows->getMinWeight()
                 + surprised_brow_weight * (surprised_brows->getMaxWeight() - surprised_brows->getMinWeight())
             : surprised_brows->getDefaultWeight();
-        if (fabsf(surprised_brows->getWeight() - target) > 0.001f)
+        const F32 current = surprised_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
         {
-            surprised_brows->setWeight(target, false);
+            surprised_brows->setWeight(smoothed, false);
             facial_params_changed = true;
         }
     }
@@ -3806,9 +3819,11 @@ void LLVOAvatar::updateFacialExpressionComposition()
             ? worried_brows->getMinWeight()
                 + worried_brow_weight * (worried_brows->getMaxWeight() - worried_brows->getMinWeight())
             : worried_brows->getDefaultWeight();
-        if (fabsf(worried_brows->getWeight() - target) > 0.001f)
+        const F32 current = worried_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
         {
-            worried_brows->setWeight(target, false);
+            worried_brows->setWeight(smoothed, false);
             facial_params_changed = true;
         }
     }
@@ -3818,9 +3833,11 @@ void LLVOAvatar::updateFacialExpressionComposition()
             ? furrowed_brows->getMinWeight()
                 + furrowed_brow_weight * (furrowed_brows->getMaxWeight() - furrowed_brows->getMinWeight())
             : furrowed_brows->getDefaultWeight();
-        if (fabsf(furrowed_brows->getWeight() - target) > 0.001f)
+        const F32 current = furrowed_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
         {
-            furrowed_brows->setWeight(target, false);
+            furrowed_brows->setWeight(smoothed, false);
             facial_params_changed = true;
         }
     }
