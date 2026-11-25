@@ -19496,6 +19496,18 @@ Change of this parameter will affect the layout of buttons in notification toast
 			<key>Value</key>
 			<integer>0</integer>
 		</map>
+  <key>SpeechToTextModelPath</key>
+  <map>
+    <key>Comment</key>
+    <string>Optional path to a user-selected local Whisper.cpp model for speech-to-text dictation. Empty disables dictation until a model is selected.</string>
+    <key>Persist</key>
+    <integer>1</integer>
+    <key>Type</key>
+    <string>String</string>
+    <key>Value</key>
+    <string></string>
+  </map>
+
 		<key>FSNearbyChatbar</key>
 		<map>
 			<key>Comment</key>
