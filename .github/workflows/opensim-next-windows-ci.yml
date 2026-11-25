@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "opensim-next/integration"
+      - "opensim-next/avatar-interaction-actions"
     paths:
       - ".github/workflows/opensim-next-windows-ci.yml"
       - "indra/**"
@@ -78,7 +79,7 @@ jobs:
 
       - name: Configure OpenSim-enabled viewer (no packaging)
         shell: cmd
-        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=OFF -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE
+        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=OFF -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE -DOPENSIMNEXT_ENABLE_WHISPER_CPP:BOOL=ON
 
       - name: Build OpenSim-enabled viewer
         shell: cmd
