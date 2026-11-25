@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -135,20 +136,24 @@ public:
             params.abort_callback_user_data = this;
             params.language = mLanguage.empty() ? "auto" : mLanguage.c_str();
 
-            if (whisper_full(mContext, params, mAudio.data(),
-                    static_cast<int>(window_samples)) == 0)
+            const int decode_result = whisper_full(mContext, params, mAudio.data(),
+                static_cast<int>(window_samples));
+            if (decode_result != 0)
             {
-                const int count = whisper_full_n_segments(mContext);
-                for (int i = 0; i < count; ++i)
+                throw std::runtime_error("Whisper inference failed with code " +
+                    std::to_string(decode_result));
+            }
+
+            const int count = whisper_full_n_segments(mContext);
+            for (int i = 0; i < count; ++i)
+            {
+                const char* segment = whisper_full_get_segment_text(mContext, i);
+                if (segment && *segment)
                 {
-                    const char* segment = whisper_full_get_segment_text(mContext, i);
-                    if (segment && *segment)
-                    {
-                        LLSpeechToTextResult result;
-                        result.text = segment;
-                        result.is_final = true;
-                        results.push_back(std::move(result));
-                    }
+                    LLSpeechToTextResult result;
+                    result.text = segment;
+                    result.is_final = true;
+                    results.push_back(std::move(result));
                 }
             }
             mAudio.erase(mAudio.begin(), mAudio.begin() + window_samples);
@@ -181,7 +186,12 @@ private:
         whisper_context_params params = whisper_context_default_params();
         params.use_gpu = false;
         mContext = whisper_init_from_file_with_params(mModelPath.c_str(), params);
-        return mContext != nullptr;
+        if (!mContext)
+        {
+            throw std::runtime_error("Whisper could not load the selected model. "
+                "The file may be corrupt or not a compatible GGML/GGUF model.");
+        }
+        return true;
     }
 
     std::string mModelPath;
