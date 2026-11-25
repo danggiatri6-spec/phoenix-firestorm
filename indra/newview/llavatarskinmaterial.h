@@ -10,6 +10,7 @@
 
 #include "stdtypes.h"
 #include "lluuid.h"
+#include <set>
 #include "v4color.h"
 
 namespace LLAvatarSkin
@@ -41,6 +42,9 @@ namespace LLAvatarSkin
 
         // Unknown schema versions must use the legacy Avatar material path.
         bool isSupportedVersion() const;
+
+        // Add each non-null map UUID once, regardless of slot reuse.
+        void collectTextureIds(std::set<LLUUID>& ids) const;
     };
 }
 
