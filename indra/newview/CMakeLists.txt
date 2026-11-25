@@ -3032,6 +3032,7 @@ if (LL_TESTS)
   # This creates a separate test project per file listed.
   include(LLAddBuildTest)
   SET(viewer_TEST_SOURCE_FILES
+    llavatarskinmaterial.cpp
     llagentaccess.cpp
     lldateutil.cpp
 #    llmediadataclient.cpp
