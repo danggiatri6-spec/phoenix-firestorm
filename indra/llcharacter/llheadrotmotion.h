@@ -220,6 +220,9 @@ public:
     F32                 mEyeLookAwayYaw;
     F32                 mEyeLookAwayPitch;
 
+    // Detect long gaps caused by hidden/culled avatar updates.
+    LLFrameTimer        mLastEyeUpdateTimer;
+
     // eye blinking
     LLFrameTimer        mEyeBlinkTimer;
     F32                 mEyeBlinkTime;
