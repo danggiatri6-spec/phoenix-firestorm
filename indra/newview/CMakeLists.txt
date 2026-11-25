@@ -94,6 +94,23 @@ if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
         GIT_TAG 96ec4d9823e9d0211944172da35f9f29134af990
     )
     FetchContent_MakeAvailable(opensimnext_whisper_cpp)
+
+    # Firestorm enables warnings-as-errors for its own targets. Keep that policy
+    # intact, but do not let compiler-specific warnings in the pinned upstream
+    # dependency prevent an otherwise valid MSVC build. Suppress only the
+    # known GCC-pragma / narrowing warnings emitted by whisper.cpp and GGML.
+    if (MSVC)
+        foreach(_opensimnext_whisper_target IN ITEMS whisper ggml ggml-base ggml-cpu)
+            if (TARGET ${_opensimnext_whisper_target})
+                target_compile_options(${_opensimnext_whisper_target} PRIVATE
+                    /WX-
+                    /wd4068
+                    /wd4267
+                    /wd4244
+                )
+            endif ()
+        endforeach ()
+    endif ()
     if (_opensimnext_had_build_shared_libs)
         set(BUILD_SHARED_LIBS "${_opensimnext_saved_build_shared_libs}" CACHE BOOL "" FORCE)
     else ()
