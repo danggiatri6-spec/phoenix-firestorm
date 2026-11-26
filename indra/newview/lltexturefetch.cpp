@@ -2920,10 +2920,16 @@ void LLTextureFetch::addToNetworkQueue(LLTextureFetchWorker* worker)
         // i.e. a delete has not been requested
         mNetworkQueue.insert(worker->mID);
     }
-    for (cancel_queue_t::iterator iter1 = mCancelQueue.begin();
-         iter1 != mCancelQueue.end(); ++iter1)
+    // A request for the same asset from another simulator must not
+    // discard the pending cancellation for the previous simulator.
+    cancel_queue_t::iterator cancel_iter = mCancelQueue.find(worker->mHost);
+    if (cancel_iter != mCancelQueue.end())
     {
-        iter1->second.erase(worker->mID);
+        cancel_iter->second.erase(worker->mID);
+        if (cancel_iter->second.empty())
+        {
+            mCancelQueue.erase(cancel_iter);
+        }
     }
 }                                                                       // -Mfnq
 
