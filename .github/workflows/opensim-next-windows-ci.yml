@@ -77,37 +77,49 @@ jobs:
         shell: pwsh
         run: python indra/newview/generate_simplified_chinese.py
 
-      - name: Configure OpenSim-enabled viewer (no packaging)
+      - name: Configure OpenSim-enabled viewer with runtime packaging
         shell: cmd
-        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=OFF -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE -DOPENSIMNEXT_ENABLE_WHISPER_CPP:BOOL=ON
+        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=ON -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE -DOPENSIMNEXT_ENABLE_WHISPER_CPP:BOOL=ON
 
-      - name: Build OpenSim-enabled viewer
+      - name: Build OpenSim-enabled viewer and runtime package
         shell: cmd
         run: autobuild build -A 64 -c ReleaseOS --no-configure
 
-      - name: Package portable Windows x64 Viewer
+      - name: Validate and package portable Windows x64 Viewer
         shell: pwsh
         run: |
           $viewerDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release"
-          # The OpenSim-next CI configuration names the linked Viewer target
-          # firestorm-bin.exe; do not assume the branded Release installer name.
-          $viewerExe = Join-Path $viewerDir "firestorm-bin.exe"
-          if (-not (Test-Path $viewerExe)) {
-            $candidates = Get-ChildItem $viewerDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
-              Select-Object -ExpandProperty Name
-            throw "Compiled Viewer executable not found: $viewerExe. Executables in output directory: $($candidates -join ', ')"
+          $requiredPaths = @(
+            "firestorm-bin.exe",
+            "app_settings/settings.xml",
+            "app_settings/shaders",
+            "character",
+            "skins/skins.xml",
+            "llplugin/media_plugin_cef.dll",
+            "slplugin.exe"
+          )
+          $missing = @()
+          foreach ($relativePath in $requiredPaths) {
+            if (-not (Test-Path (Join-Path $viewerDir $relativePath))) {
+              $missing += $relativePath
+            }
           }
+          if ($missing.Count -gt 0) {
+            throw "Viewer runtime package is incomplete. Missing required files/directories: $($missing -join ', '). PACKAGE must remain enabled so viewer_manifest.py stages the full runtime."
+          }
+
           @(
             "OpenSim-next Windows x64 portable test build"
             "Commit: $env:GITHUB_SHA"
             "Configuration: ReleaseOS"
+            "Runtime files staged by viewer_manifest.py with PACKAGE=ON."
             "This is an unsigned CI test package, not a production installer."
             "Whisper.cpp is built into this configuration; provide a compatible external GGML model file in the Viewer UI."
           ) | Set-Content (Join-Path $viewerDir "OPENSIMNEXT-TEST-BUILD.txt")
           $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip"
           if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
           Compress-Archive -Path (Join-Path $viewerDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
-          Write-Host "Created portable package: $zipPath"
+          Write-Host "Created validated portable package: $zipPath"
           Get-Item $zipPath | Format-List FullName,Length
 
       - name: Upload portable Windows x64 Viewer
