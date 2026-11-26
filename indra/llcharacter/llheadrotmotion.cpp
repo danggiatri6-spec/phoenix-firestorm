@@ -374,6 +374,9 @@ LLEyeMotion::LLEyeMotion(const LLUUID &id) : LLMotion(id)
 {
     mCharacter = NULL;
     mUseAltEyesAsPrimary = false;
+    mHasBlinkMorphPair = false;
+    mLeftBlinkParam = NULL;
+    mRightBlinkParam = NULL;
     mEyeJitterTime = 0.f;
     mEyeJitterYaw = 0.f;
     mEyeJitterPitch = 0.f;
@@ -417,6 +420,21 @@ LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
     }
 
     mCharacter = character;
+
+    // Blink morphs are optional on custom rigs. Require the complete pair so
+    // a one-sided rig never produces visibly asymmetric blinking.
+    mLeftBlinkParam = character->getVisualParam("Blink_Left");
+    mRightBlinkParam = character->getVisualParam("Blink_Right");
+    mHasBlinkMorphPair = mLeftBlinkParam && mRightBlinkParam;
+    if (!mHasBlinkMorphPair)
+    {
+        mLeftBlinkParam = NULL;
+        mRightBlinkParam = NULL;
+        LL_DEBUGS("Avatar") << getName()
+                            << ": Complete Blink_Left/Blink_Right morph pair unavailable; procedural blinking disabled."
+                            << LL_ENDL;
+    }
+
     mHeadJoint = character->getJoint("mHead");
     if (!mHeadJoint)
     {
@@ -506,9 +524,12 @@ bool LLEyeMotion::onActivate()
     // the existing randomized cadence.
     mEyeBlinkTime = 1.5f + ll_frand(3.0f);
     mEyesClosed = false;
-    mCharacter->setVisualParamWeight("Blink_Left", 0.f);
-    mCharacter->setVisualParamWeight("Blink_Right", 0.f);
-    mCharacter->updateVisualParams();
+    if (mHasBlinkMorphPair)
+    {
+        mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+        mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+        mCharacter->updateVisualParams();
+    }
     return true;
 }
 
@@ -639,9 +660,12 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
         mEyeLookAwayPitch = 0.f;
         mEyeLookAwayTime = EYE_LOOK_AWAY_MIN_TIME +
             ll_frand(EYE_LOOK_AWAY_MAX_TIME - EYE_LOOK_AWAY_MIN_TIME);
-        mCharacter->setVisualParamWeight("Blink_Left", 0.f);
-        mCharacter->setVisualParamWeight("Blink_Right", 0.f);
-        mCharacter->updateVisualParams();
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+            mCharacter->updateVisualParams();
+        }
     }
     mLastEyeUpdateTimer.reset();
 
@@ -684,9 +708,12 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 
         leftEyeBlinkMorph = llclamp(leftEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
         rightEyeBlinkMorph = llclamp(rightEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
-        mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
-        mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
-        mCharacter->updateVisualParams();
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, leftEyeBlinkMorph);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, rightEyeBlinkMorph);
+            mCharacter->updateVisualParams();
+        }
 
         if (rightEyeBlinkMorph == 1.f)
         {
@@ -704,9 +731,12 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 
             leftEyeBlinkMorph = 1.f - llclamp(leftEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
             rightEyeBlinkMorph = 1.f - llclamp(rightEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
-            mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
-            mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
-            mCharacter->updateVisualParams();
+            if (mHasBlinkMorphPair)
+            {
+                mCharacter->setVisualParamWeight(mLeftBlinkParam, leftEyeBlinkMorph);
+                mCharacter->setVisualParamWeight(mRightBlinkParam, rightEyeBlinkMorph);
+                mCharacter->updateVisualParams();
+            }
 
             if (rightEyeBlinkMorph == 0.f)
             {
@@ -773,9 +803,12 @@ void LLEyeMotion::onDeactivate()
     // Always restore eyelid morphs so it cannot reappear with closed eyes.
     if (mCharacter)
     {
-        mCharacter->setVisualParamWeight("Blink_Left", 0.f);
-        mCharacter->setVisualParamWeight("Blink_Right", 0.f);
-        mCharacter->updateVisualParams();
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+            mCharacter->updateVisualParams();
+        }
     }
     mEyesClosed = false;
 }
