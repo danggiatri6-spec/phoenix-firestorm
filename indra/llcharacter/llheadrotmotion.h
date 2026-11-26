@@ -33,6 +33,8 @@
 #include "llmotion.h"
 #include "llframetimer.h"
 
+class LLVisualParam;
+
 #define MIN_REQUIRED_PIXEL_AREA_HEAD_ROT 500.f;
 #define MIN_REQUIRED_PIXEL_AREA_EYE 25000.f;
 
@@ -209,6 +211,9 @@ public:
     LLJoint             *mHeadJoint;
     // True when the complete alternate eye pair is used as the primary rig.
     bool                mUseAltEyesAsPrimary;
+    bool                mHasBlinkMorphPair;
+    LLVisualParam       *mLeftBlinkParam;
+    LLVisualParam       *mRightBlinkParam;
     LLPointer<LLJointState> mLeftEyeState;
     LLPointer<LLJointState> mRightEyeState;
     LLPointer<LLJointState> mAltLeftEyeState;
