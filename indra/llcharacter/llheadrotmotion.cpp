@@ -551,29 +551,56 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         LLVector3       up;
 
         eye_look_at = *targetPos;
-        has_eye_target = true;
         F32 lookAtDistance = eye_look_at.normVec();
 
-        left.setVec(skyward % eye_look_at);
-        up.setVec(eye_look_at % left);
+        // A zero-length LookAtPoint has no valid orientation. Treat it as
+        // an idle eye pose instead of constructing a degenerate quaternion.
+        if (lookAtDistance < 1.e-4f)
+        {
+            target_eye_rot = LLQuaternion::DEFAULT;
+            vergence = 0.f;
+        }
+        else
+        {
+            has_eye_target = true;
 
-        target_eye_rot = LLQuaternion(eye_look_at, left, up);
-        // convert target rotation to head-local coordinates
-        target_eye_rot *= ~mHeadJoint->getWorldRotation();
-        // eliminate any Euler roll - we're lucky that roll is applied last.
-        F32 roll, pitch, yaw;
-        target_eye_rot.getEulerAngles(&roll, &pitch, &yaw);
-        target_eye_rot.setQuat(0.0f, pitch, yaw);
-        // constrain target orientation to be in front of avatar's face
-        target_eye_rot.constrain(EYE_ROT_LIMIT_ANGLE);
+            left.setVec(skyward % eye_look_at);
+            // Keep the look-at basis well-conditioned near the vertical
+            // poles, matching the fallback already used by head motion.
+            if (left.magVecSquared() < 0.15f)
+            {
+                LLVector3 head_forward =
+                    LLVector3(1.f, 0.f, 0.f) * mHeadJoint->getWorldRotation();
+                head_forward.mV[VZ] = 0.f;
+                if (head_forward.normVec() < 1.e-4f)
+                {
+                    head_forward.setVec(1.f, 0.f, 0.f);
+                }
 
-        // calculate vergence
-        F32 interocular_dist = (left_eye_state.getJoint()->getWorldPosition() - right_eye_state.getJoint()->getWorldPosition()).magVec();
-        vergence = -atan2((interocular_dist / 2.f), lookAtDistance);
-        // <FS:ND> Guess we should take the return value of that llclamp...
-        // llclamp(vergence, -F_PI_BY_TWO, 0.f);
-        vergence = llclamp(vergence, -F_PI_BY_TWO, 0.f);
-        // </FS:ND>
+                eye_look_at = lerp(eye_look_at, head_forward, 0.4f);
+                eye_look_at.normVec();
+                left.setVec(skyward % eye_look_at);
+            }
+
+            up.setVec(eye_look_at % left);
+            target_eye_rot = LLQuaternion(eye_look_at, left, up);
+            // convert target rotation to head-local coordinates
+            target_eye_rot *= ~mHeadJoint->getWorldRotation();
+            // eliminate any Euler roll - we're lucky that roll is applied last.
+            F32 roll, pitch, yaw;
+            target_eye_rot.getEulerAngles(&roll, &pitch, &yaw);
+            target_eye_rot.setQuat(0.0f, pitch, yaw);
+            // constrain target orientation to be in front of avatar's face
+            target_eye_rot.constrain(EYE_ROT_LIMIT_ANGLE);
+
+            // calculate vergence
+            F32 interocular_dist = (left_eye_state.getJoint()->getWorldPosition() - right_eye_state.getJoint()->getWorldPosition()).magVec();
+            vergence = -atan2((interocular_dist / 2.f), lookAtDistance);
+            // <FS:ND> Guess we should take the return value of that llclamp...
+            // llclamp(vergence, -F_PI_BY_TWO, 0.f);
+            vergence = llclamp(vergence, -F_PI_BY_TWO, 0.f);
+            // </FS:ND>
+        }
     }
     else
     {
