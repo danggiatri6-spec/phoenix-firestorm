@@ -649,13 +649,30 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         vergence_quat.loadIdentity();
     }
 
-    // calculate eye rotations
+    // Build both eye targets in head-local space first. Standard eye joints
+    // are direct children of mHead, while Bento alternate eyes are children
+    // of mFaceRoot. Convert each target into its own parent-local space so
+    // face-root animation is not applied a second time to the alternate eyes.
     LLQuaternion left_eye_rot = target_eye_rot;
     left_eye_rot = vergence_quat * eye_jitter_rot * left_eye_rot;
 
     LLQuaternion right_eye_rot = target_eye_rot;
     vergence_quat.transQuat();
     right_eye_rot = vergence_quat * eye_jitter_rot * right_eye_rot;
+
+    const LLQuaternion head_world_rot = mHeadJoint->getWorldRotation();
+    LLJoint* left_eye_joint = left_eye_state.getJoint();
+    LLJoint* right_eye_joint = right_eye_state.getJoint();
+    if (left_eye_joint && left_eye_joint->getParent())
+    {
+        left_eye_rot = left_eye_rot * head_world_rot *
+            ~left_eye_joint->getParent()->getWorldRotation();
+    }
+    if (right_eye_joint && right_eye_joint->getParent())
+    {
+        right_eye_rot = right_eye_rot * head_world_rot *
+            ~right_eye_joint->getParent()->getWorldRotation();
+    }
 
     // Ease eye direction changes over a few frames. The head motion already
     // follows LookAtPoint with a longer half-life, so this keeps the eyes in
