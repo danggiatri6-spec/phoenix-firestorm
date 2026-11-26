@@ -551,10 +551,15 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         LLVector3       up;
 
         eye_look_at = *targetPos;
-        F32 lookAtDistance = eye_look_at.normVec();
+        // LookAtPoint is normally validated by LLHUDEffectLookAt, but keep
+        // the motion safe if another producer supplies non-finite data.
+        F32 lookAtDistance = eye_look_at.isFinite()
+            ? eye_look_at.normVec()
+            : 0.f;
 
-        // A zero-length LookAtPoint has no valid orientation. Treat it as
-        // an idle eye pose instead of constructing a degenerate quaternion.
+        // A zero-length or non-finite LookAtPoint has no valid orientation.
+        // Treat it as an idle eye pose instead of constructing a degenerate
+        // quaternion.
         if (lookAtDistance < 1.e-4f)
         {
             target_eye_rot = LLQuaternion::DEFAULT;
