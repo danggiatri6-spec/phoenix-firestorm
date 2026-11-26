@@ -92,6 +92,7 @@ jobs:
           $requiredPaths = @(
             "firestorm-bin.exe",
             "app_settings/settings.xml",
+            "app_settings/settings_files.xml",
             "app_settings/shaders",
             "character",
             "skins/skins.xml",
