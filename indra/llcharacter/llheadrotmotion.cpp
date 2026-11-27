@@ -538,6 +538,17 @@ bool LLEyeMotion::onActivate()
     // the existing randomized cadence.
     mEyeBlinkTime = 1.5f + ll_frand(3.0f);
     mEyesClosed = false;
+
+    // Do not carry a previous target rotation into a new activation.
+    // Keep the pose cache aligned with the joint reset performed on deactivation.
+    mLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+    mRightEyeState->setRotation(LLQuaternion::DEFAULT);
+    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    {
+        mAltLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->setRotation(LLQuaternion::DEFAULT);
+    }
+
     if (mHasBlinkMorphPair)
     {
         mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
@@ -847,12 +858,14 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 void LLEyeMotion::onDeactivate()
 {
     LLJoint* joint = mLeftEyeState->getJoint();
+    mLeftEyeState->setRotation(LLQuaternion::DEFAULT);
     if (joint)
     {
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
     joint = mRightEyeState->getJoint();
+    mRightEyeState->setRotation(LLQuaternion::DEFAULT);
     if (joint)
     {
         joint->setRotation(LLQuaternion::DEFAULT);
@@ -864,6 +877,8 @@ void LLEyeMotion::onDeactivate()
     if (!mUseAltEyesAsPrimary &&
         mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
     {
+        mAltLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->setRotation(LLQuaternion::DEFAULT);
         mAltLeftEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
         mAltRightEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
     }
