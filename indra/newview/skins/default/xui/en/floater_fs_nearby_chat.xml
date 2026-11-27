@@ -272,6 +272,20 @@
                wrap="true" />
             </layout_panel>
             <layout_panel
+              name="speech_to_text_button_layout_panel"
+              auto_resize="false"
+              user_resize="false"
+              width="34">
+              <button
+               follows="right|bottom"
+               bottom="-1"
+               height="24"
+               width="32"
+               label="Mic"
+               name="speech_to_text_button"
+               tool_tip="Start local speech-to-text dictation"/>
+            </layout_panel>
+            <layout_panel
               visibility_control="FSShowEmojiButton"
               auto_resize="false"
               user_resize="false"

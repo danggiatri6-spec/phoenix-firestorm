@@ -9,6 +9,9 @@ on:
 jobs:
   cla:
     name: Check CLA
+    # The upstream Second Life CLA token/signature repository is not available to forks.
+    # The canonical upstream repository performs its own CLA check on upstream PRs.
+    if: github.repository == 'secondlife/viewer'
     runs-on: ubuntu-latest
     steps:
       - name: CLA Assistant

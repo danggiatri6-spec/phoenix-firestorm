@@ -6649,12 +6649,12 @@ void handle_take(bool take_separate)
     // Fix: pass selection to the confirm_take, so that selection doesn't "die" after confirmation dialog is opened
     LLObjectSelectionHandle obj_selection = LLSelectMgr::instance().getSelection();
     params.functor.function([take_separate, obj_selection](const LLSD &notification, const LLSD &response)
-    { 
-        if (take_separate) 
+    {
+        if (take_separate)
         {
             confirm_take_separate(notification, response, obj_selection);
         }
-        else 
+        else
         {
             confirm_take(notification, response, obj_selection);
         }
@@ -7966,7 +7966,7 @@ class LLCommSetShowOnscreenConsole : public view_listener_t
         // This change will propagate to the other controls for this value
         bool show_onscreen_console = !gSavedSettings.getBOOL("FSShowOnscreenConsole");
         gSavedSettings.setBOOL("FSShowOnscreenConsole", show_onscreen_console);
-        
+
         return true;
     }
 };
@@ -9843,6 +9843,135 @@ class LLAvatarCall : public view_listener_t
         return true;
     }
 };
+
+
+class LLAvatarInteractionInvite : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID()))
+        {
+            LLAvatarActions::requestInteractionInvite(avatar->getID(), userdata.asString());
+        }
+        return true;
+    }
+};
+
+class LLAvatarEndInteraction : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            avatar->getID() == partner_id && session_id.notNull())
+        {
+            LLAvatarActions::endAvatarInteraction(session_id);
+        }
+        return true;
+    }
+};
+
+class LLAvatarApproachInteractionPartner : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (avatar && !avatar->isSelf() && !avatar->isDead() &&
+            partner_id.notNull() && session_id.notNull() && avatar->getID() == partner_id)
+            LLAvatarActions::approachActiveAvatarInteractionPartner();
+        return true;
+    }
+};
+
+class LLAvatarFaceInteractionPartner : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+        const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+        LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+        if (!avatar || avatar->isSelf() || avatar->isDead() ||
+            partner_id.isNull() || session_id.isNull() || avatar->getID() != partner_id)
+            return true;
+
+        // Face the partner using Firestorm's existing alignment implementation.
+        // This rotates only the local user's heading and sends the normal agent
+        // update; it does not move either participant or force the remote avatar.
+        if (!FSAvatarAlignBase::getActive())
+        {
+            LLFloaterReg::showInstance(gSavedSettings.getBOOL("AvatarAlignMini")
+                ? "avatar_align_mini" : "avatar_align");
+        }
+
+        FSAvatarAlignBase* aligner = FSAvatarAlignBase::getActive();
+        if (aligner && aligner->isAvatarInRange(avatar))
+            aligner->faceAvatar(avatar);
+        return true;
+    }
+};
+
+bool can_approach_interaction_partner()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull() || !isAgentAvatarValid() ||
+        gAgentAvatarp->isSitting() || gAgent.getAutoPilot() || gAgent.getFlying())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    if (!avatar || avatar->isSelf() || avatar->isDead() || avatar->getID() != partner_id)
+        return false;
+
+    const F32 distance = dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent());
+    return distance > 1.6f && distance <= 20.f;
+}
+
+bool can_face_interaction_partner()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    if (!avatar || avatar->isSelf() || avatar->isDead() || avatar->getID() != partner_id)
+        return false;
+
+    return dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent()) <=
+        FSAvatarAlignBase::MAX_FACE_DISTANCE;
+}
+
+bool can_end_avatar_interaction()
+{
+    const LLUUID partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    const LLUUID session_id = LLAvatarActions::getActiveAvatarInteractionSession();
+    if (partner_id.isNull() || session_id.isNull())
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    return avatar && !avatar->isSelf() && !avatar->isDead() && avatar->getID() == partner_id;
+}
+
+bool can_invite_avatar_interaction()
+{
+    LLViewerRegion* region = gAgent.getRegion();
+    if (!region || !region->isCapabilityAvailable("AvatarInteraction"))
+        return false;
+
+    LLVOAvatar* avatar = find_avatar_from_object(LLSelectMgr::getInstance()->getSelection()->getPrimaryObject());
+    // The server only accepts invitations for nearby avatars in this scene.
+    // Keep the menu state consistent with the server's three-metre interaction
+    // range instead of exposing an action that is guaranteed to be rejected.
+    return avatar && !avatar->isSelf() && !avatar->isDead() &&
+        RlvActions::canShowName(RlvActions::SNC_DEFAULT, avatar->getID()) &&
+        dist_vec(avatar->getPositionAgent(), gAgent.getPositionAgent()) <= 3.0f;
+}
 
 // [RLVa:KB] - Checked: RLVa-1.2.1
 bool enable_avatar_call()
@@ -13300,6 +13429,14 @@ void initialize_menus()
     commit.add("Avatar.ShowInspector", boost::bind(&handle_avatar_show_inspector));
     view_listener_t::addMenu(new LLAvatarSendIM(), "Avatar.SendIM");
     view_listener_t::addMenu(new LLAvatarCall(), "Avatar.Call");
+    view_listener_t::addMenu(new LLAvatarInteractionInvite(), "Avatar.InteractionInvite");
+    view_listener_t::addMenu(new LLAvatarEndInteraction(), "Avatar.EndInteraction");
+    view_listener_t::addMenu(new LLAvatarFaceInteractionPartner(), "Avatar.FaceInteractionPartner");
+    view_listener_t::addMenu(new LLAvatarApproachInteractionPartner(), "Avatar.ApproachInteractionPartner");
+    enable.add("Avatar.CanApproachInteractionPartner", boost::bind(&can_approach_interaction_partner));
+    enable.add("Avatar.CanInviteInteraction", boost::bind(&can_invite_avatar_interaction));
+    enable.add("Avatar.CanEndInteraction", boost::bind(&can_end_avatar_interaction));
+    enable.add("Avatar.CanFaceInteractionPartner", boost::bind(&can_face_interaction_partner));
 //  enable.add("Avatar.EnableCall", boost::bind(&LLAvatarActions::canCall));
 // [RLVa:KB] - Checked: 2010-08-25 (RLVa-1.2.1b) | Added: RLVa-1.2.1b
     enable.add("Avatar.EnableCall", boost::bind(&enable_avatar_call));

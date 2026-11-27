@@ -42,6 +42,7 @@ class LLWebRTCProtocolParser;
 #include "llmutelist.h"
 #include "workqueue.h"
 #include <queue>
+#include <cstddef>
 #include "boost/json.hpp"
 
 #ifdef LL_USESYSTEMLIBS
@@ -50,6 +51,7 @@ class LLWebRTCProtocolParser;
 # include "expat/expat.h"
 #endif
 #include "llvoiceclient.h"
+#include "llspeechtotext.h"
 
 // WebRTC Includes
 #include <llwebrtc.h>
@@ -87,6 +89,12 @@ public:
     static bool isWebRTCTerminated() { return sWebRTCTerminated; }
 
     LL::WorkQueue::weak_t getVoiceWorkQueue() const { return mVoiceWorkQueue; }
+
+    // OpenSim-next speech input bridge. PCM capture is disabled until explicitly
+    // requested by the user; polling is non-blocking and intended for the viewer thread.
+    void setSpeechCaptureEnabled(bool enabled);
+    bool getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioFrame& frame);
+    std::size_t pumpSpeechCapture(LLSpeechToText& service, std::size_t max_frames = 8);
 
     const LLVoiceVersionInfo& getVersion() override;
     void                      updateVersion();

@@ -45,6 +45,7 @@
 LLEmote::LLEmote(const LLUUID &id) : LLMotion(id)
 {
     mCharacter = NULL;
+    mParam = NULL;
 
     //RN: flag face joint as highest priority for now, until we implement a proper animation track
     mJointSignature[0][LL_FACE_JOINT_NUM] = 0xff;
@@ -76,6 +77,10 @@ LLMotion::LLMotionInitStatus LLEmote::onInitialize(LLCharacter *character)
 //-----------------------------------------------------------------------------
 bool LLEmote::onActivate()
 {
+    // Reset the cached morph before resolving it for this activation. A motion
+    // can be reactivated after avatar/appearance lifecycle transitions.
+    mParam = NULL;
+
     // <FS:ND> mCharacter being 0 might be one of the reasons for FIRE-10737
     if( !mCharacter )
         return true;
@@ -107,6 +112,15 @@ bool LLEmote::onActivate()
 //-----------------------------------------------------------------------------
 bool LLEmote::onUpdate(F32 time, U8* joint_mask)
 {
+    // The avatar/character may be torn down while a motion is still present in
+    // the controller. Validate the owner before dereferencing a cached visual
+    // parameter, then discard that cache for any later update.
+    if (!mCharacter)
+    {
+        mParam = NULL;
+        return true;
+    }
+
     if( mParam )
     {
         F32 weight = mParam->getMinWeight() + mPose.getWeight() * (mParam->getMaxWeight() - mParam->getMinWeight());
@@ -114,12 +128,7 @@ bool LLEmote::onUpdate(F32 time, U8* joint_mask)
         //mParam->setWeight(weight);
         mParam->setWeight(weight, false);
 
-        // <FS:ND> mCharacter being 0 might be one of the reasons for FIRE-11529
-        if( !mCharacter )
-            return true;
-        // </FS:ND>
-
-        // Cross fade against the default parameter
+        // Cross fade against the default parameter.
         LLVisualParam* default_param = mCharacter->getVisualParam( "Express_Closed_Mouth" );
         if( default_param )
         {
@@ -143,6 +152,15 @@ bool LLEmote::onUpdate(F32 time, U8* joint_mask)
 //-----------------------------------------------------------------------------
 void LLEmote::onDeactivate()
 {
+    // The avatar can be torn down before the motion controller releases this
+    // motion. Do not dereference the cached character or visual parameters in
+    // that case.
+    if (!mCharacter)
+    {
+        mParam = NULL;
+        return;
+    }
+
     if( mParam )
     {
         // <FS:Ansariel> [Legacy Bake]
@@ -159,6 +177,7 @@ void LLEmote::onDeactivate()
     }
 
     mCharacter->updateVisualParams();
+    mParam = NULL;
 }
 
 

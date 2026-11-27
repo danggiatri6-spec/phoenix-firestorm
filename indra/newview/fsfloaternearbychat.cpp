@@ -30,6 +30,8 @@
 
 #include "llviewerprecompiledheaders.h"
 
+#include <cctype>
+
 #include "fsfloaternearbychat.h"
 
 #include "chatbar_as_cmdline.h"
@@ -40,6 +42,9 @@
 #include "fsfloaterimcontainer.h"
 #include "fsnearbychathub.h"
 #include "llagent.h"            // gAgent
+#include "llappviewer.h"
+#include "llfilepicker.h"
+#include "lldir.h"
 #include "llagentcamera.h"  // gAgentCamera
 #include "llanimationstates.h"  // ANIM_AGENT_WHISPER, ANIM_AGENT_TALK, ANIM_AGENT_SHOUT
 #include "llautoreplace.h"
@@ -65,6 +70,7 @@
 #include "lllayoutstack.h"
 #include "lllogchat.h"
 #include "llmenugl.h"
+#include "llnotificationsutil.h"
 #include "llmultigesture.h"
 #include "llpanelemojicomplete.h"
 #include "llresizebar.h"
@@ -93,6 +99,8 @@ FSFloaterNearbyChat::FSFloaterNearbyChat(const LLSD& key)
     ,mChatHistory(NULL)
     ,mChatHistoryMuted(NULL)
     ,mInputEditor(NULL)
+    ,mSpeechToTextButton(NULL)
+    ,mSpeechToTextActive(false)
     ,mChatLayoutPanel(NULL)
     ,mInputPanels(NULL)
     ,mChatLayoutPanelHeight(0)
@@ -116,7 +124,7 @@ FSFloaterNearbyChat::~FSFloaterNearbyChat()
     }
 
     mEmojiCloseConn.disconnect();
-    
+
     if (mRlvBehaviorCallbackConnection.connected())
     {
         mRlvBehaviorCallbackConnection.disconnect();
@@ -213,6 +221,9 @@ bool FSFloaterNearbyChat::postBuild()
     mSendChatButton = getChild<LLButton>("send_chat");
     mSendChatButton->setCommitCallback(boost::bind(&FSFloaterNearbyChat::onChatBoxCommit, this));
     onChatTypeChanged();
+
+    mSpeechToTextButton = getChild<LLButton>("speech_to_text_button");
+    mSpeechToTextButton->setCommitCallback([this](LLUICtrl*, const LLSD&) { onSpeechToTextButtonClicked(); });
 
     mChatHistory = getChild<FSChatHistory>("chat_history");
     mChatHistoryMuted = getChild<FSChatHistory>("chat_history_muted");
@@ -507,6 +518,25 @@ void FSFloaterNearbyChat::setMinimized(bool b)
     handleMinimized(b);
 
     LLFloater::setMinimized(b);
+}
+
+void FSFloaterNearbyChat::onClose(bool app_quitting)
+{
+    if (mSpeechToTextActive)
+    {
+        if (LLAppViewer* app = LLAppViewer::instance())
+        {
+            app->stopSpeechToTextDictation();
+        }
+        mSpeechToTextActive = false;
+        if (mSpeechToTextButton)
+        {
+            mSpeechToTextButton->setLabel("Mic");
+            mSpeechToTextButton->setToolTip(LLStringExplicit("Start local speech-to-text dictation"));
+        }
+    }
+
+    LLFloater::onClose(app_quitting);
 }
 
 void FSFloaterNearbyChat::onOpen(const LLSD& key )
@@ -815,6 +845,25 @@ bool FSFloaterNearbyChat::handleKeyHere( KEY key, MASK mask )
     return handled;
 }
 
+void FSFloaterNearbyChat::insertSpeechToText(const std::string& text)
+{
+    if (!mInputEditor || text.empty())
+    {
+        return;
+    }
+
+    // Dictation is deliberately inserted into the editable field. The normal
+    // chat commit callback is not invoked here, so recognition never auto-sends.
+    std::string current = mInputEditor->getText();
+    if (!current.empty() && !std::isspace(static_cast<unsigned char>(current.back())))
+    {
+        current.push_back(' ');
+    }
+    current += text;
+    mInputEditor->setText(LLStringExplicit(current));
+    mInputEditor->setCursorAndScrollToEnd();
+}
+
 void FSFloaterNearbyChat::onChatBoxKeystroke()
 {
     S32 channel = 0;
@@ -924,7 +973,7 @@ void FSFloaterNearbyChat::sendChat( EChatType type )
     // If the user wants to stop chatting on hitting return, lose focus
     // and go out of chat mode.
     const bool in_mouselook = gAgentCamera.cameraMouselook();
-    const bool closeChatOnReturn = gSavedSettings.getBOOL("CloseChatOnReturn") 
+    const bool closeChatOnReturn = gSavedSettings.getBOOL("CloseChatOnReturn")
                          && !(!in_mouselook && gSavedSettings.getBOOL("FSCloseChatOnReturnInMouselook"))
                          && !gSavedSettings.getBOOL("FSCloseChatOnReturnOnlyBar");
     if (closeChatOnReturn && gSavedSettings.getBOOL("FSUnfocusChatHistoryOnReturn"))
@@ -1071,6 +1120,92 @@ void FSFloaterNearbyChat::initEmojiRecentPanel()
         mEmojiRecentIconsCtrl->setEmojis(emojis);
         mEmojiRecentEmptyText->setVisible(false);
         mEmojiRecentIconsCtrl->setVisible(true);
+    }
+}
+
+void FSFloaterNearbyChat::onSpeechToTextFailed(const std::string& error)
+{
+    mSpeechToTextActive = false;
+    if (mSpeechToTextButton)
+    {
+        mSpeechToTextButton->setLabel("Mic");
+        mSpeechToTextButton->setToolTip("Speech recognition failed: " + error);
+    }
+
+    // A tooltip alone is easy to miss; report startup and asynchronous model
+    // failures visibly while keeping the Nearby Chat editor available.
+    LLNotificationsUtil::add("GenericAlert", LLSD().with("MESSAGE",
+        "Speech-to-text could not start or continue: " + error));
+    LL_WARNS("SpeechToText") << "Dictation stopped: " << error << LL_ENDL;
+}
+
+void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
+{
+    LLAppViewer* app = LLAppViewer::instance();
+    if (!app || !mSpeechToTextButton)
+    {
+        return;
+    }
+
+    // The microphone tap is opened only after this explicit user action.
+    if (mSpeechToTextActive)
+    {
+        app->stopSpeechToTextDictation();
+        mSpeechToTextActive = false;
+        mSpeechToTextButton->setLabel("Mic");
+        mSpeechToTextButton->setToolTip(LLStringExplicit("Start local speech-to-text dictation"));
+        return;
+    }
+
+    std::string model_path = gSavedSettings.getString("SpeechToTextModelPath");
+    if (!model_path.empty() && !LLFile::isfile(model_path))
+    {
+        // A moved or deleted model must not permanently block the file picker.
+        gSavedSettings.setString("SpeechToTextModelPath", "");
+        model_path.clear();
+    }
+
+    // Prefer the model bundled with the portable Viewer package. Resolve it
+    // from the installed app_settings directory so the package remains
+    // relocatable and does not depend on the process working directory.
+    if (model_path.empty())
+    {
+        const std::string bundled_model = gDirUtilp->getExpandedFilename(
+            LL_PATH_APP_SETTINGS, "speech_models", "ggml-base.bin");
+        if (LLFile::isfile(bundled_model))
+        {
+            model_path = bundled_model;
+        }
+    }
+
+    if (model_path.empty())
+    {
+        LLNotificationsUtil::add("GenericAlert", LLSD().with("MESSAGE",
+            "No bundled Whisper model was found. Select a multilingual Whisper.cpp GGML model file (for example ggml-base.bin)."));
+        LLFilePicker& picker = LLFilePicker::instance();
+        if (!picker.getOpenFile(LLFilePicker::FFLOAD_ALL))
+        {
+            return;
+        }
+        model_path = picker.getFirstFile();
+        if (model_path.empty())
+        {
+            return;
+        }
+    }
+
+    if (app->startSpeechToTextDictation(model_path))
+    {
+        // Persist only after the optional backend and worker have started.
+        gSavedSettings.setString("SpeechToTextModelPath", model_path);
+        mSpeechToTextActive = true;
+        mSpeechToTextButton->setLabel("Stop");
+        mSpeechToTextButton->setToolTip(LLStringExplicit("Stop local speech-to-text dictation"));
+    }
+    else
+    {
+        onSpeechToTextFailed(
+            "Check that this Viewer was built with Whisper.cpp and that the selected model file is valid. See the SpeechToText log for details.");
     }
 }
 

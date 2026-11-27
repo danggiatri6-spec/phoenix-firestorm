@@ -26,12 +26,61 @@
 
 #include "llviewerprecompiledheaders.h"
 #include "llagentcamera.h"
+#include "llvoavatarself.h"
 
 #include "pipeline.h"
 
 #include "aoengine.h"           // ## Zi: Animation Overrider
 #include "llagent.h"
+#include "llavataractions.h"
 #include "llanimationstates.h"
+#include "lljointstate.h"
+#include "llmotion.h"
+#include "llpose.h"
+#include "llstring.h"
+
+#include <cctype>
+#include <string>
+
+// Only standard Second Life facial expression animations may be requested by
+// the local social-emotion layer. Never invent animation IDs here.
+static bool is_social_facial_expression(const LLUUID& id)
+{
+    return id == ANIM_AGENT_EXPRESS_AFRAID ||
+        id == ANIM_AGENT_EXPRESS_ANGER ||
+        id == ANIM_AGENT_EXPRESS_BORED ||
+        id == ANIM_AGENT_EXPRESS_CRY ||
+        id == ANIM_AGENT_EXPRESS_DISDAIN ||
+        id == ANIM_AGENT_EXPRESS_EMBARRASSED ||
+        id == ANIM_AGENT_EXPRESS_FROWN ||
+        id == ANIM_AGENT_EXPRESS_KISS ||
+        id == ANIM_AGENT_EXPRESS_LAUGH ||
+        id == ANIM_AGENT_EXPRESS_OPEN_MOUTH ||
+        id == ANIM_AGENT_EXPRESS_REPULSED ||
+        id == ANIM_AGENT_EXPRESS_SAD ||
+        id == ANIM_AGENT_EXPRESS_SHRUG ||
+        id == ANIM_AGENT_EXPRESS_SMILE ||
+        id == ANIM_AGENT_EXPRESS_SURPRISE ||
+        id == ANIM_AGENT_EXPRESS_TONGUE_OUT ||
+        id == ANIM_AGENT_EXPRESS_TOOTHSMILE ||
+        id == ANIM_AGENT_EXPRESS_WINK ||
+        id == ANIM_AGENT_EXPRESS_WORRY;
+}
+
+static bool has_external_social_animation_source(const LLVOAvatarSelf* avatar, const LLUUID& id)
+{
+    if (!avatar)
+        return true;
+
+    for (LLVOAvatar::AnimationSourceMap::const_iterator it = avatar->mAnimationSources.begin();
+         it != avatar->mAnimationSources.end(); ++it)
+    {
+        if (it->second == id)
+            return true;
+    }
+    return false;
+}
+
 #include "llfloatercamera.h"
 #include "llfloaterreg.h"
 #include "llhudmanager.h"
@@ -45,10 +94,10 @@
 #include "llviewercontrol.h"
 #include "llviewerjoystick.h"
 #include "llviewermenu.h"
+#include "llviewergenericmessage.h"
 #include "llviewerobjectlist.h"
 #include "llviewerregion.h"
 #include "llviewerwindow.h"
-#include "llvoavatarself.h"
 #include "llwindow.h"
 #include "llworld.h"
 // [RLVa:KB] - Checked: 2010-05-10 (RLVa-1.2.0g)
@@ -57,6 +106,123 @@
 // [/RLVa:KB]
 #include "fscommon.h"
 #include "lltrans.h"
+#include "lltimer.h"
+#include "llvoiceclient.h"
+
+// Coarse body regions used by the first social-motion compatibility policy.
+// These are observational labels only; they never alter the simulator's motion
+// priority or the Viewer pose blender.
+enum SocialMotionRegion
+{
+    SOCIAL_REGION_NONE  = 0,
+    SOCIAL_REGION_FACE  = 1 << 0,
+    SOCIAL_REGION_HEAD  = 1 << 1,
+    SOCIAL_REGION_ARMS  = 1 << 2,
+    SOCIAL_REGION_HANDS = 1 << 3,
+    SOCIAL_REGION_TORSO = 1 << 4,
+    SOCIAL_REGION_LEGS  = 1 << 5,
+    SOCIAL_REGION_UNKNOWN = 1 << 6
+};
+
+enum SocialMotionKind
+{
+    SOCIAL_MOTION_TALK
+};
+
+static U32 get_social_motion_region_mask(LLMotion* motion)
+{
+    if (!motion)
+        return SOCIAL_REGION_NONE;
+
+    LLPose* pose = motion->getPose();
+    if (!pose)
+        return SOCIAL_REGION_NONE;
+
+    U32 regions = SOCIAL_REGION_NONE;
+    for (LLJointState* state = pose->getFirstJointState(); state;
+         state = pose->getNextJointState())
+    {
+        const LLJoint* joint = state->getJoint();
+        if (!joint)
+            continue;
+
+        LLJoint::JointPriority priority = state->getPriority();
+        if (priority == LLJoint::USE_MOTION_PRIORITY)
+            priority = motion->getPriority();
+
+        // Ignore very low-priority procedural noise when deciding whether
+        // social gestures should be suppressed.
+        if (priority < LLJoint::MEDIUM_PRIORITY)
+            continue;
+
+        std::string joint_name = joint->getName();
+        LLStringUtil::toLower(joint_name);
+
+        if (joint_name.find("eye") != std::string::npos ||
+            joint_name.find("face") != std::string::npos ||
+            joint_name.find("mouth") != std::string::npos ||
+            joint_name.find("brow") != std::string::npos)
+            regions |= SOCIAL_REGION_FACE;
+        else if (joint_name.find("head") != std::string::npos ||
+                 joint_name.find("neck") != std::string::npos)
+            regions |= SOCIAL_REGION_HEAD;
+        else if (joint_name.find("hand") != std::string::npos)
+            regions |= SOCIAL_REGION_HANDS;
+        else if (joint_name.find("shoulder") != std::string::npos ||
+                 joint_name.find("collar") != std::string::npos ||
+                 joint_name.find("elbow") != std::string::npos ||
+                 joint_name.find("wrist") != std::string::npos)
+            regions |= SOCIAL_REGION_ARMS;
+        else if (joint_name.find("chest") != std::string::npos ||
+                 joint_name.find("torso") != std::string::npos ||
+                 joint_name.find("spine") != std::string::npos)
+            regions |= SOCIAL_REGION_TORSO;
+        else if (joint_name.find("hip") != std::string::npos ||
+                 joint_name.find("knee") != std::string::npos ||
+                 joint_name.find("ankle") != std::string::npos ||
+                 joint_name.find("foot") != std::string::npos)
+            regions |= SOCIAL_REGION_LEGS;
+        else
+            regions |= SOCIAL_REGION_UNKNOWN;
+    }
+    return regions;
+}
+
+static bool social_motion_conflicts(SocialMotionKind requested, U32 active_regions)
+{
+    switch (requested)
+    {
+        case SOCIAL_MOTION_TALK:
+            // TALK is currently treated as an upper-body gesture. Facial,
+            // head-only and leg-only motion may continue alongside it.
+            return (active_regions &
+                (SOCIAL_REGION_ARMS | SOCIAL_REGION_HANDS | SOCIAL_REGION_TORSO |
+                 SOCIAL_REGION_UNKNOWN)) != 0;
+    }
+    return true; // Unknown future motion kinds fail closed.
+}
+
+static bool has_social_motion_conflict(LLVOAvatarSelf* avatar, SocialMotionKind requested)
+{
+    if (!avatar)
+        return true;
+
+    const LLMotionController::motion_list_t& motions =
+        avatar->getMotionController().getActiveMotions();
+
+    for (LLMotionController::motion_list_t::const_iterator motion_it = motions.begin();
+         motion_it != motions.end(); ++motion_it)
+    {
+        LLMotion* motion = *motion_it;
+        if (!motion || motion->getID() == ANIM_AGENT_TALK)
+            continue;
+
+        if (social_motion_conflicts(requested, get_social_motion_region_mask(motion)))
+            return true;
+    }
+    return false;
+}
+
 
 using namespace LLAvatarAppearanceDefines;
 
@@ -1300,17 +1466,764 @@ void LLAgentCamera::updateLookAt(const S32 mouse_x, const S32 mouse_y)
 
 static LLTrace::BlockTimerStatHandle FTM_UPDATE_CAMERA("Camera");
 
+
 extern bool gCubeSnapshot;
+
+// Local-only social gaze. This deliberately reuses the existing look-at overlay:
+// no new packets are sent and legacy AO/LSL/camera attention remains authoritative.
+static void update_local_social_gaze()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialGaze", true);
+    static F64 last_scan = 0.0;
+    static F64 target_since = 0.0;
+    static F64 challenger_since = 0.0;
+    static F64 next_look_away = 0.0;
+    static F64 resume_look_at = 0.0;
+    static bool looking_away = false;
+    static LLUUID last_target;
+    static LLUUID challenger_target;
+    const F64 now = LLTimer::getTotalSeconds();
+
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->mHeadp ||
+        !gAgentCamera.cameraThirdPerson() ||
+        LLAvatarActions::getActiveAvatarInteractionPartner().notNull())
+    {
+        if (last_target.notNull())
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+            challenger_target.setNull();
+            target_since = 0.0;
+            challenger_since = 0.0;
+            looking_away = false;
+            next_look_away = 0.0;
+            resume_look_at = 0.0;
+        }
+        return;
+    }
+
+    // Target selection is deliberately slower than the frame-driven head/eye motion.
+    if (now - last_scan < 0.33)
+        return;
+    last_scan = now;
+
+    const LLVector3 origin = gAgentAvatarp->getPositionAgent();
+    LLVector3 forward = LLVector3::x_axis * gAgentAvatarp->getRotation();
+    forward.mV[VZ] = 0.f;
+    if (forward.normalize() < 0.001f)
+        return;
+
+    LLVOAvatar* best_avatar = nullptr;
+    LLVOAvatar* current_avatar = nullptr;
+    F32 best_score = 7.0f;
+    F32 current_score = 1000.0f;
+
+    for (S32 i = 0, count = gObjectList.getNumObjects(); i < count; ++i)
+    {
+        LLViewerObject* object = gObjectList.getObject(i);
+        if (!object || !object->isAvatar() || object->isDead() ||
+            object->getID() == gAgent.getID())
+            continue;
+
+        LLVOAvatar* avatar = (LLVOAvatar*)object;
+        if (!avatar->mHeadp || !avatar->isVisible() || avatar->isVisuallyMuted() ||
+            avatar->isInMuteList() || avatar->getRegion() != gAgent.getRegion())
+            continue;
+
+        LLVector3 offset = avatar->getPositionAgent() - origin;
+        offset.mV[VZ] = 0.f;
+        const F32 distance = offset.length();
+        if (distance < 1.0f || distance > 7.0f)
+            continue;
+        offset.normalize();
+
+        const F32 facing = forward * offset;
+        if (facing < 0.35f)
+            continue;
+
+        // Distance remains dominant. Typing is a weak conversational hint only.
+        const F32 score = distance - (avatar->isTyping() ? 0.75f : 0.0f);
+        if (score < best_score)
+        {
+            best_score = score;
+            best_avatar = avatar;
+        }
+        if (avatar->getID() == last_target)
+        {
+            current_avatar = avatar;
+            current_score = score;
+        }
+    }
+
+    // Briefly glance toward a nearby world point, then return to the current
+    // conversational target. This is a local-only point target; no look-at packet
+    // or legacy attention type is changed.
+    if (looking_away)
+    {
+        if (now < resume_look_at)
+            return;
+
+        LLVOAvatar* return_target = current_avatar ? current_avatar : best_avatar;
+        if (return_target)
+        {
+            gAgentCamera.setInteractionLookAt(return_target);
+            last_target = return_target->getID();
+            target_since = now;
+            next_look_away = now + 9.0 + ll_frand(7.0f);
+        }
+        else
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+            next_look_away = 0.0;
+        }
+        looking_away = false;
+        resume_look_at = 0.0;
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    if (best_avatar && last_target.notNull() && best_avatar->getID() == last_target &&
+        next_look_away > 0.0 && now >= next_look_away)
+    {
+        LLVector3 glance_direction = LLVector3::y_axis * gAgentAvatarp->getRotation();
+        glance_direction.mV[VZ] = 0.f;
+        if (glance_direction.normalize() < 0.001f)
+            glance_direction = LLVector3::y_axis;
+        LLVector3 glance_position = gAgentAvatarp->getPositionAgent() +
+            (glance_direction * (ll_frand(0.8f) + 0.6f)) +
+            (forward * (1.0f + ll_frand(0.5f)));
+        glance_position.mV[VZ] += 0.25f;
+        gAgentCamera.setInteractionLookAtPoint(gAgent.getPosGlobalFromAgent(glance_position));
+        looking_away = true;
+        resume_look_at = now + 0.8 + ll_frand(0.8f);
+        return;
+    }
+
+    if (!best_avatar)
+    {
+        if (last_target.notNull())
+        {
+            gAgentCamera.clearInteractionLookAt();
+            last_target.setNull();
+            challenger_target.setNull();
+            target_since = 0.0;
+            challenger_since = 0.0;
+        }
+        return;
+    }
+
+    if (best_avatar->getID() == last_target)
+    {
+        // The current target remains the best candidate; clear any stale challenge.
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    if (last_target.isNull() || !current_avatar)
+    {
+        // Acquire immediately when there is no valid current target.
+        gAgentCamera.setInteractionLookAt(best_avatar);
+        last_target = best_avatar->getID();
+        target_since = now;
+        next_look_away = now + 9.0 + ll_frand(7.0f);
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    // Hysteresis: keep a valid target for at least 2.5s, then require a clearly
+    // better challenger to remain stable for 1.2s before switching attention.
+    if (now - target_since < 2.5 || best_score > current_score - 0.8f)
+    {
+        challenger_target.setNull();
+        challenger_since = 0.0;
+        return;
+    }
+
+    if (challenger_target != best_avatar->getID())
+    {
+        challenger_target = best_avatar->getID();
+        challenger_since = now;
+        return;
+    }
+
+    if (now - challenger_since < 1.2)
+        return;
+
+    gAgentCamera.setInteractionLookAt(best_avatar);
+    last_target = best_avatar->getID();
+    target_since = now;
+    next_look_away = now + 9.0 + ll_frand(7.0f);
+    challenger_target.setNull();
+    challenger_since = 0.0;
+}
 
 //-----------------------------------------------------------------------------
 // updateCamera()
 //-----------------------------------------------------------------------------
+
+bool LLAgentCamera::requestSocialGreetingGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->isSelf() ||
+        mSocialGesturePending || mSocialGestureOwned)
+        return false;
+
+    // HELLO is an established Second Life animation state (the standard wave).
+    // Do not interrupt an existing gesture, AO, LSL animation, or attachment source.
+    if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO) !=
+            gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+        return false;
+
+    mSocialGestureSequence = 0;
+    mSocialGestureRequestTime = LLTimer::getTotalSeconds();
+    mSocialGestureDeadline = mSocialGestureRequestTime + 2.8;
+    mSocialGesturePending = true;
+    gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialGreetingGesture()
+{
+    if (mSocialGestureOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current =
+            gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_HELLO);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialGestureSequence &&
+            !has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_HELLO))
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialGestureSequence = 0;
+    mSocialGestureRequestTime = 0.0;
+    mSocialGestureDeadline = 0.0;
+    mSocialGesturePending = false;
+    mSocialGestureOwned = false;
+}
+
+// Nod and wave are tracked independently so one animation cannot release the other.
+
+static void update_social_greeting_gesture_lease(LLVOAvatarSelf* avatar,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    if (!avatar || !avatar->isSelf())
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    const F64 now = LLTimer::getTotalSeconds();
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_HELLO);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            sequence = 0;
+            pending = owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_animation_source(avatar, ANIM_AGENT_HELLO))
+    {
+        // A competing gesture or animation source took over; never stop it.
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        gAgent.sendAnimationRequest(ANIM_AGENT_HELLO, ANIM_REQUEST_STOP);
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
+void LLAgentCamera::updateSocialSpeechGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    LLVOAvatarSelf* avatar = gAgentAvatarp;
+    const bool speaking = enabled && avatar && avatar->isSelf() &&
+        LLVoiceClient::getInstance()->getIsSpeaking(gAgent.getID());
+    const F64 now = LLTimer::getTotalSeconds();
+
+    if (!avatar || !avatar->isSelf())
+    {
+        mSocialTalkSequence = 0;
+        mSocialTalkRequestTime = 0.0;
+        mSocialTalkLastActiveTime = 0.0;
+        mSocialTalkPending = false;
+        mSocialTalkOwned = false;
+        return;
+    }
+
+    if (speaking)
+        mSocialTalkLastActiveTime = now;
+
+    // Re-evaluate conflicts while TALK is owned, not only at acquisition time.
+    // A newly started AO/LSL/user gesture must be allowed to take precedence.
+    const bool upper_body_conflict = has_social_motion_conflict(avatar, SOCIAL_MOTION_TALK);
+
+    // Briefly hold the gesture across voice-activity packet gaps to avoid flicker.
+    // An upper-body conflict overrides the grace period immediately.
+    const bool speech_active = !upper_body_conflict &&
+        (speaking || (mSocialTalkOwned && now - mSocialTalkLastActiveTime < 0.65));
+
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
+    if (speaking && !mSocialTalkPending && !mSocialTalkOwned &&
+        current == avatar->mSignaledAnimations.end() &&
+        !has_external_social_animation_source(avatar, ANIM_AGENT_TALK) &&
+        !upper_body_conflict)
+    {
+        // Acquire the standard SL TALK animation only during actual local voice activity.
+        gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_START);
+        mSocialTalkRequestTime = now;
+        mSocialTalkLastActiveTime = now;
+        mSocialTalkPending = true;
+    }
+
+    if (mSocialTalkPending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            mSocialTalkSequence = current->second;
+            mSocialTalkPending = false;
+            mSocialTalkOwned = true;
+        }
+        else if (now - mSocialTalkRequestTime > 3.0)
+        {
+            mSocialTalkSequence = 0;
+            mSocialTalkPending = false;
+        }
+    }
+
+    if (mSocialTalkOwned)
+    {
+        current = avatar->mSignaledAnimations.find(ANIM_AGENT_TALK);
+        if (current == avatar->mSignaledAnimations.end() ||
+            current->second != mSocialTalkSequence ||
+            has_external_social_animation_source(avatar, ANIM_AGENT_TALK))
+        {
+            // Simulator state changed or an external source took over: relinquish without STOP.
+            mSocialTalkSequence = 0;
+            mSocialTalkOwned = false;
+            return;
+        }
+
+        if (!speech_active)
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_TALK, ANIM_REQUEST_STOP);
+            mSocialTalkSequence = 0;
+            mSocialTalkLastActiveTime = 0.0;
+            mSocialTalkOwned = false;
+        }
+    }
+}
+
+bool LLAgentCamera::requestSocialNodGesture()
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled || !gAgentAvatarp || !gAgentAvatarp->isSelf() ||
+        mSocialNodPending || mSocialNodOwned)
+        return false;
+
+    // YES is the standard Second Life head-nod animation (yes_head).
+    if (gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES) !=
+            gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_YES))
+        return false;
+
+    mSocialNodSequence = 0;
+    mSocialNodRequestTime = LLTimer::getTotalSeconds();
+    mSocialNodDeadline = mSocialNodRequestTime + 1.9;
+    mSocialNodPending = true;
+    gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialNodGesture()
+{
+    if (mSocialNodOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current =
+            gAgentAvatarp->mSignaledAnimations.find(ANIM_AGENT_YES);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialNodSequence &&
+            !has_external_social_animation_source(gAgentAvatarp, ANIM_AGENT_YES))
+        {
+            gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialNodSequence = 0;
+    mSocialNodRequestTime = 0.0;
+    mSocialNodDeadline = 0.0;
+    mSocialNodPending = false;
+    mSocialNodOwned = false;
+}
+
+static void update_social_nod_gesture_lease(LLVOAvatarSelf* avatar,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    if (!avatar || !avatar->isSelf())
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    const F64 now = LLTimer::getTotalSeconds();
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(ANIM_AGENT_YES);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            sequence = 0;
+            pending = owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_animation_source(avatar, ANIM_AGENT_YES))
+    {
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        gAgent.sendAnimationRequest(ANIM_AGENT_YES, ANIM_REQUEST_STOP);
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
+bool LLAgentCamera::requestSocialEmotion(ESocialEmotion emotion)
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled)
+        return false;
+
+    // Coordinate the facial reaction with the existing local gaze system.
+    // This only refreshes the interaction attention target; LLHUDEffectLookAt
+    // continues to arbitrate against camera, Mouselook, AO and legacy attention.
+    const LLUUID& partner_id = LLAvatarActions::getActiveAvatarInteractionPartner();
+    if (partner_id.notNull())
+    {
+        LLViewerObject* partner = gObjectList.findObject(partner_id);
+        if (partner && partner->isAvatar() && !partner->isDead() &&
+            partner->getRegion() == gAgent.getRegion() &&
+            dist_vec(partner->getPositionAgent(), gAgent.getPositionAgent()) <= 12.f)
+        {
+            setInteractionLookAt(partner);
+        }
+    }
+
+    // Map high-level social intent to established SL facial expression assets.
+    // This is deliberately conservative: no emotion is inferred from chat yet.
+    switch (emotion)
+    {
+    case ESocialEmotion::GREETING:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SMILE, 2.8f);
+    case ESocialEmotion::FRIENDLY:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_TOOTHSMILE, 2.5f);
+    case ESocialEmotion::AMUSED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_LAUGH, 2.0f);
+    case ESocialEmotion::CONCERNED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_WORRY, 3.2f);
+    case ESocialEmotion::SAD:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SAD, 3.5f);
+    case ESocialEmotion::SURPRISED:
+        return requestSocialExpression(ANIM_AGENT_EXPRESS_SURPRISE, 1.8f);
+    default:
+        return false;
+    }
+}
+
+
+// Match complete ASCII cue words so ordinary words such as "color" or
+// "saddle" do not accidentally trigger social expressions.
+static bool contains_social_word(const std::string& text, const std::string& word)
+{
+    std::string::size_type pos = 0;
+    while ((pos = text.find(word, pos)) != std::string::npos)
+    {
+        const bool left_boundary = pos == 0 ||
+            !std::isalnum(static_cast<unsigned char>(text[pos - 1]));
+        const std::string::size_type end = pos + word.size();
+        const bool right_boundary = end >= text.size() ||
+            !std::isalnum(static_cast<unsigned char>(text[end]));
+        if (left_boundary && right_boundary)
+            return true;
+        pos = end;
+    }
+    return false;
+}
+
+void LLAgentCamera::observeSocialChat(const LLUUID& speaker_id, const std::string& message)
+{
+    static LLCachedControl<bool> enabled(gSavedSettings, "FSAvatarSocialEmotions", true);
+    if (!enabled)
+        return;
+
+    // Reactions are limited to the explicitly accepted interaction partner.
+    if (speaker_id.isNull() ||
+        speaker_id != LLAvatarActions::getActiveAvatarInteractionPartner() ||
+        message.empty() || gAgent.isDoNotDisturb())
+        return;
+
+    LLViewerObject* partner = gObjectList.findObject(speaker_id);
+    if (!partner || !partner->isAvatar() || partner->isDead() ||
+        partner->getRegion() != gAgent.getRegion() ||
+        dist_vec(partner->getPositionAgent(), gAgent.getPositionAgent()) > 12.f)
+        return;
+
+    const F64 now = LLTimer::getTotalSeconds();
+    if (now - mLastSocialEmotionReaction < 8.0)
+        return;
+
+    std::string normalized(message);
+    LLStringUtil::toLower(normalized);
+
+    ESocialEmotion emotion;
+    bool recognized = true;
+    bool conversational_nod = false;
+    if (contains_social_word(normalized, "haha") ||
+        contains_social_word(normalized, "lol") ||
+        contains_social_word(normalized, "lmao") ||
+        message.find("哈哈") != std::string::npos ||
+        message.find("😂") != std::string::npos)
+    {
+        emotion = ESocialEmotion::AMUSED;
+    }
+    else if (contains_social_word(normalized, "thank") ||
+        message.find("谢谢") != std::string::npos ||
+        message.find("多谢") != std::string::npos ||
+        contains_social_word(normalized, "yes") ||
+        contains_social_word(normalized, "yeah") ||
+        contains_social_word(normalized, "yep") ||
+        contains_social_word(normalized, "agree") ||
+        contains_social_word(normalized, "absolutely"))
+    {
+        emotion = ESocialEmotion::FRIENDLY;
+        conversational_nod = true;
+    }
+    else if (contains_social_word(normalized, "sorry") ||
+        contains_social_word(normalized, "sad") ||
+        message.find("对不起") != std::string::npos ||
+        message.find("难过") != std::string::npos ||
+        message.find("伤心") != std::string::npos)
+    {
+        emotion = ESocialEmotion::CONCERNED;
+    }
+    else if (contains_social_word(normalized, "wow") ||
+        message.find("惊讶") != std::string::npos)
+    {
+        emotion = ESocialEmotion::SURPRISED;
+    }
+    else
+    {
+        recognized = false;
+    }
+
+    if (recognized && requestSocialEmotion(emotion))
+    {
+        mLastSocialEmotionReaction = now;
+        if (conversational_nod)
+            requestSocialNodGesture();
+    }
+}
+
+bool LLAgentCamera::requestSocialExpression(const LLUUID& animation_id, F32 duration)
+{
+    if (!is_social_facial_expression(animation_id) || !gAgentAvatarp ||
+        !gAgentAvatarp->isSelf() || mSocialExpressionPending || mSocialExpressionOwned)
+        return false;
+
+    // Never take over an expression that is already active or sourced by an object.
+    if (gAgentAvatarp->mSignaledAnimations.find(animation_id) != gAgentAvatarp->mSignaledAnimations.end() ||
+        has_external_social_animation_source(gAgentAvatarp, animation_id))
+        return false;
+
+    mSocialExpressionAnimation = animation_id;
+    mSocialExpressionSequence = 0;
+    mSocialExpressionRequestTime = LLTimer::getTotalSeconds();
+    mSocialExpressionDeadline = mSocialExpressionRequestTime + llclamp(duration, 0.5f, 12.f);
+    mSocialExpressionPending = true;
+    gAgent.sendAnimationRequest(animation_id, ANIM_REQUEST_START);
+    return true;
+}
+
+void LLAgentCamera::cancelSocialExpression()
+{
+    if (mSocialExpressionOwned && gAgentAvatarp)
+    {
+        LLVOAvatar::AnimIterator current = gAgentAvatarp->mSignaledAnimations.find(mSocialExpressionAnimation);
+        if (current != gAgentAvatarp->mSignaledAnimations.end() &&
+            current->second == mSocialExpressionSequence &&
+            !has_external_social_animation_source(gAgentAvatarp, mSocialExpressionAnimation))
+        {
+            gAgent.sendAnimationRequest(mSocialExpressionAnimation, ANIM_REQUEST_STOP);
+        }
+    }
+
+    mSocialExpressionAnimation.setNull();
+    mSocialExpressionSequence = 0;
+    mSocialExpressionRequestTime = 0.0;
+    mSocialExpressionDeadline = 0.0;
+    mSocialExpressionPending = false;
+    mSocialExpressionOwned = false;
+}
+
+static void update_social_expression_lease(LLVOAvatarSelf* avatar, LLUUID& animation_id,
+    S32& sequence, F64& request_time, F64& deadline, bool& pending, bool& owned)
+{
+    if (!pending && !owned)
+        return;
+
+    const F64 now = LLTimer::getTotalSeconds();
+    if (!avatar || !avatar->isSelf())
+    {
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    LLVOAvatar::AnimIterator current = avatar->mSignaledAnimations.find(animation_id);
+    if (pending)
+    {
+        if (current != avatar->mSignaledAnimations.end())
+        {
+            // The simulator's sequence ID confirms the current animation generation.
+            sequence = current->second;
+            pending = false;
+            owned = true;
+        }
+        else if (now - request_time > 3.0)
+        {
+            // Request was not confirmed. Fail closed and never send STOP.
+            animation_id.setNull();
+            sequence = 0;
+            pending = false;
+            owned = false;
+            return;
+        }
+    }
+
+    if (!owned)
+        return;
+
+    if (current == avatar->mSignaledAnimations.end() ||
+        current->second != sequence ||
+        has_external_social_animation_source(avatar, animation_id))
+    {
+        // A replacement generation or external animation source took over.
+        // Relinquish ownership without sending STOP.
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+        return;
+    }
+
+    if (now >= deadline)
+    {
+        // Release only the exact generation still held by this lease.
+        gAgent.sendAnimationRequest(animation_id, ANIM_REQUEST_STOP);
+        animation_id.setNull();
+        sequence = 0;
+        pending = owned = false;
+    }
+}
+
 void LLAgentCamera::updateCamera()
 {
     LL_RECORD_BLOCK_TIME(FTM_UPDATE_CAMERA);
+    update_avatar_interaction_motions();
+    update_social_expression_lease(gAgentAvatarp, mSocialExpressionAnimation,
+        mSocialExpressionSequence, mSocialExpressionRequestTime, mSocialExpressionDeadline,
+        mSocialExpressionPending, mSocialExpressionOwned);
+    update_social_greeting_gesture_lease(gAgentAvatarp, mSocialGestureSequence,
+        mSocialGestureRequestTime, mSocialGestureDeadline, mSocialGesturePending, mSocialGestureOwned);
+    update_social_nod_gesture_lease(gAgentAvatarp, mSocialNodSequence,
+        mSocialNodRequestTime, mSocialNodDeadline, mSocialNodPending, mSocialNodOwned);
+    updateSocialSpeechGesture();
     if (gCubeSnapshot)
     {
         return;
+    }
+
+    // Resolve the interaction partner every camera frame. The accepted event can
+    // arrive before the remote avatar has been added to the local object list.
+    // Retrying here avoids a timer and naturally handles late object creation.
+    const LLUUID& interaction_partner = LLAvatarActions::getActiveAvatarInteractionPartner();
+    if (interaction_partner.notNull())
+    {
+        LLViewerObject* partner_object = gObjectList.findObject(interaction_partner);
+        if (partner_object && partner_object->isAvatar() && !partner_object->isDead())
+        {
+            setInteractionLookAt(partner_object);
+        }
+        else
+        {
+            // If the partner disappears during our explicit local approach,
+            // stop only that feature-owned autopilot. The server session and
+            // ordinary camera attention remain independently managed.
+            LLAvatarActions::cancelAvatarInteractionApproach();
+            // Drop only the local interaction overlay; retain the server session
+            // so the next frame can reacquire the avatar if it appears later.
+            clearInteractionLookAt();
+        }
+        if (partner_object && partner_object->isAvatar() && !partner_object->isDead() &&
+            gAgent.getAutoPilot() &&
+            gAgent.getAutoPilotBehaviorName() == "AvatarInteractionApproach" &&
+            dist_vec(partner_object->getPositionAgent(), gAgent.getPositionAgent()) > 20.f)
+        {
+            LLAvatarActions::cancelAvatarInteractionApproach();
+        }
+    }
+
+    else
+    {
+        update_local_social_gaze();
     }
 
     // - changed camera_skyward to the new global "mCameraUpVector"
@@ -3154,6 +4067,46 @@ bool LLAgentCamera::setLookAt(ELookAtType target_type, LLViewerObject *object, L
     }
 
     return mLookAt->setLookAt(target_type, object, position);
+}
+
+void LLAgentCamera::setInteractionLookAt(LLViewerObject* avatar)
+{
+    static LLCachedControl<bool> private_local_lookat(gSavedSettings, "PrivateLocalLookAtTarget", false);
+    if (private_local_lookat || !avatar || !avatar->isAvatar() || avatar->isDead())
+        return;
+    if (!mLookAt || mLookAt->isDead())
+    {
+        mLookAt = (LLHUDEffectLookAt*)LLHUDManager::getInstance()->createViewerEffect(LLHUDObject::LL_HUD_EFFECT_LOOKAT);
+        mLookAt->setSourceObject(gAgentAvatarp);
+    }
+    mLookAt->setInteractionTarget(avatar);
+}
+
+void LLAgentCamera::setInteractionLookAtPoint(const LLVector3d& global_position)
+{
+    static LLCachedControl<bool> private_look_at(gSavedSettings, "PrivateLocalLookAtTarget", false);
+    if (private_look_at || !gAgentAvatarp || !global_position.isFinite())
+        return;
+
+    if (mLookAt.isNull())
+    {
+        mLookAt = (LLHUDEffectLookAt*)LLHUDObject::addHUDObject(LLHUDObject::LL_HUD_EFFECT_LOOKAT);
+        mLookAt->setSourceObject(gAgentAvatarp);
+    }
+    mLookAt->setInteractionTargetPoint(global_position);
+}
+
+void LLAgentCamera::clearInteractionLookAt()
+{
+    if (mLookAt.notNull())
+    {
+        mLookAt->clearInteractionTarget();
+        if (mLookAt->getLookAtType() == LOOKAT_TARGET_NONE && gAgentAvatarp)
+        {
+            gAgentAvatarp->removeAnimationData("LookAtPoint");
+            gAgentAvatarp->stopMotion(ANIM_AGENT_HEAD_ROT);
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------

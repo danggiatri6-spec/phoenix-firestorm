@@ -33,6 +33,8 @@
 #include "llmotion.h"
 #include "llframetimer.h"
 
+class LLVisualParam;
+
 #define MIN_REQUIRED_PIXEL_AREA_HEAD_ROT 500.f;
 #define MIN_REQUIRED_PIXEL_AREA_EYE 25000.f;
 
@@ -117,6 +119,20 @@ public:
     LLPointer<LLJointState> mHeadState;
 
     LLQuaternion        mLastHeadRot;
+
+    // Local-only, low-amplitude idle head drift; suppressed by explicit look targets.
+    LLFrameTimer        mIdleHeadTimer;
+    F32                 mIdleHeadNextUpdate;
+    F32                 mIdleHeadYaw;
+    F32                 mIdleHeadPitch;
+    F32                 mIdleHeadTargetYaw;
+    F32                 mIdleHeadTargetPitch;
+
+    // Delay torso recruitment until a head turn is sustained, so brief glances
+    // remain in the neck/head instead of pulling the upper body along.
+    LLFrameTimer        mTorsoTurnTimer;
+    F32                 mTorsoRecruitment;
+    bool                mTorsoTurnActive;
 };
 
 //-----------------------------------------------------------------------------
@@ -193,6 +209,11 @@ public:
     LLCharacter         *mCharacter;
 
     LLJoint             *mHeadJoint;
+    // True when the complete alternate eye pair is used as the primary rig.
+    bool                mUseAltEyesAsPrimary;
+    bool                mHasBlinkMorphPair;
+    LLVisualParam       *mLeftBlinkParam;
+    LLVisualParam       *mRightBlinkParam;
     LLPointer<LLJointState> mLeftEyeState;
     LLPointer<LLJointState> mRightEyeState;
     LLPointer<LLJointState> mAltLeftEyeState;
@@ -205,6 +226,9 @@ public:
     F32                 mEyeLookAwayTime;
     F32                 mEyeLookAwayYaw;
     F32                 mEyeLookAwayPitch;
+
+    // Detect long gaps caused by hidden/culled avatar updates.
+    LLFrameTimer        mLastEyeUpdateTimer;
 
     // eye blinking
     LLFrameTimer        mEyeBlinkTimer;

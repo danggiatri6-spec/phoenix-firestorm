@@ -28,6 +28,10 @@
 
 #include "llappviewer.h"
 
+#include <utility>
+#include "llvoicewebrtc.h"
+#include "fsfloaternearbychat.h"
+
 // Viewer includes
 #include "llversioninfo.h"
 #include "llfeaturemanager.h"
@@ -1206,8 +1210,8 @@ bool LLAppViewer::init()
     // <FS:Beq> allow detected hardware to be overridden.
     gGLManager.mVRAMDetected = gGLManager.mVRAM;
     LL_INFOS("AppInit") << "VRAM detected: " << gGLManager.mVRAMDetected << LL_ENDL;
-    overrideDetectedHardware(); 
-    // </FS:Beq> 
+    overrideDetectedHardware();
+    // </FS:Beq>
 
 
     // writeSystemInfo can be called after window is initialized (gViewerWindow non-null)
@@ -1763,6 +1767,7 @@ bool LLAppViewer::doFrame()
                 pauseMainloopTimeout();
                 saveFinalSnapshot();
 
+                stopSpeechToTextDictation();
                 if (LLVoiceClient::instanceExists())
                 {
                     LLVoiceClient::getInstance()->terminate();
@@ -1944,6 +1949,7 @@ bool LLAppViewer::doFrame()
         }
 
         pingMainloopTimeout("Main:TerminateVoice");
+        stopSpeechToTextDictation();
         if (LLVoiceClient::instanceExists())
         {
             LLVoiceClient::getInstance()->terminate();
@@ -3927,7 +3933,7 @@ bool LLAppViewer::initWindow()
 
 void LLAppViewer::writeDebugInfo(bool isStatic)
 {
-    LL_PROFILE_ZONE_SCOPED_CATEGORY_LOGGING; // <FS:Beq/> improve instrumentation 
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_LOGGING; // <FS:Beq/> improve instrumentation
 #if LL_WINDOWS && LL_BUGSPLAT
     // <FS:Beq> Improve Bugsplat tracking by using attributes for certain static data items.
     const LLSD& info = getViewerInfo();
@@ -5890,10 +5896,88 @@ static LLTrace::BlockTimerStatHandle FTM_HUD_EFFECTS("HUD Effects");
 // Called every time the window is not doing anything.
 // Receive packets, update statistics, and schedule a redisplay.
 ///////////////////////////////////////////////////////
+bool LLAppViewer::startSpeechToTextDictation(const std::string& model_path,
+                                                   const std::string& language)
+{
+    if (model_path.empty() || mSpeechToText.isRunning())
+    {
+        return false;
+    }
+
+    // Validate the selected external model before starting the worker or
+    // enabling the microphone tap. The recognizer loads the model lazily on
+    // its worker thread, so without this check a missing path would look like
+    // a successful start while producing no transcript.
+    if (!LLFile::isfile(model_path))
+    {
+        LL_WARNS("SpeechToText") << "Whisper model file does not exist: "
+                                  << model_path << LL_ENDL;
+        return false;
+    }
+
+    auto recognizer = createWhisperSpeechRecognizer(model_path, language);
+    if (!recognizer)
+    {
+        LL_WARNS("SpeechToText") << "Local speech recognizer is unavailable. "
+                                  << "Check the optional Whisper.cpp build configuration."
+                                  << LL_ENDL;
+        return false;
+    }
+
+    return mSpeechToText.start(std::move(recognizer));
+}
+
+void LLAppViewer::stopSpeechToTextDictation()
+{
+    if (LLWebRTCVoiceClient::instanceExists())
+    {
+        LLWebRTCVoiceClient::getInstance()->setSpeechCaptureEnabled(false);
+    }
+    mSpeechToText.stop();
+}
+
 void LLAppViewer::idle()
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_APP;
     pingMainloopTimeout("Main:Idle");
+
+    // A backend/model error is reported by the worker without touching UI.
+    // Stop the microphone tap here on the Viewer thread and restore the Nearby
+    // Chat button to its idle state.
+    if (mSpeechToText.hasFailed())
+    {
+        const std::string error = mSpeechToText.getError();
+        stopSpeechToTextDictation();
+        // A corrupt/incompatible model should not be selected silently again
+        // on every click; clear the remembered path so the user can choose one.
+        gSavedSettings.setString("SpeechToTextModelPath", "");
+        if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+        {
+            nearby_chat->onSpeechToTextFailed(error);
+        }
+    }
+    // Local dictation is opt-in: this path does nothing until the user starts
+    // a recognizer through startSpeechToTextDictation().
+    else if (mSpeechToText.isRunning() && LLWebRTCVoiceClient::instanceExists())
+    {
+        LLWebRTCVoiceClient::getInstance()->pumpSpeechCapture(mSpeechToText, 8);
+
+        // Keep completed transcripts editable in Nearby Chat. Never call
+        // the chat commit/send path from speech recognition.
+        if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
+        {
+            LLSpeechToTextResult result;
+            std::size_t delivered = 0;
+            while (delivered < 8 && mSpeechToText.tryPopResult(result))
+            {
+                if (result.is_final && !result.text.empty())
+                {
+                    nearby_chat->insertSpeechToText(result.text);
+                }
+                ++delivered;
+            }
+        }
+    }
 
     // Update frame timers
     static LLTimer idle_timer;

@@ -1,0 +1,374 @@
+# OpenSim-next Avatar State Synchronization Research
+
+Date: 2026-11-24
+
+## Purpose
+
+Evaluate publicly available Vircadia (derived from High Fidelity) Avatar code against the existing Firestorm/OpenSim architecture. This is an architectural study, not a code port. Preserve Second Life protocol behavior and existing LSL/AO/furniture/HUD compatibility.
+
+## Sources inspected
+
+### Vircadia / High Fidelity lineage
+
+Repository: https://github.com/live3d/vircadia
+
+- `libraries/avatars/src/AvatarData.h` (blob observed: `efd1c0f694300d967194a5a5901db2c05e4b0fe9`)
+- `libraries/avatars/src/AvatarData.cpp` (blob observed: `d90b1936c0bc2b7328b863207c05a9691359a71e`)
+- `assignment-client/src/avatars/AvatarMixer.cpp`
+
+The inspected AvatarData API/data model covers:
+- global/local position, orientation and scale;
+- look-at position and head orientation;
+- joint rotations/translations, raw joint data and hand state;
+- face-tracker/blendshape data through HeadData;
+- avatar data detail tiers (`NoData`, `PALMinimum`, `MinimumData`, `CullSmallData`, `IncludeSmallData`, `SendAllData`);
+- stateful serialization, last-sent joint data, bounded packet size and per-field rate counters.
+
+The AvatarMixer uses a worker pool to process queued avatar packets and broadcast avatar data. Its source exposes throttling and listener/mixer statistics. This is a useful model for prioritization and observability, not a drop-in replacement for OpenSim.
+
+Vircadia repository license: Apache-2.0 at the repository root. Any future reuse must preserve notices and verify licenses of each copied file and dependency. This note does not authorize copying third-party dependencies with incompatible terms.
+
+### Existing Firestorm Viewer
+
+Repository: https://github.com/danggiatri6-spec/phoenix-firestorm
+
+Branch inspected: `opensim-next/avatar-modernization`
+
+- `indra/newview/llvoavatar.h`
+- `indra/newview/llvoavatar.cpp`
+- `indra/newview/llviewerobject.cpp`
+- `indra/newview/llviewerregion.cpp`
+
+Existing relevant extension points:
+- `LLVOAvatar::idleUpdate()` and `updateCharacter()` provide the avatar update/render scheduling path.
+- `LLVOAvatar::processUpdateMessage()` receives the existing simulator object/avatar update path.
+- `LLViewerObject::processUpdateMessage()` parses legacy object update messages.
+- `LLViewerRegion::requestPostCapability()` supports asynchronous HTTP capability requests and success/failure callbacks.
+- Firestorm already has an extensive avatar animation, skeleton, visual parameter, attachment, voice and render-complexity pipeline.
+
+### Existing OpenSim server
+
+Repository: https://github.com/danggiatri6-spec/opensim
+
+Branch inspected: `opensim-next/avatar-modernization`
+
+- `OpenSim/Region/Framework/Scenes/ScenePresence.cs`
+
+OpenSim's existing `ScenePresence` owns the simulator-side presence, appearance, movement/physics actor, animator and movement animation overrides. The server already has mature legacy appearance, animation and movement replication paths. These must remain authoritative for legacy clients.
+
+## Key architectural conclusion
+
+Do **not** replace the existing Second Life avatar packet model with a Vircadia-style packet format. Do not send high-frequency pose/joint updates as repeated LLSD HTTP capability POSTs. HTTP capabilities are appropriate for negotiation, policy, configuration, event/control messages and infrequent metadata; they are a poor transport for 20-60 Hz pose streams.
+
+Use a layered, opt-in extension:
+
+1. **Legacy compatibility layer** — unchanged SL/OpenSim appearance, animation, movement, attachment and object update behavior. Legacy clients receive no new mandatory fields.
+2. **Capability control plane** — negotiate protocol version, feature flags, skeleton/rig profile, blendshape profile, maximum rates, permissions and fallback mode. Use bounded LLSD maps and strict input validation.
+3. **Realtime data plane** — only after negotiation, use a versioned, compact, bounded binary message path for incremental pose state. The transport must be explicitly supported by both Viewer and simulator. Do not assume an unregistered custom UDP message can pass through existing SL gateways.
+4. **Viewer presentation layer** — apply received optional pose data to a separate overlay/pose layer, preserving the existing animation controller as the baseline. Do not overwrite AO, LSL-triggered animations, sit animations or legacy joint behavior.
+5. **Server authority and safety** — server validates sender identity, region membership, sequence numbers, timestamp bounds, joint count, finite values, rate limits and payload size. Client-provided pose is presentation data, not authority for movement, collision, permissions or object ownership.
+
+## Proposed data model (conceptual; not yet implemented)
+
+A negotiated AvatarState v1 should use explicit feature groups rather than copying Vircadia's entire AvatarData structure:
+
+- Root: protocol version, sequence, client timestamp, flags.
+- Head: normalized head orientation and optional look-at target.
+- Face: profile identifier plus bounded blendshape coefficients; do not assume all rigs share identical coefficient indices.
+- Hands: compact hand pose/state and optional finger joint subset.
+- Body pose: optional joint rotations, with rig/profile identifier and a strict maximum joint count.
+- Quality: sender-selected detail tier; receiver can request/cull lower detail based on distance, visibility and bandwidth.
+
+Use per-field dirty tracking and last-sent state. Send only changed fields, cap payload size, and prioritize root/head/hands before full-body detail. Apply interpolation and stale-packet rejection. A missing optional field must mean “no update”, not reset to a default pose.
+
+## Compatibility and animation composition rules
+
+- The default for existing grids and viewers remains disabled.
+- SL-compatible animation state remains the base layer.
+- Optional facial expression and gaze may compose as additive/overlay layers only where the rig supports it.
+- AO, LSL animation commands, furniture/sit animations and attachment behavior must retain their current precedence.
+- Never infer a universal joint map from one avatar rig. Negotiate skeleton profile and map by stable joint names or an agreed profile.
+- If an extension is unsupported, continue normal legacy avatar behavior without warnings or broken appearance.
+
+## Performance rules
+
+- Use distance, visibility, avatar screen size and interaction relevance to select detail tiers.
+- Near/interacting avatars may receive face, hand and selected joint data; distant avatars should receive root/head or legacy data only.
+- Apply adaptive rate limits and per-agent bandwidth budgets.
+- Avoid per-avatar allocations in hot paths; reuse buffers and maintain dirty masks.
+- Record bytes/sec, update rate, dropped/stale packets, decode time and queue depth.
+- A dedicated mixer process is not a first step. First profile the existing OpenSim region update pipeline and Viewer avatar update costs; only introduce worker queues if profiling proves a bottleneck.
+
+## Implementation sequence
+
+### Phase A — protocol and compatibility groundwork
+- Confirm exact existing Viewer and OpenSim legacy animation/appearance message paths.
+- Define capability negotiation and opt-in feature flags.
+- Add server-side configuration defaulting to disabled.
+- Add versioned schema documentation and input validation tests.
+
+### Phase B — low-risk presentation features
+- Add local-only eye blink/gaze and facial expression prototypes first, with no network protocol changes.
+- Add optional remote face/gaze data after negotiation.
+- Keep fallback to legacy animations.
+
+### Phase C — compact pose synchronization
+- Add incremental hand/head/joint data transport.
+- Implement sequence, rate, size and finite-value validation.
+- Add distance/visibility quality tiers and interpolation.
+
+### Phase D — physical interaction
+- Add collision/contacts only after stable skeleton and pose data exist.
+- Separate visual contact events from authoritative world physics and consent policy.
+- Reuse the existing AvatarInteraction capability for invitation/consent control; do not conflate it with high-frequency pose transport.
+
+## Next concrete engineering task
+
+Before adding a new packet or server module, map the exact existing animation and appearance replication path end-to-end in the current OpenSim branch and matching Firestorm branch. Identify the serializer, message name, send cadence, receive handler, animation precedence and any OpenSim-specific differences. Then prototype local-only face/gaze composition in the Viewer. This minimizes compatibility risk and avoids prematurely committing to a transport.
+
+## Verification status
+
+- Source files above were retrieved and inspected through GitHub.
+- This is a source-level architecture assessment only.
+- No code was copied from Vircadia.
+- No new AvatarState protocol or implementation has been added.
+- No build, simulator runtime test or network interoperability test has been performed.
+
+
+## End-to-end legacy animation path mapped (2026-11-24)
+
+The matching OpenSim server branch was inspected further:
+
+- `OpenSim/Region/Framework/Scenes/Animation/ScenePresenceAnimator.cs`
+  - `GetArrays()` obtains active animation UUIDs, sequence numbers and source object UUIDs from the animation state.
+  - `SendAnimPackToClient(IClientAPI)` sends those arrays through `IClientAPI.SendAnimations(...)`.
+  - `SendAnimPack()` broadcasts the same legacy animation state through `ScenePresence`.
+- `OpenSim/Region/Framework/Scenes/ScenePresence.cs`
+  - `SendAnimPackToAgentNF()`, `SendAnimPackToOthers()`, and initial-avatar setup send the legacy animation pack.
+  - `SendAvatarDataToAgent()` sends the avatar as an entity full update.
+  - `SendAppearanceToAgent...` is a separate appearance replication path.
+  - `SendViewTo()` sends avatar entity update, appearance, animation pack and attachments as separate steps.
+- `OpenSim/Region/ClientStack/Linden/UDP/LLClientView.cs`
+  - `SendAnimations(...)` constructs the legacy AvatarAnimation high-frequency packet (message ID 20 in the inspected implementation), carrying source agent UUID, animation UUIDs, sequence IDs and associated object UUIDs.
+  - The same class has a separate AvatarAppearance packet writer and entity full-update path.
+
+Matching Firestorm Viewer branch:
+
+- `indra/newview/llviewermessage.cpp`
+  - `process_avatar_animation(...)` reads the sender UUID, resolves the corresponding `LLVOAvatar`, and processes the AnimationList blocks.
+- `indra/newview/llvoavatar.cpp`
+  - `LLVOAvatar::processUpdateMessage(...)` handles the existing avatar/object update path.
+  - `LLVOAvatar::idleUpdate()` and `updateCharacter()` are the per-frame/LOD-aware avatar update and presentation paths.
+- `indra/newview/llviewerobject.cpp`
+  - `LLViewerObject::processUpdateMessage(...)` is the common legacy object update parser inherited by avatar objects.
+
+### What this means
+
+The existing AvatarAnimation packet communicates **which animation assets are active**, their sequence and source object. It does not carry a per-frame skeleton pose stream, arbitrary joint transforms, or a standardized face blendshape frame. The avatar entity update and appearance packet are distinct channels and should not be overloaded with high-rate facial or joint samples.
+
+Therefore the first safe enhancement should be a Viewer-local expression/gaze composition layer, independent of incoming network state. The next network step should be a negotiated extension, separate from the legacy AvatarAnimation packet. It must not repurpose or change message ID 20, alter legacy packet layouts, or assume that third-party SL servers understand the extension.
+
+The source mapping above is based on the OpenSim and Firestorm branches named in this document. Exact send cadence, all appearance serializers, and all animation precedence rules still require a focused follow-up trace before implementing the wire protocol.
+
+
+### Animation packet semantics and precedence observations
+
+A deeper source trace confirms:
+
+- OpenSim `ScenePresenceAnimator` is the state owner for active legacy animation UUIDs, sequence numbers and source object UUIDs.
+- `LLClientView.SendAnimations()` writes the legacy AvatarAnimation packet. For the avatar's own animations it separates animations associated with objects and writes the corresponding object UUID list; it currently writes a zero count for physical-avatar events.
+- Firestorm `process_avatar_animation()` resolves the sender to an existing `LLVOAvatar`, clears/rebuilds the signaled-animation map, handles self-avatar animation sources and the animation asset blacklist, then calls `processAnimationStateChanges()`.
+- The self-avatar path preserves animation-source object relationships. Any new pose layer must not discard these relationships or bypass the Viewer animation state machine.
+- This path is state replication, not a high-frequency pose stream. The current OpenSim packet writer's physical-avatar-events count being zero is not an invitation to repurpose that field; compatibility with existing packet parsers must be preserved.
+
+### Revised first implementation target
+
+Do not start by adding a server-side joint-pose packet. The first implementation should be a **Viewer-local facial/gaze overlay prototype** behind a setting and with no network or server changes. It can establish:
+1. where the rig exposes head/eye joints and morph/blendshape controls;
+2. how to compose an overlay with the existing animation controller;
+3. how to disable it for unsupported rigs and for legacy compatibility;
+4. how to keep the cost bounded by visibility and avatar update period.
+
+After that local prototype is stable, define the negotiated extension and only then implement server replication.
+
+
+## Viewer-local face feature inventory (2026-11-24)
+
+A source inspection of `indra/newview/llvoavatar.cpp` and `indra/newview/character/avatar_lad.xml` reveals that the legacy Viewer already has part of the required foundation:
+
+- `LLVOAvatar::buildCharacter()` obtains the `Lipsync_Ooh` and `Lipsync_Aah` visual parameters, with fallbacks to `Express_Kiss` and `Express_Open_Mouth`.
+- `LLVOAvatar::idleUpdateLipSync()` drives those morphs from the voice visualizer and speaking state, then updates visual parameters and dirties the mesh.
+- `LLVOAvatar::initClass()` registers the built-in `ANIM_AGENT_EYE` motion through `LLEyeMotion::create`, and `startDefaultMotions()` starts it with other baseline motions.
+- The standard avatar definition contains animatable `Blink_Left` and `Blink_Right` morph parameters (IDs 58 and 59 in the inspected definition).
+
+This changes the implementation strategy: do not create a competing blink system until the built-in `LLEyeMotion` implementation and its behavior are traced. First determine whether it already provides timed blinking and whether the limitation is only lack of independent gaze targeting or poor compatibility with newer rigs. Likewise, preserve the existing lip-sync path and compose additional face controls around it rather than overwriting its morph weights.
+
+A likely safe local prototype is an opt-in gaze controller that:
+- operates only on fully built, visible avatars with valid eye/head joints;
+- uses the existing avatar joint/motion framework rather than directly writing root transforms;
+- has deterministic fallback to the built-in eye motion when the rig lacks required joints;
+- updates at a bounded rate and smooths target changes;
+- never changes legacy animation UUID state or server movement.
+
+The actual `LLEyeMotion` class implementation and its registration/activation lifecycle still need to be located before changing code. No facial or gaze implementation has been modified in this research pass.
+
+
+## First compatibility improvement implemented (2026-11-24)
+
+File changed: `indra/llcharacter/llheadrotmotion.cpp`
+
+The built-in `LLEyeMotion::onInitialize()` previously treated both alternate face-eye joints (`mFaceEyeAltLeft` and `mFaceEyeAltRight`) as mandatory. If a compatible/custom rig exposed the primary eye joints but omitted the alternate pair, initialization failed and the default eye motion could be disabled entirely.
+
+The implementation now:
+- continues to require the head joint and primary left/right eye joints;
+- treats the alternate face-eye pair as optional;
+- registers and updates the alternate pair only when both joints exist;
+- retains the primary eye path unchanged;
+- keeps deactivation null-safe.
+
+This is a small compatibility hardening change, not yet a new gaze feature. It does not change animation UUIDs, network packets, server behavior, or the default Second Life rig path.
+
+Verification performed: source-level checks confirmed the two primary eye joints remain required, alternate-joint registration and update are guarded, and deactivation checks null joints. No C++ compilation or runtime test has been performed. The next validation should include a standard SL avatar rig and a test rig with the alternate eye joints omitted.
+
+
+## Existing gaze-target pipeline confirmed
+
+Further inspection of `indra/newview/llhudeffectlookat.cpp` shows that the Viewer already has a target pipeline that should be reused:
+
+- `LLHUDEffectLookAt::calcTargetPosition()` resolves a target Avatar to its head world position, or resolves a non-avatar object/world position.
+- It converts the target into a vector relative to the source Avatar's head.
+- Unless `DisableLookAtAnimation` is enabled, it stores that vector as the source Avatar's `LookAtPoint` animation data.
+- Both `LLHeadRotMotion` and `LLEyeMotion` consume `LookAtPoint`, so head and eye motion already share one target.
+- The standard `settings.xml` declares `DisableLookAtAnimation` with value 0 (enabled); the C++ fallback value of true is used only if the setting is absent.
+
+This means the next gaze feature should be a **target-selection/arbitration layer**, not a second eye-rotation implementation. Candidate target sources can be ranked and blended into the existing LookAtPoint input: explicit user focus, interaction partner, selected object, then ambient idle behavior. Keep the existing privacy setting effective, retain the current HUD effect path, and do not alter legacy look-at packet semantics.
+
+The existing eye motion already supplies random jitter, occasional look-away, return-to-target, vergence, and blinking. The gap is chiefly richer target selection, configurable naturalness, interaction-aware attention, and better rig fallbacks—not basic blink or eye rotation.
+
+
+
+## Avatar Interaction session contract and Viewer bridge (2026-11-24)
+
+The OpenSim server branch `opensim-next/avatar-modernization` now creates a distinct `session_id` when an invitation is accepted. The accepted event sent to both participants carries `session_id`, `request_id`, requester/target UUIDs, interaction kind, status, and a 120-second expiry window. The server allows at most 128 active sessions per region and one active session per participant. Either participant may POST `action=end` with the `session_id`; the server validates participation, removes the session, and sends `AvatarInteractionEnded` to both participants. Expired sessions are pruned on subsequent session operations and both sides receive an `expired` end event. Region removal clears the session table.
+
+The Viewer interaction event bridge now:
+- records the server-issued session ID when an `AvatarInteractionAccepted` event arrives;
+- clears the matching active ID on `AvatarInteractionEnded` or session expiry;
+- exposes `LLAvatarActions::endAvatarInteraction(session_id)`, which POSTs the server's explicit `end` action;
+- keeps the session identifier separate from the invitation/request identifier.
+
+This is session-state plumbing only. It does not yet start paired animations, acquire a gaze target, or add an end-interaction UI control. The active session is currently held as one Viewer-local ID, matching the server's one-session-per-participant rule. The end method is available for the upcoming interaction controls.
+
+Verification in this pass: source-level checks confirmed the event-to-session binding, matching-ID cleanup, end capability payload, and header/implementation declarations. No C++ build, C# build, simulator test, or end-to-end two-viewer test has been run. Session expiry notification remains lazy: if no further interaction request reaches the region after the 120-second deadline, the server will not emit the timeout event until a later session operation triggers pruning.
+
+## Avatar Attention System: existing arbitration and interaction integration (2026-11-24)
+
+A further source trace of `indra/newview/llhudeffectlookat.h/.cpp` and `indra/newview/llagentcamera.cpp` establishes the following implementation constraints:
+
+- `LLAgentCamera::setLookAt(...)` is the public Viewer entry point. It creates/reuses the self-avatar `LLHUDEffectLookAt` and delegates to `LLHUDEffectLookAt::setLookAt(...)`.
+- `LLHUDEffectLookAt::setLookAt(...)` already arbitrates requests by comparing the configured priority of the incoming `ELookAtType` with the current target type. Lower-priority requests are rejected. Each attention type also has a configured timeout.
+- Existing callers include idle camera/head behavior, camera focus, customize-avatar mode, and chat response/auto-listen. The same target is then resolved by `calcTargetPosition()` and published as `LookAtPoint` for the existing head and eye motions.
+- The legacy look-at effect has a 4-per-second send throttle and existing privacy behavior. Interaction attention must not bypass those controls or add a competing high-frequency network stream.
+- `LOOKAT_TARGET_CONVERSATION` exists in the legacy enum, but its default priority is 0 in the inspected built-in masculine/feminine tables. It is therefore not automatically a high-priority interaction focus; simply calling it would often lose to idle attention. Do not silently change legacy priorities or append new enum values to the network packet without a compatibility design.
+- The AvatarInteraction event handler in `llviewergenericmessage.cpp` currently turns invitation events into accept/reject notifications and accepted/ended events into generic alerts. It does not yet establish or clear a local interaction-partner attention target.
+
+### Safe next implementation sequence
+
+1. Add a Viewer-local interaction-attention controller with explicit start/stop lifecycle, keyed by the server-issued interaction/session identifier once the server contract provides one. Until session identity exists, do not infer a long-lived session from a one-off accepted notification.
+2. On accepted interaction, resolve the other Avatar UUID to a live `LLVOAvatar`, then request attention through `gAgentCamera.setLookAt(...)`; never write eye/head joint rotations directly.
+3. Use a dedicated, documented attention policy that respects existing focus/mouselook priorities, privacy controls, RLVa name/visibility constraints, and `DisableLookAtAnimation`. Avoid changing the legacy enum or packet layout. A narrowly scoped use of an existing attention type is acceptable only if its timeout and priority semantics are explicitly handled.
+4. On interaction end, rejection, cancellation, teleport, region departure, avatar disappearance, or timeout, release only the interaction-owned attention request. Do not clear a higher-priority user focus or another system's target.
+5. Keep partner attention local initially. Replicate only through the existing look-at effect if/when the privacy setting and simulator capability permit it; no new pose packet is required for this feature.
+6. Add deterministic tests for priority conflicts and cleanup ownership before any full Viewer build. No code was changed in this inspection pass.
+
+Current limitation and implementation note (updated 2026-11-24): the server now does provide a stable `session_id`, so the Viewer can key an interaction controller to that ID. The event payload also includes requester and target UUIDs, allowing the Viewer to derive the partner UUID by comparing each participant with `gAgent.getID()`. The Viewer bridge now stores both the session ID and the partner UUID. The partner is derived from the event's `requester` and `target` fields by comparing the local agent UUID, and is cleared only when the matching session ends. This is identity tracking only; it does not yet resolve the partner to a live `LLVOAvatar` or acquire gaze. The next code change should add an explicit attention lease, but it must not use `LOOKAT_TARGET_CONVERSATION` as-is because its default priority is 0 and its timeout is not a session lifecycle. A lease must preserve/restore the previous attention state only when the interaction still owns the active target; it must never clear a newer user focus. Paired animation remains blocked on verified role-specific animation assets and a reliable start/stop alignment contract.
+
+
+## Viewer-local interaction gaze overlay (2026-11-24)
+
+The Viewer now has a first local-only interaction gaze overlay:
+
+- `LLHUDEffectLookAt` stores a separate interaction target pointer and exposes set/clear methods.
+- During the effect update, the normal legacy target is calculated first. If an interaction target is live and drawable, the overlay recalculates the local `LookAtPoint` toward that avatar.
+- The overlay does not change `mTargetType`, the legacy attention table, packet enum values, or network-send flags.
+- Existing high-priority focus and mouselook attentions suppress the overlay (the threshold is the configured Focus priority).
+- `LLAgentCamera` exposes acquire/release wrappers and respects `PrivateLocalLookAtTarget`.
+- The accepted session event resolves the partner UUID to a live avatar object and acquires the overlay; ended/expired events release it.
+- If the partner object disappears, the overlay drops the target and removes stale local look-at animation data when no legacy target remains.
+
+This is intentionally a local presentation layer only; it does not replicate the interaction gaze to other viewers. It is not yet compiled or runtime-tested. One known limitation remains: if the accepted event arrives before the partner avatar object is present in the object list, this first version does not retry resolution later. A follow-up should make target resolution resilient to late avatar arrival and region transitions.
+
+
+## Late avatar-object resolution retry (2026-11-24)
+
+The interaction partner is now resolved from the active session UUID during the regular Viewer camera update. This covers the ordering race where `AvatarInteractionAccepted` is received before the remote avatar object is present in `gObjectList`: the Viewer retries on subsequent camera frames and acquires the existing local-only gaze overlay as soon as a live avatar object appears. If the object is temporarily absent or not yet an avatar, only the local overlay is released; the server-issued session and partner UUID remain intact for retry. The implementation adds no timer, network packet, or server request. It has not been compiled or runtime-tested.
+
+
+## Local proximity-based social gaze prototype (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Implemented in `indra/newview/llagentcamera.cpp` and registered in `indra/newview/app_settings/settings.xml`:
+
+- Adds the opt-out setting `FSAvatarSocialGaze` (default enabled).
+- When there is no explicit AvatarInteraction session and the camera is in third-person mode, scans the current region's Viewer object list at approximately 3 Hz.
+- Candidate avatars must be alive, visible, unmuted, not visually muted, have a loaded head joint, and be within 1–7 metres.
+- Uses the local avatar's horizontal forward direction to limit candidates to the forward field of view.
+- Nearby typing avatars receive a small selection preference; distance remains the main score.
+- Reuses the existing local look-at overlay and existing head/eye motion path. It does not alter legacy look-at target types, send additional packets, or override higher-priority Focus/Mouselook attention.
+- Explicit AvatarInteraction partners take precedence over automatic social gaze.
+- Automatic target selection is local presentation only; it does not tell other viewers where this avatar is looking.
+
+### Limitations and verification
+
+- This is a first-pass deterministic target selector, not yet a conversational turn-taking model. It does not yet use voice activity, chat speaker history, gaze dwell, random look-away intervals, or multi-person group attention.
+- It does not implement new blink timing or new head/eye animation; existing `LLEyeMotion` and `LLHeadRotMotion` remain responsible for motion.
+- The feature is source-implemented but has not been compiled or tested in-world. Performance, forward-axis assumptions, target stability, and behavior with custom rigs require Viewer runtime testing.
+
+
+## Social gaze target dwell and switching hysteresis (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Updated `update_local_social_gaze()` in `indra/newview/llagentcamera.cpp`:
+
+- Retains a valid current target instead of switching whenever another avatar's instantaneous score becomes marginally better.
+- Enforces a 2.5-second minimum target dwell.
+- A challenger must score at least 0.8 points better and remain the best candidate for 1.2 seconds before attention switches.
+- Clears challenger state when the current target remains best or the challenger is no longer sufficiently better.
+- Acquires a target immediately when there is no valid current target; releases the target when no eligible avatar remains.
+- The selection scan remains throttled to approximately 3 Hz; head and eye motion remain driven by the existing animation system.
+
+This is deterministic anti-jitter logic, not yet randomized natural gaze. Deliberate look-away behavior, speech-aware turn-taking, and multi-person conversation attention remain future work. No new network messages are sent. Source-level checks only; no C++ build or in-world test has been performed.
+
+
+## Local social gaze look-away and return (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Added a local world-point target path to `LLHUDEffectLookAt` and `LLAgentCamera`:
+
+- `setInteractionLookAtPoint()` and `setInteractionTargetPoint()` allow the existing local interaction overlay to aim at a finite world-space point without changing the legacy look-at target type or sending a look-at packet.
+- When a social target remains stable, the local avatar now occasionally glances toward a nearby point slightly to the side and ahead, then returns to the current eligible avatar.
+- The glance interval is randomized between approximately 9 and 16 seconds; the glance lasts approximately 0.8–1.6 seconds.
+- Returning prefers the previous target if it remains eligible; otherwise it uses the current best candidate.
+- Explicit AvatarInteraction sessions, first-person camera mode, and the opt-out setting continue to suppress automatic social gaze.
+
+This provides a brief local glance-away, not a full conversational gaze model. The point is in agent/world space and uses the existing head/eye motion path. No new network traffic is introduced. Source-level review only; no C++ build or in-world test has been performed. Verify the point coordinate conversion and visual motion with standard and custom avatar rigs before treating the behavior as production-ready.
+
+
+## Eye-motion activation and blink-state hardening (2026-11-24)
+
+Viewer branch: `opensim-next/avatar-interaction-actions`
+
+Reviewed the existing `LLEyeMotion` implementation rather than adding a second blink controller. The motion already has randomized blink intervals, a slight left/right eyelid timing offset, eye jitter, and brief independent eye look-away behavior.
+
+Hardened its lifecycle:
+
+- On activation, reset the eye-jitter and blink timers and initialize randomized eye-motion intervals.
+- Delay the first blink by approximately 1.5–4.5 seconds instead of allowing the constructor's zero blink time to trigger immediately.
+- Initialize the first eye look-away after the existing 5–15 second interval rather than at activation.
+- On activation and deactivation, explicitly restore both blink morph weights to zero.
+- Reset the closed-eye state on deactivation, preventing an avatar culled or motion-stopped mid-blink from reappearing with closed eyelids.
+
+The existing subsequent blink cadence, eye movement, head-follow interpolation, and legacy look-at path are unchanged. This is lifecycle hardening, not a claim of a new biometric blink model. Source-level checks only; no C++ build or runtime test has been performed.

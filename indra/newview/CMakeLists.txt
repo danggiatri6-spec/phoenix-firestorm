@@ -57,6 +57,69 @@ include(ColladaDom)
 include(jemalloc)
 include(Discord)
 
+# OpenSim-next: optional, CPU-only local speech recognition.
+# Disabled by default: normal Viewer builds do not download or link Whisper.cpp.
+option(OPENSIMNEXT_ENABLE_WHISPER_CPP "Build local Whisper.cpp speech-to-text support" OFF)
+if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
+    include(FetchContent)
+
+    # Pin an immutable upstream release commit rather than tracking a moving branch.
+    if (DEFINED BUILD_SHARED_LIBS)
+        set(_opensimnext_had_build_shared_libs TRUE)
+        set(_opensimnext_saved_build_shared_libs "${BUILD_SHARED_LIBS}")
+    else ()
+        set(_opensimnext_had_build_shared_libs FALSE)
+    endif ()
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+    set(WHISPER_BUILD_IS_DEV OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    set(WHISPER_SDL2 OFF CACHE BOOL "" FORCE)
+    set(WHISPER_CURL OFF CACHE BOOL "" FORCE)
+    set(WHISPER_OPENVINO OFF CACHE BOOL "" FORCE)
+    set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+    set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+    set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+    set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
+    set(GGML_SYCL OFF CACHE BOOL "" FORCE)
+    set(GGML_METAL OFF CACHE BOOL "" FORCE)
+    set(GGML_BLAS OFF CACHE BOOL "" FORCE)
+    set(GGML_RPC OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        opensimnext_whisper_cpp
+        GIT_REPOSITORY https://github.com/ggml-org/whisper.cpp.git
+        GIT_TAG 96ec4d9823e9d0211944172da35f9f29134af990
+    )
+    FetchContent_MakeAvailable(opensimnext_whisper_cpp)
+
+    # Firestorm enables warnings-as-errors for its own targets. Keep that policy
+    # intact, but do not let compiler-specific warnings in the pinned upstream
+    # dependency prevent an otherwise valid MSVC build. Suppress only the
+    # known GCC-pragma / narrowing warnings emitted by whisper.cpp and GGML.
+    if (MSVC)
+        foreach(_opensimnext_whisper_target IN ITEMS whisper ggml ggml-base ggml-cpu parakeet)
+            if (TARGET ${_opensimnext_whisper_target})
+                target_compile_options(${_opensimnext_whisper_target} PRIVATE
+                    /WX-
+                    /wd4068
+                    /wd4267
+                    /wd4244
+                )
+            endif ()
+        endforeach ()
+    endif ()
+    if (_opensimnext_had_build_shared_libs)
+        set(BUILD_SHARED_LIBS "${_opensimnext_saved_build_shared_libs}" CACHE BOOL "" FORCE)
+    else ()
+        unset(BUILD_SHARED_LIBS CACHE)
+    endif ()
+    unset(_opensimnext_saved_build_shared_libs)
+    unset(_opensimnext_had_build_shared_libs)
+endif ()
+
 if (HAVOK)
    # When using HAVOK_TPV, the library is precompiled, so no need for this
 
@@ -861,6 +924,8 @@ set(viewer_SOURCE_FILES
     llvoicechannel.cpp
     llvoiceclient.cpp
     llvoicevisualizer.cpp
+    llspeechtotext.cpp
+    llspeechtotext_whisper.cpp
     llvoicewebrtc.cpp
     llvoinventorylistener.cpp
     llvopartgroup.cpp
@@ -1725,6 +1790,7 @@ set(viewer_HEADER_FILES
     llvoicechannel.h
     llvoiceclient.h
     llvoicevisualizer.h
+    llspeechtotext.h
     llvoicewebrtc.h
     llvoinventorylistener.h
     llvopartgroup.h
@@ -2657,6 +2723,11 @@ target_link_libraries(${VIEWER_BINARY_NAME}
         fs::glod # <FS:Beq/> restore GLOD dependencies
         fs::discord # <FS:Ansariel> Discord  support
         )
+
+if (OPENSIMNEXT_ENABLE_WHISPER_CPP)
+    target_compile_definitions(${VIEWER_BINARY_NAME} PRIVATE LL_HAS_WHISPER_CPP)
+    target_link_libraries(${VIEWER_BINARY_NAME} whisper)
+endif ()
 
 if (USE_DISCORD)
    target_link_libraries(${VIEWER_BINARY_NAME} ll::discord_sdk )

@@ -40,6 +40,11 @@
 // Constants
 //-----------------------------------------------------------------------------
 const F32 TORSO_LAG = 0.35f;    // torso rotation factor
+const F32 IDLE_HEAD_UPDATE_MIN = 2.5f;
+const F32 IDLE_HEAD_UPDATE_MAX = 5.5f;
+const F32 IDLE_HEAD_MAX_YAW = 1.5f * DEG_TO_RAD;
+const F32 IDLE_HEAD_MAX_PITCH = 0.7f * DEG_TO_RAD;
+const F32 IDLE_HEAD_BLEND_HALF_LIFE = 0.8f;
 const F32 NECK_LAG = 0.5f;      // neck rotation factor
 const F32 HEAD_LOOKAT_LAG_HALF_LIFE = 0.15f;        // half-life of lookat targeting for head
 const F32 TORSO_LOOKAT_LAG_HALF_LIFE    = 0.27f;        // half-life of lookat targeting for torso
@@ -56,11 +61,16 @@ const F32 EYE_LOOK_BACK_MAX_TIME = 5.f; // max amount of time before looking bac
 const F32 EYE_LOOK_AWAY_MAX_YAW = 0.15f; // max yaw of eye look away motion
 const F32 EYE_LOOK_AWAY_MAX_PITCH = 0.12f; // max pitch of look away motion
 const F32 EYE_ROT_LIMIT_ANGLE = F_PI_BY_TWO * 0.3f; //max angle in radians for eye rotation
+const F32 EYE_LOOKAT_LAG_HALF_LIFE = 0.06f; // eyes lead head, but ease into a changed target
 
-const F32 EYE_BLINK_MIN_TIME = 0.5f; // minimum amount of time between blinks
-const F32 EYE_BLINK_MAX_TIME = 8.f; // maximum amount of time between blinks
-const F32 EYE_BLINK_CLOSE_TIME = 0.03f; // how long the eye stays closed in a blink
-const F32 EYE_BLINK_SPEED = 0.015f;     // seconds it takes for a eye open/close movement
+const F32 EYE_BLINK_MIN_TIME = 2.2f; // ordinary blink interval lower bound
+const F32 EYE_BLINK_MAX_TIME = 6.8f; // ordinary blink interval upper bound
+const F32 EYE_BLINK_DOUBLE_MIN = 0.55f; // occasional natural double-blink interval
+const F32 EYE_BLINK_DOUBLE_MAX = 0.95f;
+const F32 EYE_BLINK_DOUBLE_CHANCE = 0.12f;
+const F32 EYE_BLINK_HOLD_TIME = 0.045f; // brief pause at full closure
+const F32 EYE_BLINK_CLOSE_SPEED = 0.06f; // gradual eyelid closure
+const F32 EYE_BLINK_OPEN_SPEED = 0.085f; // slightly slower reopening
 const F32 EYE_BLINK_TIME_DELTA = 0.005f; // time between one eye starting a blink and the other following
 
 //-----------------------------------------------------------------------------
@@ -71,7 +81,14 @@ LLHeadRotMotion::LLHeadRotMotion(const LLUUID &id) :
     LLMotion(id),
     mCharacter(NULL),
     mTorsoJoint(NULL),
-    mHeadJoint(NULL)
+    mHeadJoint(NULL),
+    mIdleHeadNextUpdate(IDLE_HEAD_UPDATE_MIN),
+    mIdleHeadYaw(0.f),
+    mIdleHeadPitch(0.f),
+    mIdleHeadTargetYaw(0.f),
+    mIdleHeadTargetPitch(0.f),
+    mTorsoRecruitment(0.f),
+    mTorsoTurnActive(false)
 {
     mName = "head_rot";
 
@@ -166,6 +183,22 @@ LLMotion::LLMotionInitStatus LLHeadRotMotion::onInitialize(LLCharacter *characte
 //-----------------------------------------------------------------------------
 bool LLHeadRotMotion::onActivate()
 {
+    mIdleHeadTimer.reset();
+    mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN +
+        ll_frand(IDLE_HEAD_UPDATE_MAX - IDLE_HEAD_UPDATE_MIN);
+    // Do not carry a previous look-at orientation or cached joint pose
+    // into a new activation.
+    mLastHeadRot.loadIdentity();
+    mTorsoState->setRotation(LLQuaternion::DEFAULT);
+    mNeckState->setRotation(LLQuaternion::DEFAULT);
+    mHeadState->setRotation(LLQuaternion::DEFAULT);
+    mIdleHeadYaw = 0.f;
+    mIdleHeadPitch = 0.f;
+    mIdleHeadTargetYaw = 0.f;
+    mIdleHeadTargetPitch = 0.f;
+    mTorsoTurnTimer.reset();
+    mTorsoRecruitment = 0.f;
+    mTorsoTurnActive = false;
     return true;
 }
 
@@ -184,6 +217,7 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     F32 torso_slerp_amt = LLSmoothInterpolation::getInterpolant(TORSO_LOOKAT_LAG_HALF_LIFE);
 
     LLVector3* targetPos = (LLVector3*)mCharacter->getAnimationData("LookAtPoint");
+    bool has_valid_look_at = false;
 
     if (targetPos)
     {
@@ -191,26 +225,46 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
 
 //      LL_INFOS() << "Look At: " << headLookAt + mHeadJoint->getWorldPosition() << LL_ENDL;
 
-        F32 lookatDistance = headLookAt.normVec();
-
-        if (lookatDistance < MIN_HEAD_LOOKAT_DISTANCE)
+        // LookAtPoint is normally validated by LLHUDEffectLookAt, but
+        // keep head motion safe if another animation-data producer supplies
+        // a non-finite direction. normVec() can also expose an invalid result
+        // for pathological magnitudes, so validate the normalized vector too.
+        F32 lookatDistance = headLookAt.isFinite()
+            ? headLookAt.normVec()
+            : 0.f;
+        // normVec() clears a vector whose squared magnitude overflows.
+        // Reject that zeroed direction as well as any non-finite result.
+        if (!headLookAt.isFinite() || headLookAt.magVecSquared() < 1.e-8f)
         {
-            targetHeadRotWorld = mPelvisJoint->getWorldRotation();
+            lookatDistance = 0.f;
         }
-        else
+
+        has_valid_look_at = lookatDistance >= MIN_HEAD_LOOKAT_DISTANCE;
+        if (has_valid_look_at)
         {
             LLVector3 root_up = LLVector3(0.f, 0.f, 1.f) * currentRootRotWorld;
             LLVector3 left(root_up % headLookAt);
-            // if look_at has zero length, fail
-            // if look_at and skyward are parallel, fail
-            //
-            // Test both of these conditions with a cross product.
-
+            // if look_at and skyward are parallel, use a stable horizontal
+            // reference direction before constructing the target rotation.
             if (left.magVecSquared() < 0.15f)
             {
+                // Build a fallback direction in the plane perpendicular to
+                // root_up. Projecting the avatar's forward axis onto the
+                // world-horizontal plane can collapse when the avatar is
+                // pitched steeply, so use a second reference axis if needed.
                 LLVector3 root_at = LLVector3(1.f, 0.f, 0.f) * currentRootRotWorld;
-                root_at.mV[VZ] = 0.f;
-                root_at.normVec();
+                root_at -= root_up * (root_at * root_up);
+                if (root_at.normVec() < 1.e-4f)
+                {
+                    root_at.setVec(0.f, 1.f, 0.f);
+                    root_at -= root_up * (root_at * root_up);
+                    if (root_at.normVec() < 1.e-4f)
+                    {
+                        root_at.setVec(0.f, 0.f, 1.f);
+                        root_at -= root_up * (root_at * root_up);
+                        root_at.normVec();
+                    }
+                }
 
                 headLookAt = lerp(headLookAt, root_at, 0.4f);
                 headLookAt.normVec();
@@ -218,26 +272,100 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
                 left = root_up % headLookAt;
             }
 
-            // Make sure look_at and skyward and not parallel
-            // and neither are zero length
             LLVector3 up(headLookAt % left);
-
             targetHeadRotWorld = LLQuaternion(headLookAt, left, up);
         }
     }
-    else
+
+    if (!has_valid_look_at)
     {
         targetHeadRotWorld = currentRootRotWorld;
     }
 
+    // Add a very small local idle head drift only when no explicit look target
+    // is active. It is a procedural pose hint, not a network animation, and
+    // remains subject to the normal motion-controller joint blending.
+    if (has_valid_look_at)
+    {
+        mIdleHeadTargetYaw = 0.f;
+        mIdleHeadTargetPitch = 0.f;
+        mIdleHeadTimer.reset();
+        mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN;
+    }
+    else if (mIdleHeadTimer.getElapsedTimeF32() >= mIdleHeadNextUpdate)
+    {
+        mIdleHeadTargetYaw = (ll_frand(2.f) - 1.f) * IDLE_HEAD_MAX_YAW;
+        mIdleHeadTargetPitch = (ll_frand(2.f) - 1.f) * IDLE_HEAD_MAX_PITCH;
+        mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN +
+            ll_frand(IDLE_HEAD_UPDATE_MAX - IDLE_HEAD_UPDATE_MIN);
+        mIdleHeadTimer.reset();
+    }
+
+    const F32 idle_blend = LLSmoothInterpolation::getInterpolant(IDLE_HEAD_BLEND_HALF_LIFE);
+    mIdleHeadYaw += (mIdleHeadTargetYaw - mIdleHeadYaw) * idle_blend;
+    mIdleHeadPitch += (mIdleHeadTargetPitch - mIdleHeadPitch) * idle_blend;
+
+    // Facial expression composition publishes a per-avatar, smoothed pitch
+    // hint. Keep it inside the existing idle layer: explicit look targets and
+    // externally driven head poses are never modified by this contribution.
+    F32 facial_head_pitch_bias = 0.f;
+    if (!has_valid_look_at)
+    {
+        F32* facial_bias = (F32*)mCharacter->getAnimationData("FacialHeadPitchBias");
+        if (facial_bias)
+        {
+            facial_head_pitch_bias = llclamp(*facial_bias, -1.f * DEG_TO_RAD, 1.f * DEG_TO_RAD);
+        }
+    }
+
     LLQuaternion head_rot_local = targetHeadRotWorld * currentInvRootRotWorld;
+    if (!has_valid_look_at)
+    {
+        LLQuaternion idle_yaw(mIdleHeadYaw, LLVector3::z_axis);
+        LLQuaternion idle_pitch(mIdleHeadPitch + facial_head_pitch_bias, LLVector3::y_axis);
+        head_rot_local = idle_yaw * idle_pitch * head_rot_local;
+    }
     head_rot_local.constrain(HEAD_ROTATION_CONSTRAINT);
 
-    // set final torso rotation
-    // Set torso target rotation such that it lags behind the head rotation
-    // by a fixed amount.
-    LLQuaternion torso_rot_local = nlerp(TORSO_LAG, LLQuaternion::DEFAULT, head_rot_local );
-    mTorsoState->setRotation( nlerp(torso_slerp_amt, mTorsoState->getRotation(), torso_rot_local) );
+    // Recruit the torso progressively for larger horizontal head turns.
+    // Small glances remain mostly in the neck/head; sustained side-looking
+    // shares more rotation with the torso without changing motion priority.
+    F32 head_roll = 0.f;
+    F32 head_pitch = 0.f;
+    F32 head_yaw = 0.f;
+    head_rot_local.getEulerAngles(&head_roll, &head_pitch, &head_yaw);
+    const F32 abs_head_yaw = head_yaw < 0.f ? -head_yaw : head_yaw;
+    const F32 yaw_recruitment = llclamp(
+        (abs_head_yaw - 12.f * DEG_TO_RAD) / (33.f * DEG_TO_RAD),
+        0.f, 1.f);
+
+    // A short glance should not recruit the torso. Require a sustained turn,
+    // then ease the torso contribution in and out to avoid a sudden posture shift.
+    // Use separate enter/exit thresholds so small tracking fluctuations
+    // around the activation angle do not repeatedly restart the timer.
+    if (!mTorsoTurnActive && abs_head_yaw > 18.f * DEG_TO_RAD)
+    {
+        mTorsoTurnActive = true;
+        mTorsoTurnTimer.reset();
+    }
+    else if (mTorsoTurnActive && abs_head_yaw < 12.f * DEG_TO_RAD)
+    {
+        mTorsoTurnActive = false;
+        mTorsoTurnTimer.reset();
+    }
+    const F32 sustained_turn = mTorsoTurnActive
+        ? llclamp(mTorsoTurnTimer.getElapsedTimeF32() / 0.45f, 0.f, 1.f)
+        : 0.f;
+    const F32 target_recruitment = yaw_recruitment * sustained_turn;
+    const F32 recruitment_blend = LLSmoothInterpolation::getInterpolant(0.35f);
+    mTorsoRecruitment +=
+        (target_recruitment - mTorsoRecruitment) * recruitment_blend;
+    const F32 torso_follow = TORSO_LAG + 0.10f * mTorsoRecruitment;
+
+    // Set torso target rotation to lag behind the head, with a little more
+    // participation as the avatar turns farther to either side.
+    LLQuaternion torso_rot_local = nlerp(torso_follow, LLQuaternion::DEFAULT, head_rot_local);
+    mTorsoState->setRotation(nlerp(torso_slerp_amt, mTorsoState->getRotation(), torso_rot_local));
 
     head_rot_local = nlerp(head_slerp_amt, mLastHeadRot, head_rot_local);
     mLastHeadRot = head_rot_local;
@@ -270,6 +398,10 @@ void LLHeadRotMotion::onDeactivate()
 LLEyeMotion::LLEyeMotion(const LLUUID &id) : LLMotion(id)
 {
     mCharacter = NULL;
+    mUseAltEyesAsPrimary = false;
+    mHasBlinkMorphPair = false;
+    mLeftBlinkParam = NULL;
+    mRightBlinkParam = NULL;
     mEyeJitterTime = 0.f;
     mEyeJitterYaw = 0.f;
     mEyeJitterPitch = 0.f;
@@ -306,54 +438,90 @@ LLEyeMotion::~LLEyeMotion()
 //-----------------------------------------------------------------------------
 LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
 {
+    if (!character)
+    {
+        LL_INFOS() << getName() << ": Can't initialize without a character." << LL_ENDL;
+        return STATUS_FAILURE;
+    }
+
     mCharacter = character;
 
+    // Blink morphs are optional on custom rigs. Require the complete pair so
+    // a one-sided rig never produces visibly asymmetric blinking.
+    mLeftBlinkParam = character->getVisualParam("Blink_Left");
+    mRightBlinkParam = character->getVisualParam("Blink_Right");
+    mHasBlinkMorphPair = mLeftBlinkParam && mRightBlinkParam;
+    if (!mHasBlinkMorphPair)
+    {
+        mLeftBlinkParam = NULL;
+        mRightBlinkParam = NULL;
+        LL_DEBUGS("Avatar") << getName()
+                            << ": Complete Blink_Left/Blink_Right morph pair unavailable; procedural blinking disabled."
+                            << LL_ENDL;
+    }
+
     mHeadJoint = character->getJoint("mHead");
-    if ( ! mHeadJoint )
+    if (!mHeadJoint)
     {
         LL_INFOS() << getName() << ": Can't get head joint." << LL_ENDL;
         return STATUS_FAILURE;
     }
 
-    mLeftEyeState->setJoint( character->getJoint("mEyeLeft") );
-    if ( ! mLeftEyeState->getJoint() )
+    // Prefer the standard eye pair. If a custom rig omits either standard
+    // joint, use the alternate pair only when both alternate joints exist.
+    // Never combine joints from different rigs: vergence requires a matched pair.
+    LLJoint* primary_left = character->getJoint("mEyeLeft");
+    LLJoint* primary_right = character->getJoint("mEyeRight");
+    LLJoint* alternate_left = character->getJoint("mFaceEyeAltLeft");
+    LLJoint* alternate_right = character->getJoint("mFaceEyeAltRight");
+
+    const bool has_primary_pair = primary_left && primary_right;
+    const bool has_alternate_pair = alternate_left && alternate_right;
+
+    if (!has_primary_pair && !has_alternate_pair)
     {
-        LL_INFOS() << getName() << ": Can't get left eyeball joint." << LL_ENDL;
+        LL_INFOS() << getName()
+                   << ": No complete left/right eyeball joint pair; eye motion disabled."
+                   << LL_ENDL;
         return STATUS_FAILURE;
     }
 
-    mAltLeftEyeState->setJoint( character->getJoint("mFaceEyeAltLeft") );
-    if ( ! mAltLeftEyeState->getJoint() )
+    mUseAltEyesAsPrimary = !has_primary_pair;
+    if (mUseAltEyesAsPrimary)
     {
-        LL_INFOS() << getName() << ": Can't get alt left eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
+        LL_DEBUGS("Avatar") << getName()
+                            << ": Standard eye pair incomplete; using alternate eye pair."
+                            << LL_ENDL;
+        mLeftEyeState->setJoint(alternate_left);
+        mRightEyeState->setJoint(alternate_right);
     }
-
-    mRightEyeState->setJoint( character->getJoint("mEyeRight") );
-    if ( ! mRightEyeState->getJoint() )
+    else
     {
-        LL_INFOS() << getName() << ": Can't get right eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
-    }
-
-    mAltRightEyeState->setJoint( character->getJoint("mFaceEyeAltRight") );
-    if ( ! mAltRightEyeState->getJoint() )
-    {
-        LL_INFOS() << getName() << ": Can't get alt right eyeball joint." << LL_ENDL;
-        return STATUS_FAILURE;
+        mLeftEyeState->setJoint(primary_left);
+        mRightEyeState->setJoint(primary_right);
     }
 
     mLeftEyeState->setUsage(LLJointState::ROT);
-    mAltLeftEyeState->setUsage(LLJointState::ROT);
-
     mRightEyeState->setUsage(LLJointState::ROT);
-    mAltRightEyeState->setUsage(LLJointState::ROT);
+    addJointState(mLeftEyeState);
+    addJointState(mRightEyeState);
 
-    addJointState( mLeftEyeState );
-    addJointState( mAltLeftEyeState );
-
-    addJointState( mRightEyeState );
-    addJointState( mAltRightEyeState );
+    // A complete alternate pair may be driven in parallel with the standard
+    // pair. When it is serving as the primary pair, do not register it twice.
+    if (!mUseAltEyesAsPrimary && has_alternate_pair)
+    {
+        mAltLeftEyeState->setJoint(alternate_left);
+        mAltRightEyeState->setJoint(alternate_right);
+        mAltLeftEyeState->setUsage(LLJointState::ROT);
+        mAltRightEyeState->setUsage(LLJointState::ROT);
+        addJointState(mAltLeftEyeState);
+        addJointState(mAltRightEyeState);
+    }
+    else
+    {
+        mAltLeftEyeState->setJoint(NULL);
+        mAltRightEyeState->setJoint(NULL);
+    }
 
     return STATUS_SUCCESS;
 }
@@ -364,6 +532,40 @@ LLMotion::LLMotionInitStatus LLEyeMotion::onInitialize(LLCharacter *character)
 //-----------------------------------------------------------------------------
 bool LLEyeMotion::onActivate()
 {
+    // Start with a short natural settling period instead of an immediate
+    // blink/look-away on the first rendered frame after activation.
+    mEyeJitterTimer.reset();
+    mLastEyeUpdateTimer.reset();
+    mEyeBlinkTimer.reset();
+    mEyeJitterTime = EYE_JITTER_MIN_TIME + ll_frand(EYE_JITTER_MAX_TIME - EYE_JITTER_MIN_TIME);
+    mEyeJitterYaw = 0.f;
+    mEyeJitterPitch = 0.f;
+
+    mEyeLookAwayTime = EYE_LOOK_AWAY_MIN_TIME + ll_frand(EYE_LOOK_AWAY_MAX_TIME - EYE_LOOK_AWAY_MIN_TIME);
+    mEyeLookAwayYaw = 0.f;
+    mEyeLookAwayPitch = 0.f;
+
+    // The first blink is deliberately delayed; subsequent intervals retain
+    // the existing randomized cadence.
+    mEyeBlinkTime = 1.5f + ll_frand(3.0f);
+    mEyesClosed = false;
+
+    // Do not carry a previous target rotation into a new activation.
+    // Keep the pose cache aligned with the joint reset performed on deactivation.
+    mLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+    mRightEyeState->setRotation(LLQuaternion::DEFAULT);
+    if (mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    {
+        mAltLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->setRotation(LLQuaternion::DEFAULT);
+    }
+
+    if (mHasBlinkMorphPair)
+    {
+        mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+        mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+        mCharacter->updateVisualParams();
+    }
     return true;
 }
 
@@ -385,34 +587,87 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         LLVector3       up;
 
         eye_look_at = *targetPos;
-        has_eye_target = true;
-        F32 lookAtDistance = eye_look_at.normVec();
+        // LookAtPoint is normally validated by LLHUDEffectLookAt, but keep
+        // the motion safe if another producer supplies non-finite data.
+        F32 lookAtDistance = eye_look_at.isFinite()
+            ? eye_look_at.normVec()
+            : 0.f;
+        // normVec() clears a vector whose squared magnitude overflows.
+        // Reject that zeroed direction as well as any non-finite result.
+        if (!eye_look_at.isFinite() || eye_look_at.magVecSquared() < 1.e-8f)
+        {
+            lookAtDistance = 0.f;
+        }
 
-        left.setVec(skyward % eye_look_at);
-        up.setVec(eye_look_at % left);
+        // A zero-length or non-finite LookAtPoint has no valid orientation.
+        // Treat it as an idle eye pose instead of constructing a degenerate
+        // quaternion.
+        if (lookAtDistance < 1.e-4f)
+        {
+            target_eye_rot = LLQuaternion::DEFAULT;
+            vergence = 0.f;
+        }
+        else
+        {
+            has_eye_target = true;
 
-        target_eye_rot = LLQuaternion(eye_look_at, left, up);
-        // convert target rotation to head-local coordinates
-        target_eye_rot *= ~mHeadJoint->getWorldRotation();
-        // eliminate any Euler roll - we're lucky that roll is applied last.
-        F32 roll, pitch, yaw;
-        target_eye_rot.getEulerAngles(&roll, &pitch, &yaw);
-        target_eye_rot.setQuat(0.0f, pitch, yaw);
-        // constrain target orientation to be in front of avatar's face
-        target_eye_rot.constrain(EYE_ROT_LIMIT_ANGLE);
+            left.setVec(skyward % eye_look_at);
+            // Keep the look-at basis well-conditioned near the vertical
+            // poles, matching the fallback already used by head motion.
+            if (left.magVecSquared() < 0.15f)
+            {
+                LLVector3 head_forward =
+                    LLVector3(1.f, 0.f, 0.f) * mHeadJoint->getWorldRotation();
+                head_forward.mV[VZ] = 0.f;
+                if (head_forward.normVec() < 1.e-4f)
+                {
+                    head_forward.setVec(1.f, 0.f, 0.f);
+                }
 
-        // calculate vergence
-        F32 interocular_dist = (left_eye_state.getJoint()->getWorldPosition() - right_eye_state.getJoint()->getWorldPosition()).magVec();
-        vergence = -atan2((interocular_dist / 2.f), lookAtDistance);
-        // <FS:ND> Guess we should take the return value of that llclamp...
-        // llclamp(vergence, -F_PI_BY_TWO, 0.f);
-        vergence = llclamp(vergence, -F_PI_BY_TWO, 0.f);
-        // </FS:ND>
+                eye_look_at = lerp(eye_look_at, head_forward, 0.4f);
+                eye_look_at.normVec();
+                left.setVec(skyward % eye_look_at);
+            }
+
+            up.setVec(eye_look_at % left);
+            target_eye_rot = LLQuaternion(eye_look_at, left, up);
+            // convert target rotation to head-local coordinates
+            target_eye_rot *= ~mHeadJoint->getWorldRotation();
+            // eliminate any Euler roll - we're lucky that roll is applied last.
+            F32 roll, pitch, yaw;
+            target_eye_rot.getEulerAngles(&roll, &pitch, &yaw);
+            target_eye_rot.setQuat(0.0f, pitch, yaw);
+            // constrain target orientation to be in front of avatar's face
+            target_eye_rot.constrain(EYE_ROT_LIMIT_ANGLE);
+
+            // calculate vergence
+            F32 interocular_dist = (left_eye_state.getJoint()->getWorldPosition() - right_eye_state.getJoint()->getWorldPosition()).magVec();
+            vergence = -atan2((interocular_dist / 2.f), lookAtDistance);
+            // <FS:ND> Guess we should take the return value of that llclamp...
+            // llclamp(vergence, -F_PI_BY_TWO, 0.f);
+            vergence = llclamp(vergence, -F_PI_BY_TWO, 0.f);
+            // </FS:ND>
+        }
     }
     else
     {
         target_eye_rot = LLQuaternion::DEFAULT;
         vergence = 0.f;
+    }
+
+    // Emotional eye direction is an idle-only hint. Apply it whenever there
+    // is no valid target, including a present but malformed LookAtPoint.
+    // Never offset an explicit avatar/object/world look target.
+    if (!has_eye_target)
+    {
+        F32* facial_eye_bias = (F32*)mCharacter->getAnimationData("FacialEyePitchBias");
+        if (facial_eye_bias)
+        {
+            const F32 eye_pitch_bias = llclamp(*facial_eye_bias,
+                -1.5f * DEG_TO_RAD, 1.5f * DEG_TO_RAD);
+            LLQuaternion facial_eye_pitch(eye_pitch_bias, LLVector3::y_axis);
+            target_eye_rot = facial_eye_pitch * target_eye_rot;
+        }
     }
 
     //RN: subtract 4 degrees to account for foveal angular offset relative to pupil
@@ -445,7 +700,10 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         vergence_quat.loadIdentity();
     }
 
-    // calculate eye rotations
+    // Build both eye targets in head-local space first. Standard eye joints
+    // are direct children of mHead, while Bento alternate eyes are children
+    // of mFaceRoot. Convert each target into its own parent-local space so
+    // face-root animation is not applied a second time to the alternate eyes.
     LLQuaternion left_eye_rot = target_eye_rot;
     left_eye_rot = vergence_quat * eye_jitter_rot * left_eye_rot;
 
@@ -453,8 +711,26 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
     vergence_quat.transQuat();
     right_eye_rot = vergence_quat * eye_jitter_rot * right_eye_rot;
 
-    left_eye_state.setRotation( left_eye_rot );
-    right_eye_state.setRotation( right_eye_rot );
+    const LLQuaternion head_world_rot = mHeadJoint->getWorldRotation();
+    LLJoint* left_eye_joint = left_eye_state.getJoint();
+    LLJoint* right_eye_joint = right_eye_state.getJoint();
+    if (left_eye_joint && left_eye_joint->getParent())
+    {
+        left_eye_rot = left_eye_rot * head_world_rot *
+            ~left_eye_joint->getParent()->getWorldRotation();
+    }
+    if (right_eye_joint && right_eye_joint->getParent())
+    {
+        right_eye_rot = right_eye_rot * head_world_rot *
+            ~right_eye_joint->getParent()->getWorldRotation();
+    }
+
+    // Ease eye direction changes over a few frames. The head motion already
+    // follows LookAtPoint with a longer half-life, so this keeps the eyes in
+    // the lead without snapping them instantly to a new target.
+    const F32 eye_slerp_amt = LLSmoothInterpolation::getInterpolant(EYE_LOOKAT_LAG_HALF_LIFE);
+    left_eye_state.setRotation(nlerp(eye_slerp_amt, left_eye_state.getRotation(), left_eye_rot));
+    right_eye_state.setRotation(nlerp(eye_slerp_amt, right_eye_state.getRotation(), right_eye_rot));
 }
 
 //-----------------------------------------------------------------------------
@@ -463,6 +739,31 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
 bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_AVATAR;
+
+    // Hidden/culled avatars use minimal motion updates. If eye motion resumes
+    // after a long gap, discard any partially evaluated blink rather than
+    // replaying an expired close phase on the first visible frame.
+    if (mLastEyeUpdateTimer.getElapsedTimeF32() > 0.5f)
+    {
+        mEyesClosed = false;
+        mEyeBlinkTimer.reset();
+        mEyeBlinkTime = 1.5f + ll_frand(3.0f);
+        mEyeJitterTimer.reset();
+        mEyeJitterYaw = 0.f;
+        mEyeJitterPitch = 0.f;
+        mEyeLookAwayYaw = 0.f;
+        mEyeLookAwayPitch = 0.f;
+        mEyeLookAwayTime = EYE_LOOK_AWAY_MIN_TIME +
+            ll_frand(EYE_LOOK_AWAY_MAX_TIME - EYE_LOOK_AWAY_MIN_TIME);
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+            mCharacter->updateVisualParams();
+        }
+    }
+    mLastEyeUpdateTimer.reset();
+
     //calculate jitter
     if (mEyeJitterTimer.getElapsedTimeF32() > mEyeJitterTime)
     {
@@ -500,16 +801,19 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
         F32 leftEyeBlinkMorph = mEyeBlinkTimer.getElapsedTimeF32() - mEyeBlinkTime;
         F32 rightEyeBlinkMorph = leftEyeBlinkMorph - EYE_BLINK_TIME_DELTA;
 
-        leftEyeBlinkMorph = llclamp(leftEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-        rightEyeBlinkMorph = llclamp(rightEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-        mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
-        mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
-        mCharacter->updateVisualParams();
+        leftEyeBlinkMorph = llclamp(leftEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
+        rightEyeBlinkMorph = llclamp(rightEyeBlinkMorph / EYE_BLINK_CLOSE_SPEED, 0.f, 1.f);
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, leftEyeBlinkMorph);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, rightEyeBlinkMorph);
+            mCharacter->updateVisualParams();
+        }
 
         if (rightEyeBlinkMorph == 1.f)
         {
             mEyesClosed = true;
-            mEyeBlinkTime = EYE_BLINK_CLOSE_TIME;
+            mEyeBlinkTime = EYE_BLINK_HOLD_TIME;
             mEyeBlinkTimer.reset();
         }
     }
@@ -520,16 +824,31 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
             F32 leftEyeBlinkMorph = mEyeBlinkTimer.getElapsedTimeF32() - mEyeBlinkTime;
             F32 rightEyeBlinkMorph = leftEyeBlinkMorph - EYE_BLINK_TIME_DELTA;
 
-            leftEyeBlinkMorph = 1.f - llclamp(leftEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-            rightEyeBlinkMorph = 1.f - llclamp(rightEyeBlinkMorph / EYE_BLINK_SPEED, 0.f, 1.f);
-            mCharacter->setVisualParamWeight("Blink_Left", leftEyeBlinkMorph);
-            mCharacter->setVisualParamWeight("Blink_Right", rightEyeBlinkMorph);
-            mCharacter->updateVisualParams();
+            leftEyeBlinkMorph = 1.f - llclamp(leftEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
+            rightEyeBlinkMorph = 1.f - llclamp(rightEyeBlinkMorph / EYE_BLINK_OPEN_SPEED, 0.f, 1.f);
+            if (mHasBlinkMorphPair)
+            {
+                mCharacter->setVisualParamWeight(mLeftBlinkParam, leftEyeBlinkMorph);
+                mCharacter->setVisualParamWeight(mRightBlinkParam, rightEyeBlinkMorph);
+                mCharacter->updateVisualParams();
+            }
 
             if (rightEyeBlinkMorph == 0.f)
             {
                 mEyesClosed = false;
-                mEyeBlinkTime = EYE_BLINK_MIN_TIME + ll_frand(EYE_BLINK_MAX_TIME - EYE_BLINK_MIN_TIME);
+                // Most blinks use a relaxed 2.2–6.8 second cadence. A small
+                // minority form a quick double blink, avoiding a perfectly
+                // uniform metronomic pattern without frequent twitching.
+                if (ll_frand() < EYE_BLINK_DOUBLE_CHANCE)
+                {
+                    mEyeBlinkTime = EYE_BLINK_DOUBLE_MIN +
+                        ll_frand(EYE_BLINK_DOUBLE_MAX - EYE_BLINK_DOUBLE_MIN);
+                }
+                else
+                {
+                    mEyeBlinkTime = EYE_BLINK_MIN_TIME +
+                        ll_frand(EYE_BLINK_MAX_TIME - EYE_BLINK_MIN_TIME);
+                }
                 mEyeBlinkTimer.reset();
             }
         }
@@ -538,7 +857,11 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
     LLVector3* targetPos = (LLVector3*)mCharacter->getAnimationData("LookAtPoint");
 
     adjustEyeTarget(targetPos, *mLeftEyeState, *mRightEyeState);
-    adjustEyeTarget(targetPos, *mAltLeftEyeState, *mAltRightEyeState);
+    if (!mUseAltEyesAsPrimary &&
+        mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
+    {
+        adjustEyeTarget(targetPos, *mAltLeftEyeState, *mAltRightEyeState);
+    }
 
     return true;
 }
@@ -550,28 +873,43 @@ bool LLEyeMotion::onUpdate(F32 time, U8* joint_mask)
 void LLEyeMotion::onDeactivate()
 {
     LLJoint* joint = mLeftEyeState->getJoint();
-    if (joint)
-    {
-        joint->setRotation(LLQuaternion::DEFAULT);
-    }
-
-    joint = mAltLeftEyeState->getJoint();
+    mLeftEyeState->setRotation(LLQuaternion::DEFAULT);
     if (joint)
     {
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
     joint = mRightEyeState->getJoint();
+    mRightEyeState->setRotation(LLQuaternion::DEFAULT);
     if (joint)
     {
         joint->setRotation(LLQuaternion::DEFAULT);
     }
 
-    joint = mAltRightEyeState->getJoint();
-    if (joint)
+    // The selected pair is stored in mLeftEyeState/mRightEyeState,
+    // including when the alternate rig is serving as the primary pair.
+    // Reset a secondary alternate pair only when it was also registered.
+    if (!mUseAltEyesAsPrimary &&
+        mAltLeftEyeState->getJoint() && mAltRightEyeState->getJoint())
     {
-        joint->setRotation(LLQuaternion::DEFAULT);
+        mAltLeftEyeState->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->setRotation(LLQuaternion::DEFAULT);
+        mAltLeftEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
+        mAltRightEyeState->getJoint()->setRotation(LLQuaternion::DEFAULT);
     }
+
+    // A motion can be deactivated while an avatar is culled mid-blink.
+    // Always restore eyelid morphs so it cannot reappear with closed eyes.
+    if (mCharacter)
+    {
+        if (mHasBlinkMorphPair)
+        {
+            mCharacter->setVisualParamWeight(mLeftBlinkParam, 0.f);
+            mCharacter->setVisualParamWeight(mRightBlinkParam, 0.f);
+            mCharacter->updateVisualParams();
+        }
+    }
+    mEyesClosed = false;
 }
 
 // End

@@ -27,6 +27,8 @@
 #ifndef LL_LLAGENTCAMERA_H
 #define LL_LLAGENTCAMERA_H
 
+#include <string>
+
 #include "llfollowcam.h"            // Ventrella
 #include "llhudeffectlookat.h"      // EPointAtType
 #include "llhudeffectpointat.h"     // ELookAtType
@@ -110,12 +112,57 @@ public:
     ECameraMode     getCameraMode() const           { return mCameraMode; }
     ECameraMode     getLastCameraMode() const       { return mLastCameraMode; }
     void            updateCamera();                 // Call once per frame to update camera location/orientation
+    enum class ESocialEmotion
+    {
+        GREETING,
+        FRIENDLY,
+        AMUSED,
+        CONCERNED,
+        SAD,
+        SURPRISED
+    };
+    bool            requestSocialEmotion(ESocialEmotion emotion);
+    bool            requestSocialGreetingGesture();
+    void            cancelSocialGreetingGesture();
+    bool            requestSocialNodGesture();
+    void            updateSocialSpeechGesture();
+    void            cancelSocialNodGesture();
+    void            observeSocialChat(const LLUUID& speaker_id, const std::string& message);
+    bool            requestSocialExpression(const LLUUID& animation_id, F32 duration = 3.f);
+    void            cancelSocialExpression();
     void            resetCamera();                  // Slam camera into its default position
     void            updateLastCamera();             // Set last camera to current camera
 
 private:
     ECameraMode     mCameraMode;                    // Target mode after transition animation is done
     ECameraMode     mLastCameraMode;
+
+    // Sequence-aware lease for Viewer-generated social facial expressions.
+    LLUUID          mSocialExpressionAnimation;
+    S32             mSocialExpressionSequence = 0;
+    F64             mSocialExpressionRequestTime = 0.0;
+    F64             mSocialExpressionDeadline = 0.0;
+    bool            mSocialExpressionPending = false;
+    bool            mSocialExpressionOwned = false;
+    F64             mLastSocialEmotionReaction = 0.0;
+
+    // Short sequence-aware lease for the Viewer-generated greeting wave.
+    S32             mSocialGestureSequence = 0;
+    F64             mSocialGestureRequestTime = 0.0;
+    F64             mSocialGestureDeadline = 0.0;
+    bool            mSocialGesturePending = false;
+    bool            mSocialGestureOwned = false;
+    S32             mSocialNodSequence = 0;
+    F64             mSocialNodRequestTime = 0.0;
+    F64             mSocialNodDeadline = 0.0;
+    bool            mSocialNodPending = false;
+    bool            mSocialNodOwned = false;
+    // Voice-activity-driven lease for the standard SL TALK animation.
+    S32             mSocialTalkSequence = 0;
+    F64             mSocialTalkRequestTime = 0.0;
+    F64             mSocialTalkLastActiveTime = 0.0;
+    bool            mSocialTalkPending = false;
+    bool            mSocialTalkOwned = false;
 
     //--------------------------------------------------------------------
     // Preset
@@ -270,6 +317,9 @@ private:
 public:
     void            updateLookAt(const S32 mouse_x, const S32 mouse_y);
     bool            setLookAt(ELookAtType target_type, LLViewerObject *object = NULL, LLVector3 position = LLVector3::zero);
+    void            setInteractionLookAt(LLViewerObject* avatar);
+    void            setInteractionLookAtPoint(const LLVector3d& global_position);
+    void            clearInteractionLookAt();
     ELookAtType     getLookAtType();
     void            lookAtLastChat();
     void            slamLookAt(const LLVector3 &look_at); // Set the physics data

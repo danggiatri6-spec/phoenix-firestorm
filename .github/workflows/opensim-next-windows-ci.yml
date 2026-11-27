@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "opensim-next/integration"
+      - "opensim-next/avatar-interaction-actions"
     paths:
       - ".github/workflows/opensim-next-windows-ci.yml"
       - "indra/**"
@@ -20,7 +21,7 @@ permissions:
 
 concurrency:
   group: opensim-next-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-windows:
@@ -76,13 +77,92 @@ jobs:
         shell: pwsh
         run: python indra/newview/generate_simplified_chinese.py
 
-      - name: Configure OpenSim-enabled viewer (no packaging)
+      - name: Configure OpenSim-enabled viewer with runtime packaging
         shell: cmd
-        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=OFF -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE
+        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=ON -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE -DOPENSIMNEXT_ENABLE_WHISPER_CPP:BOOL=ON
 
-      - name: Build OpenSim-enabled viewer
+      - name: Build OpenSim-enabled viewer and runtime package
         shell: cmd
         run: autobuild build -A 64 -c ReleaseOS --no-configure
+
+      - name: Bundle multilingual Whisper base model
+        shell: pwsh
+        run: |
+          $modelDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release/app_settings/speech_models"
+          New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+          $modelPath = Join-Path $modelDir "ggml-base.bin"
+          $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/0b364b566045a405be7225ee1e415a073e04da77/ggml-base.bin"
+          Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath
+          $expectedSha256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
+          $actualSha256 = (Get-FileHash -Algorithm SHA256 $modelPath).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Whisper base model SHA256 mismatch. Expected $expectedSha256, got $actualSha256"
+          }
+          @"
+          Whisper model attribution
+
+          File: ggml-base.bin
+          Project: whisper.cpp
+          Source: https://huggingface.co/ggerganov/whisper.cpp
+          Pinned revision: 0b364b566045a405be7225ee1e415a073e04da77
+          SHA256: $expectedSha256
+          Model format: multilingual Whisper GGML
+          License: MIT (see https://huggingface.co/ggerganov/whisper.cpp)
+
+          The model is bundled for local, on-device speech recognition. It is not
+          uploaded to OpenSim servers. The model is distributed under the license
+          indicated by its upstream repository; consult the upstream repository
+          for the complete license and notices.
+          "@ | Set-Content -Encoding UTF8 (Join-Path $modelDir "MODEL-NOTICE.txt")
+          Write-Host "Bundled and SHA256-verified multilingual Whisper base model."
+
+      - name: Validate and package portable Windows x64 Viewer
+        shell: pwsh
+        run: |
+          $viewerDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release"
+          $requiredPaths = @(
+            "firestorm-bin.exe",
+            "app_settings/settings.xml",
+            "app_settings/settings_files.xml",
+            "app_settings/shaders",
+            "character",
+            "skins/skins.xml",
+            "llplugin/media_plugin_cef.dll",
+            "slplugin.exe",
+            "app_settings/speech_models/ggml-base.bin",
+            "app_settings/speech_models/MODEL-NOTICE.txt"
+          )
+          $missing = @()
+          foreach ($relativePath in $requiredPaths) {
+            if (-not (Test-Path (Join-Path $viewerDir $relativePath))) {
+              $missing += $relativePath
+            }
+          }
+          if ($missing.Count -gt 0) {
+            throw "Viewer runtime package is incomplete. Missing required files/directories: $($missing -join ', '). PACKAGE must remain enabled so viewer_manifest.py stages the full runtime."
+          }
+
+          @(
+            "OpenSim-next Windows x64 portable test build"
+            "Commit: $env:GITHUB_SHA"
+            "Configuration: ReleaseOS"
+            "Runtime files staged by viewer_manifest.py with PACKAGE=ON."
+            "This is an unsigned CI test package, not a production installer."
+            "Whisper.cpp is built into this configuration; the multilingual ggml-base.bin model is bundled under app_settings/speech_models and selected automatically by Nearby Chat."
+          ) | Set-Content (Join-Path $viewerDir "OPENSIMNEXT-TEST-BUILD.txt")
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+          Compress-Archive -Path (Join-Path $viewerDir "*") -DestinationPath $zipPath -CompressionLevel Optimal
+          Write-Host "Created validated portable package: $zipPath"
+          Get-Item $zipPath | Format-List FullName,Length
+
+      - name: Upload portable Windows x64 Viewer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenSimNext-Windows-x64-Portable
+          path: OpenSimNext-Windows-x64-Portable.zip
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Collect build diagnostics
         if: always()

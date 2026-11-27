@@ -40,6 +40,7 @@
 #include "lldrawpoolalpha.h"
 #include "llviewerobject.h"
 #include "llcharacter.h"
+#include "llframetimer.h"
 #include "llcontrol.h"
 #include "llviewerjointmesh.h"
 #include "llviewerjointattachment.h"
@@ -295,6 +296,7 @@ public:
     void            idleUpdateMisc(bool detailed_update);
     virtual void    idleUpdateAppearanceAnimation();
     void            idleUpdateLipSync(bool voice_enabled);
+    void            updateFacialExpressionComposition();
     void            idleUpdateLoadingEffect();
     void            idleUpdateWindEffect();
     void            idleUpdateNameTag(const LLVector3& root_pos_last);
@@ -1167,6 +1169,13 @@ private:
     bool            mLipSyncActive; // we're morphing for lip sync
     LLVisualParam*  mOohMorph; // cached pointers morphs for lip sync
     LLVisualParam*  mAahMorph; // cached pointers morphs for lip sync
+    bool            mLipSyncUsesFallbackMorphs; // legacy mouth morphs overlap facial expressions
+    LLFrameTimer    mLipSyncTimer;
+    LLFrameTimer    mFacialExpressionTimer;
+    F32             mFacialHeadPitchBias; // Per-avatar emotional hint consumed by head_rot idle motion.
+    F32             mFacialEyePitchBias;  // Per-avatar emotional hint consumed by eye idle motion.
+    F32             mLipSyncOohWeight;
+    F32             mLipSyncAahWeight;
 
     //--------------------------------------------------------------------
     // Flight

@@ -73,6 +73,20 @@ public:
      */
     static void startIM(const LLUUID& id);
 
+    /** Send an invitation through the optional AvatarInteraction capability. */
+    static void requestInteractionInvite(const LLUUID& target_id, const std::string& interaction);
+
+    /** Record, clear, or end the server-authoritative interaction session. */
+    static void setActiveAvatarInteraction(const LLUUID& session_id, const LLUUID& partner_id);
+    static const LLUUID& getActiveAvatarInteractionPartner();
+    static const LLUUID& getActiveAvatarInteractionSession();
+    static void clearActiveAvatarInteraction(const LLUUID& session_id);
+    static void endAvatarInteraction(const LLUUID& session_id);
+    /** Move only the local avatar to a safe stand-off point, on explicit user action. */
+    static bool approachActiveAvatarInteractionPartner();
+    /** Stop only the autopilot instance owned by the interaction approach action. */
+    static void cancelAvatarInteractionApproach();
+
     /**
      * End instant messaging session.
      */

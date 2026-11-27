@@ -769,6 +769,11 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mMeshTexturesDirty = false;
     mHeadp = NULL;
 
+    // Per-avatar, lifetime-stable signal consumed by LLHeadRotMotion.
+    mFacialHeadPitchBias = 0.f;
+    setAnimationData("FacialHeadPitchBias", &mFacialHeadPitchBias);
+    mFacialEyePitchBias = 0.f;
+    setAnimationData("FacialEyePitchBias", &mFacialEyePitchBias);
 
     // set up animation variables
     mSpeed = 0.f;
@@ -806,6 +811,11 @@ LLVOAvatar::LLVOAvatar(const LLUUID& id,
     mLipSyncActive = false;
     mOohMorph      = NULL;
     mAahMorph      = NULL;
+    mLipSyncUsesFallbackMorphs = false;
+    mLipSyncOohWeight = 0.f;
+    mLipSyncAahWeight = 0.f;
+    mLipSyncTimer.reset();
+    mFacialExpressionTimer.reset();
 
     mCurrentGesticulationLevel = 0;
 
@@ -2123,7 +2133,7 @@ void LLVOAvatar::renderOnlySelectedBones(const std::vector<std::string> &selecte
 
         gGL.popMatrix();
 
-        
+
         // renderBoxAroundJointAttachments( jointp );
 
     }
@@ -2213,7 +2223,7 @@ void LLVOAvatar::renderOnlySelectedBones(const std::vector<std::string> &selecte
 void LLVOAvatar::renderBoxAroundJointAttachments(LLJoint * joint)
 {
     LLJointRiggingInfo* rig_info = NULL;
-    
+
     if (joint->getJointNum() < mJointRiggingInfoTab.size())
     {
         rig_info = &mJointRiggingInfoTab[joint->getJointNum()];
@@ -2552,6 +2562,7 @@ void LLVOAvatar::buildCharacter()
     //-------------------------------------------------------------------------
     mOohMorph     = getVisualParam( "Lipsync_Ooh" );
     mAahMorph     = getVisualParam( "Lipsync_Aah" );
+    mLipSyncUsesFallbackMorphs = !mOohMorph || !mAahMorph;
 
     // If we don't have the Ooh morph, use the Kiss morph
     if (!mOohMorph)
@@ -2566,6 +2577,11 @@ void LLVOAvatar::buildCharacter()
         LL_WARNS() << "Missing 'Aah' morph for lipsync, using fallback." << LL_ENDL;
         mAahMorph = getVisualParam( "Express_Open_Mouth" );
     }
+
+    // Keep the local envelope synchronized with the actual morph defaults.
+    mLipSyncOohWeight = mOohMorph ? mOohMorph->getMinWeight() : 0.f;
+    mLipSyncAahWeight = mAahMorph ? mAahMorph->getMinWeight() : 0.f;
+    mLipSyncTimer.reset();
 
     // Currently disabled for control avatars (animated objects), enabled for all others.
     if (mEnableDefaultMotions)
@@ -3681,40 +3697,429 @@ F32 LLVOAvatar::calcMorphAmount() const
     return morph_amt;
 }
 
+void LLVOAvatar::updateFacialExpressionComposition()
+{
+    // Standard Second Life facial expression animations are represented by
+    // LLEmote motions. Aggregate their blended pose weights per avatar rather
+    // than allowing the last-updated motion to own shared facial parameters.
+    static const LLUUID expression_ids[] =
+    {
+        ANIM_AGENT_EXPRESS_AFRAID,
+        ANIM_AGENT_EXPRESS_ANGER,
+        ANIM_AGENT_EXPRESS_BORED,
+        ANIM_AGENT_EXPRESS_CRY,
+        ANIM_AGENT_EXPRESS_DISDAIN,
+        ANIM_AGENT_EXPRESS_EMBARRASSED,
+        ANIM_AGENT_EXPRESS_FROWN,
+        ANIM_AGENT_EXPRESS_KISS,
+        ANIM_AGENT_EXPRESS_LAUGH,
+        ANIM_AGENT_EXPRESS_OPEN_MOUTH,
+        ANIM_AGENT_EXPRESS_REPULSED,
+        ANIM_AGENT_EXPRESS_SAD,
+        ANIM_AGENT_EXPRESS_SHRUG,
+        ANIM_AGENT_EXPRESS_SMILE,
+        ANIM_AGENT_EXPRESS_SURPRISE,
+        ANIM_AGENT_EXPRESS_TONGUE_OUT,
+        ANIM_AGENT_EXPRESS_TOOTHSMILE,
+        ANIM_AGENT_EXPRESS_WINK,
+        ANIM_AGENT_EXPRESS_WORRY
+    };
+
+    F32 strongest_expression = 0.f;
+    F32 surprised_brow_weight = 0.f;
+    F32 worried_brow_weight = 0.f;
+    F32 sad_head_weight = 0.f;
+    F32 concern_head_weight = 0.f;
+    F32 furrowed_brow_weight = 0.f;
+    F32 widen_eyes_weight = 0.f;
+    bool has_active_expression = false;
+    LLMotionController::motion_list_t& active_motions =
+        getMotionController().getActiveMotions();
+
+    for (LLMotionController::motion_list_t::iterator motion_it = active_motions.begin();
+         motion_it != active_motions.end(); ++motion_it)
+    {
+        LLMotion* motion = *motion_it;
+        if (!motion)
+        {
+            continue;
+        }
+
+        const LLUUID& motion_id = motion->getID();
+        bool is_standard_expression = false;
+        for (S32 i = 0; i < (S32)LL_ARRAY_SIZE(expression_ids); ++i)
+        {
+            if (motion_id == expression_ids[i])
+            {
+                is_standard_expression = true;
+                break;
+            }
+        }
+
+        if (!is_standard_expression || !motion->getPose())
+        {
+            continue;
+        }
+
+        const F32 weight = llclamp(motion->getPose()->getWeight(), 0.f, 1.f);
+        // A motion can remain in the controller while its pose is fading
+        // through zero. Do not treat a zero-weight pose as an active facial
+        // expression; doing so can hold the shared morph targets away from
+        // their defaults after the visible expression has already faded out.
+        if (weight <= 0.001f)
+        {
+            continue;
+        }
+
+        has_active_expression = true;
+        strongest_expression = llmax(strongest_expression, weight);
+
+        // Add subtle brow participation to the standard facial expressions.
+        // These are animatable morphs in the stock avatar_lad.xml; missing
+        // parameters on custom rigs are intentionally ignored.
+        if (motion_id == ANIM_AGENT_EXPRESS_SURPRISE
+            || motion_id == ANIM_AGENT_EXPRESS_AFRAID
+            || motion_id == ANIM_AGENT_EXPRESS_OPEN_MOUTH)
+        {
+            if (motion_id == ANIM_AGENT_EXPRESS_SURPRISE
+                || motion_id == ANIM_AGENT_EXPRESS_AFRAID)
+            {
+                widen_eyes_weight = llmax(widen_eyes_weight, weight);
+            }
+            surprised_brow_weight = llmax(surprised_brow_weight, weight * 0.42f);
+        }
+        else if (motion_id == ANIM_AGENT_EXPRESS_WORRY
+                 || motion_id == ANIM_AGENT_EXPRESS_SAD
+                 || motion_id == ANIM_AGENT_EXPRESS_CRY
+                 || motion_id == ANIM_AGENT_EXPRESS_EMBARRASSED)
+        {
+            worried_brow_weight = llmax(worried_brow_weight, weight * 0.34f);
+            if (motion_id == ANIM_AGENT_EXPRESS_WORRY)
+            {
+                concern_head_weight = llmax(concern_head_weight, weight);
+            }
+            else if (motion_id == ANIM_AGENT_EXPRESS_SAD
+                     || motion_id == ANIM_AGENT_EXPRESS_CRY)
+            {
+                sad_head_weight = llmax(sad_head_weight, weight);
+            }
+        }
+        else if (motion_id == ANIM_AGENT_EXPRESS_ANGER
+                 || motion_id == ANIM_AGENT_EXPRESS_FROWN
+                 || motion_id == ANIM_AGENT_EXPRESS_DISDAIN
+                 || motion_id == ANIM_AGENT_EXPRESS_REPULSED)
+        {
+            furrowed_brow_weight = llmax(furrowed_brow_weight, weight * 0.32f);
+        }
+    }
+
+    // Smooth only the three expression-owned brow morphs. Use the current
+    // morph weight (not its animation target) so a transition has continuity.
+    // A short attack and a slightly slower release avoid a mechanical snap.
+    const F32 facial_delta = llclamp(mFacialExpressionTimer.getElapsedTimeF32(), 0.f, 0.25f);
+    mFacialExpressionTimer.reset();
+    const F32 facial_tau = has_active_expression ? 0.10f : 0.18f;
+    const F32 facial_blend = facial_delta > 0.f
+        ? facial_delta / (facial_tau + facial_delta)
+        : 0.f;
+    // Head and eye cues deliberately settle after the facial morphs. This
+    // staggered response avoids every feature appearing to switch together.
+    const F32 posture_tau = has_active_expression ? 0.15f : 0.23f;
+    const F32 posture_blend = facial_delta > 0.f
+        ? facial_delta / (posture_tau + facial_delta)
+        : 0.f;
+    const F32 eye_tau = has_active_expression ? 0.20f : 0.30f;
+    const F32 eye_blend = facial_delta > 0.f
+        ? facial_delta / (eye_tau + facial_delta)
+        : 0.f;
+
+    // Publish a restrained emotional pitch hint for this avatar's existing
+    // idle head motion. Sad/worried expressions bias slightly downward;
+    // surprise/fear can bias slightly upward. The head motion consumes this
+    // only when no explicit look target is active.
+    const F32 surprised_head_weight = widen_eyes_weight;
+    F32 target_head_pitch_bias = 0.f;
+    if (sad_head_weight > 0.f
+        && sad_head_weight >= concern_head_weight
+        && sad_head_weight >= surprised_head_weight)
+    {
+        target_head_pitch_bias = 0.9f * DEG_TO_RAD * llclamp(sad_head_weight, 0.f, 1.f);
+    }
+    else if (concern_head_weight > 0.f
+             && concern_head_weight >= surprised_head_weight)
+    {
+        // Concern remains more upright and alert than sadness.
+        target_head_pitch_bias = 0.3f * DEG_TO_RAD
+            * llclamp(concern_head_weight, 0.f, 1.f);
+    }
+    else if (surprised_head_weight > 0.f)
+    {
+        target_head_pitch_bias = -0.35f * DEG_TO_RAD
+            * llclamp(surprised_head_weight, 0.f, 1.f);
+    }
+    mFacialHeadPitchBias +=
+        (target_head_pitch_bias - mFacialHeadPitchBias) * posture_blend;
+
+    // Keep the eye cue smaller than the head cue. It is consumed only by the
+    // procedural idle eye direction when no explicit LookAtPoint is active.
+    const F32 target_eye_pitch_bias = sad_head_weight > 0.f
+        && sad_head_weight >= concern_head_weight
+        && sad_head_weight >= surprised_head_weight
+        ? 1.2f * DEG_TO_RAD * llclamp(sad_head_weight, 0.f, 1.f)
+        : (surprised_head_weight > 0.f
+            ? -0.45f * DEG_TO_RAD * llclamp(surprised_head_weight, 0.f, 1.f)
+            : 0.f);
+    mFacialEyePitchBias +=
+        (target_eye_pitch_bias - mFacialEyePitchBias) * eye_blend;
+
+    // The three brow shapes are competing emotional cues. When two
+    // expression families overlap during a cross-fade, let the strongest
+    // weighted cue lead instead of stacking opposing brow shapes. The
+    // morphs still use the shared smoothing below, so a hand-off is gradual.
+    const bool use_surprised_brows = surprised_brow_weight > 0.f
+        && surprised_brow_weight >= worried_brow_weight
+        && surprised_brow_weight >= furrowed_brow_weight;
+    const bool use_worried_brows = worried_brow_weight > 0.f
+        && worried_brow_weight > surprised_brow_weight
+        && worried_brow_weight >= furrowed_brow_weight;
+    const bool use_furrowed_brows = furrowed_brow_weight > 0.f
+        && furrowed_brow_weight > surprised_brow_weight
+        && furrowed_brow_weight > worried_brow_weight;
+
+    bool facial_params_changed = false;
+    LLVisualParam* surprised_brows = getVisualParam("Surprised_Eyebrows");
+    LLVisualParam* worried_brows = getVisualParam("Worried_Eyebrows");
+    LLVisualParam* furrowed_brows = getVisualParam("Furrowed_Eyebrows");
+
+    // Restore the animatable brow morphs after the final expression ends.
+    // Do not manufacture parameters on non-standard/custom avatar rigs.
+    if (surprised_brows)
+    {
+        const F32 target = use_surprised_brows
+            ? surprised_brows->getMinWeight()
+                + surprised_brow_weight * (surprised_brows->getMaxWeight() - surprised_brows->getMinWeight())
+            : surprised_brows->getDefaultWeight();
+        const F32 current = surprised_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
+        {
+            surprised_brows->setWeight(smoothed, false);
+            facial_params_changed = true;
+        }
+    }
+    if (worried_brows)
+    {
+        const F32 target = use_worried_brows
+            ? worried_brows->getMinWeight()
+                + worried_brow_weight * (worried_brows->getMaxWeight() - worried_brows->getMinWeight())
+            : worried_brows->getDefaultWeight();
+        const F32 current = worried_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
+        {
+            worried_brows->setWeight(smoothed, false);
+            facial_params_changed = true;
+        }
+    }
+    if (furrowed_brows)
+    {
+        const F32 target = use_furrowed_brows
+            ? furrowed_brows->getMinWeight()
+                + furrowed_brow_weight * (furrowed_brows->getMaxWeight() - furrowed_brows->getMinWeight())
+            : furrowed_brows->getDefaultWeight();
+        const F32 current = furrowed_brows->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
+        {
+            furrowed_brows->setWeight(smoothed, false);
+            facial_params_changed = true;
+        }
+    }
+
+    // Wide_Eyes is an animatable stock-rig parameter (group 1), unlike
+    // Blink_Left/Right which remain exclusively owned by LLEyeMotion.
+    // Apply a restrained, expression-weighted opening for surprise/fear.
+    // Scaling by the blended pose weight lets the eyes follow the same fade
+    // in and fade out as the brows instead of jumping to a fixed amount.
+    LLVisualParam* wide_eyes = getVisualParam("Wide_Eyes");
+    if (wide_eyes)
+    {
+        const F32 default_weight = wide_eyes->getDefaultWeight();
+        const F32 target = default_weight
+            + (wide_eyes->getMaxWeight() - default_weight)
+                * (0.10f * widen_eyes_weight);
+        const F32 current = wide_eyes->getCurrentWeight();
+        const F32 smoothed = current + (target - current) * facial_blend;
+        if (fabsf(current - target) > 0.001f && fabsf(current - smoothed) > 0.0001f)
+        {
+            wide_eyes->setWeight(smoothed, false);
+            facial_params_changed = true;
+        }
+    }
+
+    if (!has_active_expression)
+    {
+        if (facial_params_changed)
+        {
+            updateVisualParams();
+            dirtyMesh();
+        }
+        return;
+    }
+
+    LLVisualParam* closed_mouth = getVisualParam("Express_Closed_Mouth");
+    if (!closed_mouth)
+    {
+        if (facial_params_changed)
+        {
+            updateVisualParams();
+            dirtyMesh();
+        }
+        return;
+    }
+
+    const F32 closed_mouth_weight = closed_mouth->getMinWeight()
+        + (1.f - strongest_expression)
+            * (closed_mouth->getMaxWeight() - closed_mouth->getMinWeight());
+
+    // Smooth the shared mouth-closure correction with the same facial
+    // transition as the brows and eye opening. Read the current morph value,
+    // not its animation target, so overlapping expression fades remain
+    // continuous instead of snapping the mouth on each frame.
+    const F32 current_closed_mouth = closed_mouth->getCurrentWeight();
+    const F32 smoothed_closed_mouth = current_closed_mouth
+        + (closed_mouth_weight - current_closed_mouth) * facial_blend;
+    if (fabsf(current_closed_mouth - closed_mouth_weight) > 0.001f
+        && fabsf(current_closed_mouth - smoothed_closed_mouth) > 0.0001f)
+    {
+        closed_mouth->setWeight(smoothed_closed_mouth, false);
+        facial_params_changed = true;
+    }
+
+    if (facial_params_changed)
+    {
+        updateVisualParams();
+        dirtyMesh();
+    }
+}
+
 void LLVOAvatar::idleUpdateLipSync(bool voice_enabled)
 {
-    // Use the Lipsync_Ooh and Lipsync_Aah morphs for lip sync
-    if (voice_enabled
+    // Legacy avatar meshes may lack dedicated lip-sync morphs. In that case
+    // lip-sync falls back to Express_Kiss / Express_Open_Mouth, which are also
+    // driven by standard facial expression animations. Do not write those
+    // shared morphs while an expression owns the face; let LLEmote retain the
+    // expression instead of having the voice update overwrite it.
+    const bool facial_expression_active =
+        mSignaledAnimations.find(ANIM_AGENT_EXPRESS_AFRAID) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_ANGER) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_BORED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_CRY) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_DISDAIN) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_EMBARRASSED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_FROWN) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_KISS) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_LAUGH) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_OPEN_MOUTH) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_REPULSED) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SAD) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SHRUG) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SMILE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_SURPRISE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_TONGUE_OUT) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_TOOTHSMILE) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_WINK) != mSignaledAnimations.end()
+        || mSignaledAnimations.find(ANIM_AGENT_EXPRESS_WORRY) != mSignaledAnimations.end();
+
+    if (mLipSyncUsesFallbackMorphs && facial_expression_active)
+    {
+        // Legacy expression morphs own the shared mouth parameters while an
+        // expression is active. Do not write them from voice lip-sync, and
+        // discard the previous voice envelope so it cannot reappear as a
+        // stale syllable when the expression finishes.
+        mLipSyncOohWeight = mOohMorph ? mOohMorph->getMinWeight() : 0.f;
+        mLipSyncAahWeight = mAahMorph ? mAahMorph->getMinWeight() : 0.f;
+        mLipSyncActive = false;
+        mLipSyncTimer.reset();
+        return;
+    }
+
+    const bool speaking = voice_enabled
         && mLastRezzedStatus > 0 // no point updating lip-sync for clouds
         && LLVoiceVisualizer::getLipSyncEnabled()
-        && LLVoiceClient::getInstance()->getIsSpeaking(mID))
+        && LLVoiceClient::getInstance()->getIsSpeaking(mID);
+
+    const F32 elapsed = llclamp(mLipSyncTimer.getElapsedTimeF32(), 0.f, 0.25f);
+    mLipSyncTimer.reset();
+
+    if (speaking)
     {
         F32 ooh_morph_amount = 0.0f;
         F32 aah_morph_amount = 0.0f;
+        mVoiceVisualizer->lipSyncOohAah(ooh_morph_amount, aah_morph_amount);
 
-        mVoiceVisualizer->lipSyncOohAah( ooh_morph_amount, aah_morph_amount );
-
+        const F32 attack = llclamp(elapsed / 0.045f, 0.f, 1.f);
         if (mOohMorph)
         {
-            F32 ooh_weight = mOohMorph->getMinWeight()
+            const F32 target = mOohMorph->getMinWeight()
                 + ooh_morph_amount * (mOohMorph->getMaxWeight() - mOohMorph->getMinWeight());
-
+            mLipSyncOohWeight += (target - mLipSyncOohWeight) * attack;
             // <FS:Ansariel> [Legacy Bake]
-            //mOohMorph->setWeight( ooh_weight);
-            mOohMorph->setWeight( ooh_weight, false);
+            mOohMorph->setWeight(mLipSyncOohWeight, false);
         }
 
         if (mAahMorph)
         {
-            F32 aah_weight = mAahMorph->getMinWeight()
+            const F32 target = mAahMorph->getMinWeight()
                 + aah_morph_amount * (mAahMorph->getMaxWeight() - mAahMorph->getMinWeight());
-
+            mLipSyncAahWeight += (target - mLipSyncAahWeight) * attack;
             // <FS:Ansariel> [Legacy Bake]
-            //mAahMorph->setWeight( aah_weight);
-            mAahMorph->setWeight( aah_weight, false);
+            mAahMorph->setWeight(mLipSyncAahWeight, false);
         }
 
         mLipSyncActive = true;
+        LLCharacter::updateVisualParams();
+        dirtyMesh();
+    }
+    else if (mLipSyncActive)
+    {
+        // Release the last mouth pose gently when voice becomes unavailable,
+        // is muted, or lip sync is disabled. Avoid leaving a frozen syllable.
+        const F32 release = llclamp(elapsed / 0.085f, 0.f, 1.f);
+        if (mOohMorph)
+        {
+            const F32 minimum = mOohMorph->getMinWeight();
+            mLipSyncOohWeight += (minimum - mLipSyncOohWeight) * release;
+            mOohMorph->setWeight(mLipSyncOohWeight, false);
+        }
+
+        if (mAahMorph)
+        {
+            const F32 minimum = mAahMorph->getMinWeight();
+            mLipSyncAahWeight += (minimum - mLipSyncAahWeight) * release;
+            mAahMorph->setWeight(mLipSyncAahWeight, false);
+        }
+
+        const bool ooh_released = !mOohMorph
+            || fabsf(mLipSyncOohWeight - mOohMorph->getMinWeight()) < 0.001f;
+        const bool aah_released = !mAahMorph
+            || fabsf(mLipSyncAahWeight - mAahMorph->getMinWeight()) < 0.001f;
+
+        if (ooh_released && aah_released)
+        {
+            if (mOohMorph)
+            {
+                mLipSyncOohWeight = mOohMorph->getMinWeight();
+                mOohMorph->setWeight(mLipSyncOohWeight, false);
+            }
+            if (mAahMorph)
+            {
+                mLipSyncAahWeight = mAahMorph->getMinWeight();
+                mAahMorph->setWeight(mLipSyncAahWeight, false);
+            }
+            mLipSyncActive = false;
+        }
+
         LLCharacter::updateVisualParams();
         dirtyMesh();
     }
@@ -5824,6 +6229,11 @@ bool LLVOAvatar::updateCharacter(LLAgent &agent)
         // Might be better to do HIDDEN_UPDATE if cloud
         updateMotions(LLCharacter::NORMAL_UPDATE);
     }
+
+    // Compose the shared closed-mouth morph once after all expression motions
+    // have updated. LLEmote::onUpdate() writes this parameter per motion, so
+    // overlapping expressions otherwise make the result depend on update order.
+    updateFacialExpressionComposition();
 
     // Special handling for sitting on ground.
     if (!getParent() && (isSitting() || was_sit_ground_constrained))

@@ -262,6 +262,7 @@ void LLWebRTCVoiceClient::cleanupSingleton()
         mAvatarNameCacheConnection.disconnect();
     }
 
+    setSpeechCaptureEnabled(false);
     sShuttingDown = true;
     if (mSession)
     {
@@ -283,6 +284,49 @@ void LLWebRTCVoiceClient::init(LLPumpIO* pump)
 {
     // constructor will set up LLVoiceClient::getInstance()
     initWebRTC();
+}
+
+void LLWebRTCVoiceClient::setSpeechCaptureEnabled(bool enabled)
+{
+    if (mWebRTCDeviceInterface && !sShuttingDown)
+    {
+        mWebRTCDeviceInterface->setCaptureTapEnabled(enabled);
+    }
+}
+
+bool LLWebRTCVoiceClient::getSpeechCaptureFrame(llwebrtc::LLWebRTCCapturedAudioFrame& frame)
+{
+    return mWebRTCDeviceInterface && !sShuttingDown
+        ? mWebRTCDeviceInterface->getCapturedAudioFrame(frame)
+        : false;
+}
+
+std::size_t LLWebRTCVoiceClient::pumpSpeechCapture(LLSpeechToText& service, std::size_t max_frames)
+{
+    if (sShuttingDown || !mWebRTCDeviceInterface)
+    {
+        return 0;
+    }
+
+    // The service is started only by an explicit user dictation action.
+    // Keep the hardware tap synchronized with that service's lifetime.
+    if (!service.isRunning())
+    {
+        setSpeechCaptureEnabled(false);
+        return 0;
+    }
+    setSpeechCaptureEnabled(true);
+
+    std::size_t submitted = 0;
+    llwebrtc::LLWebRTCCapturedAudioFrame frame;
+    while (submitted < max_frames && getSpeechCaptureFrame(frame))
+    {
+        if (service.submitFrame(frame))
+        {
+            ++submitted;
+        }
+    }
+    return submitted;
 }
 
 void LLWebRTCVoiceClient::initWebRTC()
@@ -324,6 +368,7 @@ void LLWebRTCVoiceClient::terminate()
 
     LL_INFOS("Voice") << "Terminating WebRTC" << LL_ENDL;
 
+    setSpeechCaptureEnabled(false);
     mVoiceEnabled = false;
     sShuttingDown = true; // so that coroutines won't post more work.
 

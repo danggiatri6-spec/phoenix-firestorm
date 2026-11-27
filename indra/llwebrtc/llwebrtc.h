@@ -44,6 +44,9 @@
 // <FS:minerjr> [FIRE-36022] - Removing my USB headset crashes entire viewer
 // Needed for inline variable for the crash check
 #include <atomic>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 // </FS:minerjr> [FIRE-36022]
 
 #ifdef LL_MAKEDLL
@@ -131,6 +134,16 @@ class LLWebRTCDevicesObserver
 // for both capture (microphone) and render (speaker)
 // devices.
 
+// Fixed-size PCM frame polled by the viewer. No ownership crosses the DLL boundary.
+struct LLWebRTCCapturedAudioFrame
+{
+    static constexpr size_t MAX_SAMPLES = 1920; // 20 ms at 48 kHz, stereo
+    std::array<int16_t, MAX_SAMPLES> mSamples{};
+    size_t mSampleCount{ 0 }; // interleaved samples
+    uint32_t mSampleRate{ 0 };
+    uint32_t mChannels{ 0 };
+};
+
 class LLWebRTCDeviceInterface
 {
   public:
@@ -183,6 +196,9 @@ class LLWebRTCDeviceInterface
     virtual void setTuningMicGain(float gain)        = 0;
 
     virtual void setMute(bool mute, int delay_ms = 0) = 0;
+    // Non-blocking poll; false means no captured frame is ready.
+    virtual void setCaptureTapEnabled(bool enabled) = 0;
+    virtual bool getCapturedAudioFrame(LLWebRTCCapturedAudioFrame& frame) = 0;
 };
 
 // LLWebRTCAudioInterface provides the viewer with a way

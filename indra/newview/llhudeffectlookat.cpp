@@ -664,6 +664,29 @@ bool LLHUDEffectLookAt::setLookAt(ELookAtType target_type, LLViewerObject *objec
     return true;
 }
 
+void LLHUDEffectLookAt::setInteractionTarget(LLViewerObject* target)
+{
+    if (!target || !target->isAvatar() || target->isDead() || target->getID() == gAgent.getID())
+        return;
+    mInteractionTarget = target;
+    mInteractionTargetIsPoint = false;
+}
+
+void LLHUDEffectLookAt::setInteractionTargetPoint(const LLVector3d& global_position)
+{
+    if (!global_position.isFinite())
+        return;
+    mInteractionTarget = NULL;
+    mInteractionTargetPointGlobal = global_position;
+    mInteractionTargetIsPoint = true;
+}
+
+void LLHUDEffectLookAt::clearInteractionTarget()
+{
+    mInteractionTarget = NULL;
+    mInteractionTargetIsPoint = false;
+}
+
 //-----------------------------------------------------------------------------
 // clearLookAtTarget()
 //-----------------------------------------------------------------------------
@@ -674,7 +697,9 @@ void LLHUDEffectLookAt::clearLookAtTarget()
     mTargetType = LOOKAT_TARGET_NONE;
     if (mSourceObject.notNull())
     {
-        ((LLVOAvatar*)(LLViewerObject*)mSourceObject)->stopMotion(ANIM_AGENT_HEAD_ROT);
+        LLVOAvatar* source_avatar = (LLVOAvatar*)(LLViewerObject*)mSourceObject;
+        source_avatar->removeAnimationData("LookAtPoint");
+        source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
     }
 }
 
@@ -852,6 +877,34 @@ void LLHUDEffectLookAt::update()
         }
     }
 
+    // Local interaction overlay: do not modify mTargetType or network state.
+    if (mInteractionTarget.notNull())
+    {
+        if (mInteractionTarget->isDead())
+        {
+            clearInteractionTarget();
+            if (mTargetType == LOOKAT_TARGET_NONE)
+            {
+                source_avatar->removeAnimationData("LookAtPoint");
+                source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
+            }
+        }
+        else if (mInteractionTarget->mDrawable.notNull() &&
+                 (*mAttentions)[mTargetType].mPriority < (*mAttentions)[LOOKAT_TARGET_FOCUS].mPriority &&
+                 calcTargetPosition(true))
+        {
+            static LLCachedControl<bool> disable_look_at(gSavedSettings, "DisableLookAtAnimation", true);
+            LLMotion* head_motion = source_avatar->findMotion(ANIM_AGENT_HEAD_ROT);
+            if (disable_look_at())
+            {
+                if (head_motion)
+                    source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
+            }
+            else if (!head_motion || head_motion->isStopped())
+                source_avatar->startMotion(ANIM_AGENT_HEAD_ROT);
+        }
+    }
+
     // <FS:Ansariel> FIRE-12878: Don't render debug text for lookats
     //if (mDebugLookAt)
     //{
@@ -870,12 +923,26 @@ void LLHUDEffectLookAt::update()
  *
  * Returns whether we successfully calculated a finite target position.
  */
-bool LLHUDEffectLookAt::calcTargetPosition()
+bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
 {
-    LLViewerObject *target_obj = (LLViewerObject *)mTargetObject;
+    LLViewerObject *target_obj = use_interaction_target && !mInteractionTargetIsPoint && mInteractionTarget.notNull()
+        ? (LLViewerObject*)mInteractionTarget
+        : (LLViewerObject*)mTargetObject;
     LLVector3 local_offset;
 
-    if (target_obj)
+    if (use_interaction_target && mInteractionTargetIsPoint)
+    {
+        mTargetPos = gAgent.getPosAgentFromGlobal(mInteractionTargetPointGlobal);
+        target_obj = nullptr;
+        local_offset.clearVec();
+    }
+    else if (use_interaction_target)
+    {
+        // Interaction attention aims at the partner's head, independent of
+        // offsets left behind by the previous legacy look-at target.
+        local_offset.clearVec();
+    }
+    else if (target_obj)
     {
         local_offset.setVec(mTargetOffsetGlobal);
     }
@@ -886,7 +953,16 @@ bool LLHUDEffectLookAt::calcTargetPosition()
 
     LLVOAvatar* source_avatar = (LLVOAvatar*)(LLViewerObject*)mSourceObject;
     if (!source_avatar->isBuilt())
+    {
+        // Do not leave a previous target active while the source avatar
+        // temporarily lacks a built skeleton. Interaction overlays must not
+        // clear the independent legacy look-at target.
+        if (!use_interaction_target)
+        {
+            source_avatar->removeAnimationData("LookAtPoint");
+        }
         return false;
+    }
 
     if (target_obj && target_obj->mDrawable.notNull())
     {
@@ -942,7 +1018,7 @@ bool LLHUDEffectLookAt::calcTargetPosition()
 
         mTargetPos += (local_offset * target_rot);
     }
-    else // no target obj or it's not drawable
+    else if (!(use_interaction_target && mInteractionTargetIsPoint)) // no target obj or it's not drawable
     {
         mTargetPos = local_offset;
     }
@@ -950,7 +1026,16 @@ bool LLHUDEffectLookAt::calcTargetPosition()
     mTargetPos -= source_avatar->mHeadp->getWorldPosition();
 
     if (!mTargetPos.isFinite())
+    {
+        // A failed legacy target update must not keep driving the previous
+        // frame's direction. Preserve it when only an interaction overlay
+        // failed, since that overlay is independent of the legacy target.
+        if (!use_interaction_target)
+        {
+            source_avatar->removeAnimationData("LookAtPoint");
+        }
         return false;
+    }
 
     static LLCachedControl<bool> disable_look_at(gSavedSettings, "DisableLookAtAnimation", true);
     if (disable_look_at())

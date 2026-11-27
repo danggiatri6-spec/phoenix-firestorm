@@ -36,6 +36,8 @@
 #include "fschatparticipants.h"
 #include "rlvhandler.h"
 
+#include <string>
+
 class FSChatHistory;
 class LLChatEntry;
 class LLComboBox;
@@ -57,6 +59,7 @@ public:
     void addMessage(const LLChat& message, bool archive = true, const LLSD& args = LLSD());
 
     void onOpen(const LLSD& key) override;
+    void onClose(bool app_quitting) override;
     void setVisible(bool visible) override;
     void setMinimized(bool b) override;
 
@@ -90,6 +93,9 @@ public:
     static bool isWordsName(const std::string& name);
 
     LLChatEntry* getChatBox() { return mInputEditor; }
+    // Insert local dictation into the editable input only; never sends chat.
+    void         insertSpeechToText(const std::string& text);
+    void         onSpeechToTextFailed(const std::string& error);
     void         setChatMentionPickerEnabled(bool enabled);
 
     S32 getMessageArchiveLength() { return static_cast<S32>(mMessageArchive.size()); }
@@ -135,6 +141,7 @@ private:
     void onEmojiPickerClosed();
     void initEmojiRecentPanel();
     void onRecentEmojiPicked(const LLSD& value);
+    void onSpeechToTextButtonClicked();
 
     void onFocusLost() override;
     void onFocusReceived() override;
@@ -150,6 +157,8 @@ private:
     LLTextBox*            mEmojiRecentEmptyText;
     LLPanelEmojiComplete* mEmojiRecentIconsCtrl;
     LLButton*             mSendChatButton;
+    LLButton*             mSpeechToTextButton;
+    bool                  mSpeechToTextActive;
     LLComboBox*           mChatTypeCombo;
 
     LLLayoutPanel* mChatLayoutPanel;
