@@ -391,3 +391,17 @@ The actual class1 shader sources add an important constraint:
 - The normal is transformed by the same linear 3x3 operation as a direction and normalized; this source path does not show an inverse-transpose normal matrix. Any new tangent implementation must match the existing Avatar convention or deliberately introduce and validate a corrected frame without silently changing legacy lighting.
 
 This confirms that a tangent generated from morphed CPU positions cannot simply be uploaded and sampled as though it were already in final world/view space. The dedicated Avatar skin shader must apply the same selected/interpolated skin transform to tangent directions, then re-orthogonalize tangent against the transformed normal and carry a separately validated handedness sign. The exact matrix-space convention and shader variants still need end-to-end verification.
+
+### Base-binormal initialization fix
+
+The confirmed initialization defect has now been corrected in `indra/llappearance/llpolymesh.cpp`:
+
+- `mBinormals` is initialized from `mSharedData->mBaseBinormals`.
+- `mScaledBinormals` is initialized from `mSharedData->mBaseBinormals`.
+- Base normals continue to initialize only the normal arrays.
+
+The legacy binary mesh loader reads three independent float components per vertex for Base Binormals, and LOD shared data references the same base-binormal array as its reference mesh. The fix therefore uses the existing asset field and does not change the mesh file format, UVs, VBO layout, or LOD ownership model.
+
+Commit: `e542d4be621b4a62d171c7639c4ef3601e2bca1e`.
+
+Validation status: the edited source was fetched again and the two corrected assignments were confirmed. No llappearance-specific test directory or existing LLPolyMesh unit-test target is present in this branch; no build or automated test was run. A focused runtime/asset regression test remains required before enabling Tangent or Normal Map rendering.
