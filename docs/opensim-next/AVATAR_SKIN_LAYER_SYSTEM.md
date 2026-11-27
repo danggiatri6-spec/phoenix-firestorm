@@ -197,3 +197,25 @@ VRChat follows Unity's renderer/material model: the avatar author chooses mesh s
 For OpenSim-next, attach the optional skin material set only to explicitly classified native skin material slots. Do not automatically apply it to eyes, teeth, hair, lashes, clothing or arbitrary attachments. A head may have several skin-related slots; the runtime may share a composite across compatible slots only when their UV layout, material parameters and skin classification are proven compatible. Otherwise keep separate per-slot composites, subject to a strict memory budget.
 
 The canonical packed surface channel order is **R = specular strength, G = roughness, B = reserved subsurface mask, A = reserved detail mask**. This order matches `packSpecularRoughness()` and its current unit test. Do not silently swap channels in shader bindings or asset serialization.
+
+
+## 11. Native avatar mesh classification: never infer skin from Bake ID
+
+The current appearance dictionary explicitly associates mesh types with baked texture groups:
+
+| Mesh type | Mesh ID | Bake association | Skin-material eligibility |
+|---|---|---|---|
+| `headMesh` | `MESH_ID_HEAD` | `BAKED_HEAD` | Yes |
+| `eyelashMesh` | `MESH_ID_EYELASH` | `BAKED_HEAD` | No |
+| `upperBodyMesh` | `MESH_ID_UPPER_BODY` | `BAKED_UPPER` | Yes |
+| `lowerBodyMesh` | `MESH_ID_LOWER_BODY` | `BAKED_LOWER` | Yes |
+| `eyeBallLeftMesh` | `MESH_ID_EYEBALL_LEFT` | `BAKED_EYES` | No |
+| `eyeBallRightMesh` | `MESH_ID_EYEBALL_RIGHT` | `BAKED_EYES` | No |
+| `hairMesh` | `MESH_ID_HAIR` | `BAKED_HAIR` | No |
+| `skirtMesh` | `MESH_ID_SKIRT` | `BAKED_SKIRT` | No |
+
+The mapping is defined by `LLAvatarAppearanceDictionary::MeshEntries` in `indra/llappearance/llavatarappearancedefines.cpp`. `LLAvatarAppearance::initInstance()` then populates each baked group's `mJointMeshes` from every mesh entry with a valid `mBakedID`. Consequently, `BAKED_HEAD` contains both the head mesh and eyelash mesh. A Bake ID is a texture/compositing association, **not** a semantic skin classification.
+
+For the first native skin-material implementation, eligibility must be explicit and mesh-based: allow only `MESH_ID_HEAD`, `MESH_ID_UPPER_BODY`, and `MESH_ID_LOWER_BODY`. Exclude eyelash, eyeballs, hair, skirt, and all rigged attachments. Do not change the existing Bake-to-mesh association or the legacy `mJointMeshes` list to achieve this.
+
+This is an initial classification for the built-in classic avatar meshes. Future custom/native mesh avatar support must carry explicit per-material semantic metadata (for example `SKIN`, `EYE`, `LASH`, `HAIR`, `CLOTHING`, `OTHER`) rather than relying on mesh names, Bake IDs, or face order. Missing or unknown classification must fall back to the legacy material path.
