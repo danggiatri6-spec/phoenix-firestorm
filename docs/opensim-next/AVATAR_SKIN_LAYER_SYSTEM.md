@@ -533,3 +533,19 @@ These values are lower than a perfect match but support a useful approximation. 
 The per-triangle-corner and per-vertex-aggregated measurements answer different questions. Corner samples expose local face-frame agreement; vertex aggregation approximates the smoothing behavior needed by a per-vertex attribute. Neither pass yet models the exact morph update, seam duplication policy, tangent handedness storage, or GPU skinning.
 
 **Decision remains unchanged:** use the legacy binormal as a low-cost tangent-direction candidate, but preserve UV orientation explicitly and validate actual seam groups. Do not enable normal mapping. The Head mesh still requires binary-capable local inspection; the repository text connector rejects its large binary payload. No runtime source changed; no build or test was run.
+
+
+### Morph and UV0 update semantics (source audit)
+
+A source-level audit of `LLPolyMorphTarget::apply()` and `applyMask()` confirms that the morph system updates the complete candidate tangent frame inputs, not positions alone:
+
+- `apply()` applies weighted position deltas, accumulates softened normal deltas, and normalizes the resulting normal.
+- It accumulates the morph's binormal delta into the scaled-binormal accumulator. It then derives a tangent candidate as `cross(scaled_binormal, current_normal)`, reconstructs the binormal as `cross(current_normal, tangent)`, and normalizes it.
+- The same morph application adds weighted `mTexCoords` deltas to the live UV0 array.
+- Replacing an existing vertex mask first subtracts the previous mask's position, normal, binormal, and UV0 contributions, resets the last weight, generates the replacement mask, and reapplies the morph.
+
+This means a future tangent/handedness implementation must use the post-morph UV0, normal, and binormal state. A tangent orientation sign computed once from base UVs is not sufficient if morph data changes UV0 or crosses a degenerate/orientation boundary.
+
+**Important limitation:** the current morph code's reconstructed binormal is orthogonalized against the current normal, but that alone does not prove it remains aligned to the derivative of the post-morph UV mapping. The morph's UV0 deltas and binormal deltas must be validated together on actual morph targets, including mask replacement. We have not yet run a numerical morph-target replay, and no GPU skinning result is claimed.
+
+Implementation implication: do not add a separate per-frame CPU tangent rebuild yet. First replay representative morph targets from the shipped mesh/morph assets and compare (a) the post-morph UV-derived tangent frame, (b) the live morph-updated normal/binormal frame, and (c) the result after the Avatar skinning transform. Preserve explicit per-vertex handedness/seam handling; do not infer it from one global sign.
