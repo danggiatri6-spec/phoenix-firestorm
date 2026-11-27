@@ -218,6 +218,30 @@ void LLAvatarAppearance::initInstance()
             mesh_name[1] = toupper(mesh_name[1]);
             mesh->setName(mesh_name);
             mesh->setMeshID(mesh_index);
+            switch (mesh_index)
+            {
+                case MESH_ID_HEAD:
+                case MESH_ID_UPPER_BODY:
+                case MESH_ID_LOWER_BODY:
+                    mesh->setSurfaceType(EAvatarSurfaceType::SKIN);
+                    break;
+                case MESH_ID_EYEBALL_LEFT:
+                case MESH_ID_EYEBALL_RIGHT:
+                    mesh->setSurfaceType(EAvatarSurfaceType::EYE);
+                    break;
+                case MESH_ID_EYELASH:
+                    mesh->setSurfaceType(EAvatarSurfaceType::EYELASH);
+                    break;
+                case MESH_ID_HAIR:
+                    mesh->setSurfaceType(EAvatarSurfaceType::HAIR);
+                    break;
+                case MESH_ID_SKIRT:
+                    mesh->setSurfaceType(EAvatarSurfaceType::CLOTHING);
+                    break;
+                default:
+                    mesh->setSurfaceType(EAvatarSurfaceType::UNKNOWN);
+                    break;
+            }
             mesh->setPickName(mesh_dict->mPickName);
             mesh->setIsTransparent(false);
             switch((S32)mesh_index)
