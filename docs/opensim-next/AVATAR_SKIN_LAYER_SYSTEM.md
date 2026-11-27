@@ -480,3 +480,40 @@ This means the legacy binormal candidate must be compared against UV-derived tan
 The legacy morph pipeline supplies a strong, potentially low-cost tangent direction candidate and already updates its normal/binormal basis during morph changes. It does **not** yet establish UV0 tangent equivalence, mirrored-island handedness, or correctness after GPU skinning. Do not add a Tangent VBO attribute, activate Normal Map sampling, or enable the new shader permutation until the numerical mesh/morph validation is complete.
 
 Source inspected: `indra/llappearance/llpolymorph.cpp`, `LLPolyMorphTarget::apply()` and `LLPolyMorphTarget::applyMask()`. No runtime code was changed and no build or test was run.
+
+
+### First numerical UV0 comparison: Upper Body and Lower Body base meshes
+
+The tracked binary assets for `avatar_upper_body.llm` and `avatar_lower_body.llm` were decoded using the field order in `LLPolyMeshSharedData::loadMesh()`. For each serialized triangle, the UV determinant and position/UV derivatives were calculated. The reference tangent and bitangent were projected onto each corner's vertex-normal plane and normalized. The legacy candidate was `normalize(cross(base_binormal, base_normal))`. Each valid triangle corner contributes one sample; these are corner-sample means, not area-weighted or unique-vertex statistics.
+
+| Asset | UV determinant | Triangles | Mean dot(candidate T, UV T) | Mean dot(base B, UV B) |
+|---|---:|---:|---:|---:|
+| Upper Body | positive | 2,527 | +0.928 | +0.952 |
+| Upper Body | negative | 1,159 | -0.905 | +0.939 |
+| Lower Body | positive | 1,418 | +0.942 | +0.961 |
+| Lower Body | negative | 236 | -0.780 | +0.815 |
+
+Additional topology checks:
+- Upper Body: 2 UV-degenerate triangles; 0 geometric-degenerate triangles; 0 invalid indices.
+- Lower Body: 0 UV-degenerate triangles; 0 geometric-degenerate triangles; 0 invalid indices.
+- Both assets contain both positive- and negative-determinant UV triangles. Mirrored UV orientation is therefore present in these two body meshes and cannot be treated as a theoretical edge case.
+
+### Interpretation and revised conclusion
+
+The measured result is strong evidence that the authored base binormal tracks the UV-derived bitangent direction on these body meshes. The tangent candidate `cross(B, N)` also tracks the UV tangent on positive-determinant triangles. On negative-determinant triangles its direction is reversed. In other words, the observed relationship is approximately:
+
+`T_uv ≈ sign(det(UV)) * normalize(cross(B, N))`
+
+This is the important result: a single global tangent sign is not sufficient. The tangent frame needs a handedness/orientation sign that follows the UV island orientation. The sign must be derived or preserved per authored vertex/seam, not averaged across mirrored islands. The negative-determinant Lower Body samples have lower agreement (+0.780 after sign correction) than the other groups, so this area needs closer inspection rather than being declared perfect.
+
+This is still a **base-mesh-only** comparison for Upper Body and Lower Body. It does not yet prove the same relationship after morph UV deltas, masked morphs, head morphs, or GPU joint skinning. The 1.66 MB Head mesh could not be decoded through the current text-only GitHub file/blob response (the binary payload is rejected or returned empty); no Head statistics are claimed. A local binary asset inspection or another binary-capable transfer path is required.
+
+### Next implementation gate
+
+1. Preserve authored vertex splits and store a per-vertex UV orientation/handedness sign; do not weld across mirrored UV seams.
+2. Inspect the low-agreement negative-determinant Lower Body region and identify whether its samples cluster at seams, poles, or strongly varying tangent neighborhoods.
+3. Obtain and analyze the Head mesh binary.
+4. Validate the same sign relationship after representative geometry **and UV** morphs, including mask replacement.
+5. Only then implement Tangent VBO upload and shader skinning.
+
+The data supports continuing with the legacy-binormal-derived candidate, with UV orientation sign as a mandatory part of the frame. It does not authorize enabling Normal Map rendering yet. No runtime code, VBO, or shader was changed; no build or test was run.
