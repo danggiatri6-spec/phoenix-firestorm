@@ -1334,6 +1334,39 @@ FTType LLViewerFetchedTexture::getFTType() const
     return mFTType;
 }
 
+void LLViewerFetchedTexture::setTargetHost(LLHost host)
+{
+    if (host == mTargetHost)
+    {
+        return;
+    }
+
+    // Legacy baked textures are fetched from the avatar's current simulator.
+    // Retire the old worker before allowing updateFetch() to create a request
+    // for the new host. deleteRequest() removes the old UUID from the request
+    // map immediately and queues cancellation for its original simulator.
+    if (mFTType == FTT_HOST_BAKE && mHasFetcher && LLAppViewer::getTextureFetch())
+    {
+        LLAppViewer::getTextureFetch()->deleteRequest(getID(), true);
+        mHasFetcher = false;
+        mIsFetching = false;
+        mFetchState = 0;
+        mFetchPriority = 0;
+        mDownloadProgress = 0.f;
+        mLastFetchState = -1;
+        mLastPacketTimer.reset();
+    }
+
+    mTargetHost = host;
+
+    // A previous host may have failed to provide this bake. Allow a retry
+    // against the newly selected simulator when the texture is used again.
+    if (mFTType == FTT_HOST_BAKE && mIsMissingAsset)
+    {
+        setIsMissingAsset(false);
+    }
+}
+
 void LLViewerFetchedTexture::cleanup()
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
