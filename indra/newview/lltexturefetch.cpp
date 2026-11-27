@@ -1235,7 +1235,10 @@ bool LLTextureFetchWorker::doWork(S32 param)
         mCachedSize = 0;
         mLoaded = false;
         mSentRequest = UNSENT;
-        mSentHost = LLHost();
+        {
+            LLMutexLock lock(&mFetcher->mNetworkQueueMutex);
+            mSentHost = LLHost();
+        }
         mDecoded  = false;
         mWritten  = false;
         if (mHttpBufferArray)
@@ -2942,8 +2945,7 @@ void LLTextureFetch::removeFromNetworkQueue(LLTextureFetchWorker* worker, bool c
     LL_PROFILE_ZONE_SCOPED;
     LLMutexLock lock(&mNetworkQueueMutex);                              // +Mfnq
     size_t erased = mNetworkQueue.erase(worker->mID);
-    if (cancel && erased > 0 &&
-        worker->mSentRequest == LLTextureFetchWorker::SENT_SIM && worker->mSentHost.isOk())
+    if (cancel && erased > 0 && worker->mSentHost.isOk())
     {
         // Cancel the simulator that actually received the request. The logical
         // worker host may be invalid and resolved to the current region at send time.
@@ -3527,7 +3529,10 @@ void LLTextureFetch::sendRequestListToSimulators()
 
                 req->lockWorkMutex();                                   // +Mw
                 req->mSentRequest = LLTextureFetchWorker::SENT_SIM;
-                req->mSentHost = host;
+                {
+                    LLMutexLock lock(&mNetworkQueueMutex);
+                    req->mSentHost = host;
+                }
                 req->mSimRequestedDiscard = req->mDesiredDiscard;
                 req->mRequestedPriority = req->mImagePriority;
                 req->mRequestedDeltaTimer.reset();
@@ -3687,6 +3692,12 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
 {
     LL_PROFILE_ZONE_SCOPED;
     LLTextureFetchWorker* worker = getWorker(id);
+    LLHost sent_host;
+    if (worker)
+    {
+        LLMutexLock lock(&mNetworkQueueMutex);
+        sent_host = worker->mSentHost;
+    }
     bool res = true;
 
     ++mPacketCount;
@@ -3700,7 +3711,7 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
     // mHost may be invalid and dynamically resolve to the current region.
     // mSentHost prevents delayed packets from a previous region from being
     // applied to a replacement worker for the same asset UUID.
-    else if (worker->mSentHost.isOk() && worker->mSentHost != host)
+    else if (sent_host.isOk() && sent_host != host)
     {
         res = false;
     }
@@ -3755,6 +3766,12 @@ bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U1
 {
     LL_PROFILE_ZONE_SCOPED;
     LLTextureFetchWorker* worker = getWorker(id);
+    LLHost sent_host;
+    if (worker)
+    {
+        LLMutexLock lock(&mNetworkQueueMutex);
+        sent_host = worker->mSentHost;
+    }
     bool res = true;
 
     ++mPacketCount;
@@ -3768,7 +3785,7 @@ bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U1
     // mHost may be invalid and dynamically resolve to the current region.
     // mSentHost prevents delayed packets from a previous region from being
     // applied to a replacement worker for the same asset UUID.
-    else if (worker->mSentHost.isOk() && worker->mSentHost != host)
+    else if (sent_host.isOk() && sent_host != host)
     {
         res = false;
     }
