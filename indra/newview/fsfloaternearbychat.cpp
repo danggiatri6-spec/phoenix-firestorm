@@ -44,6 +44,7 @@
 #include "llagent.h"            // gAgent
 #include "llappviewer.h"
 #include "llfilepicker.h"
+#include "lldir.h"
 #include "llagentcamera.h"  // gAgentCamera
 #include "llanimationstates.h"  // ANIM_AGENT_WHISPER, ANIM_AGENT_TALK, ANIM_AGENT_SHOUT
 #include "llautoreplace.h"
@@ -1164,8 +1165,23 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
         model_path.clear();
     }
 
+    // Prefer the model bundled with the portable Viewer package. Resolve it
+    // from the installed app_settings directory so the package remains
+    // relocatable and does not depend on the process working directory.
     if (model_path.empty())
     {
+        const std::string bundled_model = gDirUtilp->getExpandedFilename(
+            LL_PATH_APP_SETTINGS, "speech_models", "ggml-base.bin");
+        if (LLFile::isfile(bundled_model))
+        {
+            model_path = bundled_model;
+        }
+    }
+
+    if (model_path.empty())
+    {
+        LLNotificationsUtil::add("GenericAlert", LLSD().with("MESSAGE",
+            "No bundled Whisper model was found. Select a multilingual Whisper.cpp GGML model file (for example ggml-base.bin)."));
         LLFilePicker& picker = LLFilePicker::instance();
         if (!picker.getOpenFile(LLFilePicker::FFLOAD_ALL))
         {
