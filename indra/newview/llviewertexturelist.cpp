@@ -590,9 +590,9 @@ LLViewerFetchedTexture* LLViewerTextureList::getImage(const LLUUID &image_id,
             texture->getFTType() == FTT_HOST_BAKE &&
             request_from_host != texture->getTargetHost())
         {
-            LL_WARNS() << "Switching legacy baked texture " << image_id
-                       << " from host " << texture->getTargetHost()
-                       << " to " << request_from_host << LL_ENDL;
+            LL_DEBUGS("Avatar") << "Switching legacy baked texture " << image_id
+                                << " from host " << texture->getTargetHost()
+                                << " to " << request_from_host << LL_ENDL;
             texture->setTargetHost(request_from_host);
         }
         else if (request_from_host.isOk() &&
