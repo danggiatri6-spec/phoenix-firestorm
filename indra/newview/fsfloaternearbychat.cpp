@@ -222,9 +222,6 @@ bool FSFloaterNearbyChat::postBuild()
     mSendChatButton->setCommitCallback(boost::bind(&FSFloaterNearbyChat::onChatBoxCommit, this));
     onChatTypeChanged();
 
-    mSpeechToTextButton = getChild<LLButton>("speech_to_text_button");
-    mSpeechToTextButton->setCommitCallback([this](LLUICtrl*, const LLSD&) { onSpeechToTextButtonClicked(); });
-
     mChatHistory = getChild<FSChatHistory>("chat_history");
     mChatHistoryMuted = getChild<FSChatHistory>("chat_history_muted");
 
