@@ -380,3 +380,14 @@ The next implementation gate should be:
 5. Only then extend the Avatar VBO and add the optional deferred skin Normal Map permutation.
 
 No runtime rendering behavior or shader was changed by this audit. No build or test was run.
+
+### Vertex-shader skin transform: class1 Avatar path
+
+The actual class1 shader sources add an important constraint:
+
+- `avatarSkinV.glsl::getSkinnedTransform()` selects/interpolates adjacent entries from the 45-vec4 matrix palette using the packed `weight.x` value. This is the classic Avatar skinning path, not the four-influence rigged-object path in `objectSkinV.glsl`.
+- `avatarV.glsl` transforms position with that matrix and transforms the normal using the upper 3x3 portion of the same matrix, then normalizes it.
+- The shader currently has no tangent input and no binormal input. It therefore cannot preserve a CPU tangent frame unless the new shader explicitly adds and transforms the tangent consistently with this exact skin transform.
+- The normal is transformed by the same linear 3x3 operation as a direction and normalized; this source path does not show an inverse-transpose normal matrix. Any new tangent implementation must match the existing Avatar convention or deliberately introduce and validate a corrected frame without silently changing legacy lighting.
+
+This confirms that a tangent generated from morphed CPU positions cannot simply be uploaded and sampled as though it were already in final world/view space. The dedicated Avatar skin shader must apply the same selected/interpolated skin transform to tangent directions, then re-orthogonalize tangent against the transformed normal and carry a separately validated handedness sign. The exact matrix-space convention and shader variants still need end-to-end verification.
