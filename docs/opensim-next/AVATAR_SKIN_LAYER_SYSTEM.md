@@ -442,3 +442,41 @@ However, this is not yet proof that the candidate `T` matches the UV0 tangent co
 ### Current conclusion
 
 The built-in source assets and morph data make a legacy-binormal-derived tangent a promising lower-cost candidate. The repository inspection has confirmed the loader layout and morph cross-product relationship, but has **not** numerically inspected the binary mesh topology or UV handedness. No tangent code, VBO attribute, or shader was added. No build or test was run.
+
+
+## 17. Morph tangent-frame derivation: confirmed source relationship
+
+A closer read of `LLPolyMorphTarget::apply()` confirms that the legacy binormal is not merely accumulated independently. For every affected vertex, the current code:
+
+1. Adds the weighted morph binormal delta to `scaled_binormals`.
+2. Computes a temporary tangent as `cross(scaled_binormals, norm)`.
+3. Reconstructs the output binormal as `cross(norm, tangent)`, then normalizes it.
+4. Applies the morph's UV delta to the vertex's current `tex_coords`.
+
+Here `norm` is the current normalized output normal after the normal morph accumulation. In the non-degenerate, orthogonal case, the reconstruction is algebraically consistent with:
+
+- `T = normalize(cross(B, N))`
+- `B = normalize(cross(N, T))`
+
+Therefore the proposed `cross(B, N)` direction is not an arbitrary guess: it is the same cross-product orientation used internally by the existing morph code. The corrected base-binormal initialization also ensures that the accumulator starts from the mesh's authored base-binormal data rather than incorrectly copying base normals.
+
+### Important additional constraint: UVs are morphed too
+
+The same `apply()` loop changes `tex_coords` using each morph target's `mTexCoords` delta. `applyMask()` also removes the previous morph's UV contribution before applying the updated mask. Thus the UV0 field used by a tangent-space normal map is potentially shape-dependent, not guaranteed to remain at its base-mesh values.
+
+This means the legacy binormal candidate must be compared against UV-derived tangent frames using the **current morphed positions and current morphed UV0**, not only the base mesh. It also means a static tangent generated once from the base mesh cannot be assumed correct for all facial/body morph combinations.
+
+### Revised low-cost candidate and validation gates
+
+- Candidate CPU frame: read the current output normal and the current orthogonalized output binormal after morph application; compute `T = normalize(cross(B, N))`. Reject non-finite or near-zero inputs and keep the legacy rendering path when the frame is invalid.
+- Reference frame: derive tangent/bitangent from each active LOD triangle using current morphed positions and current morphed UV0. Skip near-zero geometric area and near-zero UV determinant triangles.
+- Compare direction and sign separately for positive- and negative-determinant UV triangles. Preserve authored seam splits; never average across mirrored UV islands.
+- Confirm whether the stored binormal convention carries a stable handedness sign for mirrored UV islands. The cross-product reconstruction alone does not prove that a single global sign is valid.
+- Repeat the comparison for representative morphs that alter both geometry and UVs, including masked morph updates. Base-shape-only agreement is insufficient.
+- Only after the CPU frame is validated should the shader path be designed to transform tangent with the same Avatar skin matrix as the normal, re-orthogonalize it after skinning, and carry the validated handedness.
+
+### Decision
+
+The legacy morph pipeline supplies a strong, potentially low-cost tangent direction candidate and already updates its normal/binormal basis during morph changes. It does **not** yet establish UV0 tangent equivalence, mirrored-island handedness, or correctness after GPU skinning. Do not add a Tangent VBO attribute, activate Normal Map sampling, or enable the new shader permutation until the numerical mesh/morph validation is complete.
+
+Source inspected: `indra/llappearance/llpolymorph.cpp`, `LLPolyMorphTarget::apply()` and `LLPolyMorphTarget::applyMask()`. No runtime code was changed and no build or test was run.
