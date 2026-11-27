@@ -586,12 +586,16 @@ LLViewerFetchedTexture* LLViewerTextureList::getImage(const LLUUID &image_id,
     {
         LLViewerFetchedTexture *texture = imagep.get();
         if (request_from_host.isOk() &&
-            !texture->getTargetHost().isOk())
+            f_type == FTT_HOST_BAKE &&
+            texture->getFTType() == FTT_HOST_BAKE &&
+            request_from_host != texture->getTargetHost())
         {
-            LL_WARNS() << "Requested texture " << image_id << " already exists but does not have a host" << LL_ENDL;
+            LL_WARNS() << "Switching legacy baked texture " << image_id
+                       << " from host " << texture->getTargetHost()
+                       << " to " << request_from_host << LL_ENDL;
+            texture->setTargetHost(request_from_host);
         }
         else if (request_from_host.isOk() &&
-                 texture->getTargetHost().isOk() &&
                  request_from_host != texture->getTargetHost())
         {
             LL_WARNS() << "Requested texture " << image_id << " already exists with a different target host, requested: "
