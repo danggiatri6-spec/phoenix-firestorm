@@ -335,3 +335,48 @@ The allocation site is now confirmed in `LLVOAvatar::restoreMeshData()`: new Ava
 It does not allocate `MAP_TANGENT`, `MAP_TEXCOORD1`, or `MAP_TEXCOORD2`. Existing buffers that are resized preserve their original type mask, so the current Avatar path has no hidden secondary-attribute allocation path in this restore routine.
 
 This closes the VBO-layout question: native Avatar face buffers must be extended deliberately before a tangent-space Normal Map shader can be used. Do not add attributes globally to every Avatar buffer without checking memory cost and rigid/alpha/shadow pass compatibility; prefer a capability-gated layout or a single shared Avatar buffer layout with deterministic defaults and measured memory impact.
+
+## 15. Morph and skinning lifecycle: tangent update constraints
+
+The follow-up source audit traced the classic morph data and Avatar face-update path through `LLPolyMorphData::loadBinary()`, `LLPolyMorphTarget::apply()`, `LLPolyMorphTarget::applyMask()`, `LLVOAvatar::updateMeshData()`, `LLViewerJointMesh::updateFaceData()`, and `LLVOAvatar::renderSkinned()`.
+
+### Morph data already contains directional deltas
+
+- Each morph target stores per-vertex coordinate, normal, binormal, and UV deltas. These are loaded independently from the legacy mesh asset.
+- `LLPolyMorphTarget::apply()` accumulates coordinate deltas, softens and normalizes the normal accumulator, and separately accumulates binormal deltas.
+- The morph code then reconstructs an orthogonalized binormal from the current normal and the accumulated binormal-derived tangent. Thus the intended CPU morph representation is not simply a normal-only stream.
+- Morph-mask replacement also subtracts the prior normal and binormal contributions before applying the new mask.
+
+### Confirmed base-binormal initialization defect
+
+`LLPolyMesh::initializeForMorph()` currently copies `mSharedData->mBaseNormals` into both `mBinormals` and `mScaledBinormals`. The shared mesh loader has a separate `mBaseBinormals` array, and morph records also carry binormal deltas. The two runtime binormal arrays should therefore be initialized from `mSharedData->mBaseBinormals`, not from the base normals.
+
+This is a concrete source defect in the existing morph-direction data path. It should be fixed with a focused regression test and asset-level validation before any new tangent implementation relies on these arrays. This audit records the defect; it does not change runtime code.
+
+### What reaches the Avatar face VBO
+
+- `LLVOAvatar::updateMeshData()` rebuilds/resizes the face buffers when geometry is dirty and invokes `updateFaceData()` for the participating mesh parts.
+- `LLViewerJointMesh::updateFaceData()` copies the current morphed positions and normals into the face VBO. On a non-terse update it also copies UV0, weights, and clothing weights. It does not copy the CPU binormal array.
+- A terse update is selected when the existing face buffer has the same vertex and index counts (except rigid eyeballs). In that case UV0 and weight data are retained rather than recopied; positions and normals are still copied.
+- The Avatar VBO layout remains the previously audited layout: no tangent or secondary UV attribute is allocated.
+
+### Update cadence and the correct tangent design boundary
+
+- Morph deltas update the CPU-side `LLPolyMesh` arrays. `updateMeshData()` transfers the resulting positions/normals to the Avatar face VBO when the drawable/mesh geometry is rebuilt or marked dirty; it is not a general per-frame tangent refresh.
+- In `renderSkinned()`, the Avatar shader path with a positive Avatar shader level clears `mNeedsSkin` and relies on the hardware-skinned rendering path. The software-skin branch is conditional on Avatar shader level being zero. This distinction means a CPU tangent generated only during `updateMeshData()` would still need to be transformed consistently with the per-frame joint skinning performed by the active shader.
+- The current `LLViewerJointMesh::updateJointGeometry()` implementation is empty. Do not assume this method supplies a CPU tangent update or a software fallback.
+- The current source audit has not yet established the exact vertex-shader joint-matrix transform used by every Avatar shader permutation, nor a safe place to upload a post-skin tangent. Those must be inspected before selecting an implementation.
+
+### Design decision
+
+Do not treat the legacy binormal as if it were already a tangent. The asset's base binormal and morph binormal deltas are useful directional data, but the tangent/bitangent handedness convention and UV orientation still need proof.
+
+The next implementation gate should be:
+
+1. Correct and test the base-binormal initialization, preserving existing morph behavior.
+2. Inspect the actual Avatar vertex shader permutations and their normal/weight transforms, including non-uniform joint scale handling.
+3. Define a tangent frame from UV0 with an explicit handedness sign. Verify mirrored UV seams and degenerate UV triangles using the built-in avatar meshes.
+4. Ensure tangent and normal receive compatible morph and joint transforms. A static tangent copied once to the VBO is insufficient if the shader skins positions/normals dynamically.
+5. Only then extend the Avatar VBO and add the optional deferred skin Normal Map permutation.
+
+No runtime rendering behavior or shader was changed by this audit. No build or test was run.
