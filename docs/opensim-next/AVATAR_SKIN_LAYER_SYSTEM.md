@@ -517,3 +517,19 @@ This is still a **base-mesh-only** comparison for Upper Body and Lower Body. It 
 5. Only then implement Tangent VBO upload and shader skinning.
 
 The data supports continuing with the legacy-binormal-derived candidate, with UV orientation sign as a mandatory part of the frame. It does not authorize enabling Normal Map rendering yet. No runtime code, VBO, or shader was changed; no build or test was run.
+
+
+### Vertex-aggregated tangent comparison
+
+A second pass accumulated the UV-derived tangent contribution at each serialized vertex, applying the UV-determinant sign before accumulation so mirrored and non-mirrored triangle contributions are compared in the candidate frame convention. The accumulated tangent was projected onto the vertex-normal plane and normalized before comparison with `normalize(cross(base_binormal, base_normal))`.
+
+| Asset | Unique vertex samples | Mean tangent direction dot |
+|---|---:|---:|
+| Upper Body | 2,211 | 0.889 |
+| Lower Body | 977 | 0.904 |
+
+These values are lower than a perfect match but support a useful approximation. This aggregation is deliberately a diagnostic only: it is not a production tangent generator. A vertex touched by both mirrored and non-mirrored triangles must be treated as a seam/topology concern, not silently averaged. The current pass records 732 Upper Body and 142 Lower Body vertices that touch at least one negative-determinant triangle; that count alone does not establish whether each is a mixed-orientation seam vertex.
+
+The per-triangle-corner and per-vertex-aggregated measurements answer different questions. Corner samples expose local face-frame agreement; vertex aggregation approximates the smoothing behavior needed by a per-vertex attribute. Neither pass yet models the exact morph update, seam duplication policy, tangent handedness storage, or GPU skinning.
+
+**Decision remains unchanged:** use the legacy binormal as a low-cost tangent-direction candidate, but preserve UV orientation explicitly and validate actual seam groups. Do not enable normal mapping. The Head mesh still requires binary-capable local inspection; the repository text connector rejects its large binary payload. No runtime source changed; no build or test was run.
