@@ -218,7 +218,17 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
 
 //      LL_INFOS() << "Look At: " << headLookAt + mHeadJoint->getWorldPosition() << LL_ENDL;
 
-        F32 lookatDistance = headLookAt.normVec();
+        // LookAtPoint is normally validated by LLHUDEffectLookAt, but
+        // keep head motion safe if another animation-data producer supplies
+        // a non-finite direction. normVec() can also expose an invalid result
+        // for pathological magnitudes, so validate the normalized vector too.
+        F32 lookatDistance = headLookAt.isFinite()
+            ? headLookAt.normVec()
+            : 0.f;
+        if (!headLookAt.isFinite())
+        {
+            lookatDistance = 0.f;
+        }
 
         if (lookatDistance < MIN_HEAD_LOOKAT_DISTANCE)
         {
