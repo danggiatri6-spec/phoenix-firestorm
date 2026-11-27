@@ -69,6 +69,7 @@
 #include "lllayoutstack.h"
 #include "lllogchat.h"
 #include "llmenugl.h"
+#include "llnotificationsutil.h"
 #include "llmultigesture.h"
 #include "llpanelemojicomplete.h"
 #include "llresizebar.h"
@@ -1129,6 +1130,11 @@ void FSFloaterNearbyChat::onSpeechToTextFailed(const std::string& error)
         mSpeechToTextButton->setLabel("Mic");
         mSpeechToTextButton->setToolTip("Speech recognition failed: " + error);
     }
+
+    // A tooltip alone is easy to miss; report startup and asynchronous model
+    // failures visibly while keeping the Nearby Chat editor available.
+    LLNotificationsUtil::add("GenericAlert", LLSD().with("MESSAGE",
+        "Speech-to-text could not start or continue: " + error));
     LL_WARNS("SpeechToText") << "Dictation stopped: " << error << LL_ENDL;
 }
 
@@ -1151,6 +1157,13 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
     }
 
     std::string model_path = gSavedSettings.getString("SpeechToTextModelPath");
+    if (!model_path.empty() && !LLFile::isfile(model_path))
+    {
+        // A moved or deleted model must not permanently block the file picker.
+        gSavedSettings.setString("SpeechToTextModelPath", "");
+        model_path.clear();
+    }
+
     if (model_path.empty())
     {
         LLFilePicker& picker = LLFilePicker::instance();
@@ -1163,14 +1176,20 @@ void FSFloaterNearbyChat::onSpeechToTextButtonClicked()
         {
             return;
         }
-        gSavedSettings.setString("SpeechToTextModelPath", model_path);
     }
 
     if (app->startSpeechToTextDictation(model_path))
     {
+        // Persist only after the optional backend and worker have started.
+        gSavedSettings.setString("SpeechToTextModelPath", model_path);
         mSpeechToTextActive = true;
         mSpeechToTextButton->setLabel("Stop");
         mSpeechToTextButton->setToolTip(LLStringExplicit("Stop local speech-to-text dictation"));
+    }
+    else
+    {
+        onSpeechToTextFailed(
+            "Check that this Viewer was built with Whisper.cpp and that the selected model file is valid. See the SpeechToText log for details.");
     }
 }
 
