@@ -236,3 +236,48 @@ The first code-level classification is stored on each `LLAvatarJointMesh` as `EA
 The classification is assigned when each LOD `LLAvatarJointMesh` is created in `LLAvatarAppearance::initInstance()`. It is independent of the baked-texture association: the legacy `mBakedTextureDatas[].mJointMeshes` population remains unchanged, including the existing head-bake/eyelash association.
 
 This is metadata groundwork only. No renderer, shader, texture upload, material resolver, or network path consumes the classification yet. Until those paths are explicitly implemented and validated, all meshes continue using the existing rendering behavior. Future per-material-slot classification for custom mesh heads remains a separate extension; a mesh-level `SKIN` tag must not imply that every sub-material or face is skin.
+
+## 13. Renderer and texture-lifecycle audit: draw-pool boundary identified
+
+The source audit now covers `LLViewerJointMesh::drawShape()`, the Avatar draw-pool pass setup, and the Viewer texture-manager entry points.
+
+### Draw submission and pass ownership
+
+`LLViewerJointMesh::drawShape()` in `indra/newview/llviewerjointmesh.cpp`:
+- Requires an already-bound `LLGLSLShader`; it does not select or bind the Avatar shader.
+- Selects only `LLDrawPoolAvatar::sDiffuseChannel` and binds the current test image, legacy `LLViewerTexLayerSet` composite, mesh texture, or default texture.
+- Submits the existing vertex buffer draw. It does not currently bind a skin Normal or packed Specular/Roughness map.
+- Inherits `getSurfaceType()` from `LLAvatarJointMesh`, so the mesh classification can be checked here without introducing a parallel mesh registry. The classification is not consumed by the renderer yet.
+
+The outer `LLDrawPoolAvatar` owns shader selection and pass-specific texture-unit setup:
+
+| Pass | Existing path | Skin material policy |
+|---|---|---|
+| Impostor | `beginImpostor()` / deferred impostor | Do not bind per-mesh skin maps. Impostors use their own baked color/normal/specular representation. |
+| Rigid | `beginRigid()` / deferred rigid | Exclude; this pass renders rigid meshes such as eyeballs. |
+| Skinned, forward/preview | `beginSkinned()` | Legacy shader path; keep legacy behavior until a separately validated shader variant exists. |
+| Skinned, deferred | `beginDeferredSkinned()` | The first candidate integration point for optional skin maps, gated by `getSurfaceType() == SKIN` and a successful shader permutation. |
+| Post-deferred alpha | `beginPostDeferredPass()` | Preserve legacy alpha behavior; do not apply skin material maps to transparent surfaces. |
+| Shadow opaque/alpha/mask | `beginShadowPass()` | No skin surface maps are needed for shadow depth/alpha decisions; keep existing diffuse/alpha binding only. |
+
+The deferred skinned setup currently binds `DIFFUSE_MAP` only. By contrast, deferred impostor setup enables `SPECULAR_MAP` and `NORMAL_MAP` for the impostor's separate texture set. This confirms that the existence of normal/specular sampler names elsewhere does not mean the skinned Avatar shader currently consumes native skin maps.
+
+### Texture creation and ownership findings
+
+- `LLViewerTextureManager::getLocalTexture(const LLImageRaw*, ...)` creates a local `LLViewerTexture` backed by the raw image. The local texture is reference-counted; it is not an asset UUID fetch.
+- `LLViewerTextureManager::getFetchedTexture(const LLImageRaw*, FTType, ...)` creates a `LLViewerFetchedTexture` and inserts it into the global `gTextureList`. This is a manager-owned fetched-texture path and is not automatically the correct owner for short-lived per-Avatar composites.
+- `LLViewerFetchedTexture` has asynchronous fetch/decode state, loaded callbacks, discard levels, and texture-manager lifecycle. These asset-fetch semantics should not be overloaded to represent a CPU-generated Avatar composite unless a concrete lifecycle design requires it.
+- `LLViewerTexture` derives from `LLGLTexture`; the existing local-texture manager path is the closest established mechanism for a generated image that needs GL residency. A per-Avatar runtime owner should hold reference-counted local texture handles and release those references on appearance replacement, region transition, and Avatar teardown. It must not destroy shared fetched assets.
+- The CPU compositor output is currently only `LLImageRaw`. No upload, GL-ready state, cache key, invalidation generation, or Avatar-owned texture handle has been implemented.
+
+### Integration decision
+
+Do not add bindings in `drawShape()` yet. First add a dedicated, optional deferred-skinned Avatar shader permutation and have the draw pool enable its bounded samplers only when:
+1. the mesh is explicitly classified `SKIN`;
+2. the Avatar runtime reports the corresponding composite texture as GPU-ready;
+3. the selected shader permutation compiled and linked successfully; and
+4. the pass is the deferred skinned pass, not rigid, impostor, alpha-only, or shadow rendering.
+
+`drawShape()` can then bind the already-selected optional channels for SKIN meshes only, while every other surface and every failure case continues through the existing diffuse path. The forward/preview path, impostor regeneration, tangent-basis correctness, texture invalidation generations, and final visual sampling still require separate validation. No shader or runtime behavior is changed by this audit.
+
+No build or test execution is claimed.
