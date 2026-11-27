@@ -186,8 +186,12 @@ bool LLHeadRotMotion::onActivate()
     mIdleHeadTimer.reset();
     mIdleHeadNextUpdate = IDLE_HEAD_UPDATE_MIN +
         ll_frand(IDLE_HEAD_UPDATE_MAX - IDLE_HEAD_UPDATE_MIN);
-    // Do not carry a previous look-at orientation into a new activation.
+    // Do not carry a previous look-at orientation or cached joint pose
+    // into a new activation.
     mLastHeadRot.loadIdentity();
+    mTorsoState->setRotation(LLQuaternion::DEFAULT);
+    mNeckState->setRotation(LLQuaternion::DEFAULT);
+    mHeadState->setRotation(LLQuaternion::DEFAULT);
     mIdleHeadYaw = 0.f;
     mIdleHeadPitch = 0.f;
     mIdleHeadTargetYaw = 0.f;
