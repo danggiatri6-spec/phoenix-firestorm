@@ -91,6 +91,7 @@ if (LL_TESTS)
     SET(llprimitive_TEST_SOURCE_FILES
       llmediaentry.cpp
       llprimitive.cpp
+      llprimtexturelist.cpp
       llgltfmaterial.cpp
       )
 
