@@ -5753,6 +5753,14 @@ class LLEnableEditShape : public view_listener_t
     }
 };
 
+class LLEnableEditSkin : public view_listener_t
+{
+    bool handleEvent(const LLSD& userdata)
+    {
+        return gAgentWearables.isWearableModifiable(LLWearableType::WT_SKIN, 0);
+    }
+};
+
 class LLEnableHoverHeight : public view_listener_t
 {
     bool handleEvent(const LLSD& userdata)
@@ -8731,6 +8739,23 @@ void handle_now_wearing()
 void handle_edit_shape()
 {
     LLFloaterSidePanelContainer::showPanel("appearance", LLSD().with("type", "edit_shape"));
+}
+
+void handle_edit_skin()
+{
+    LLViewerWearable* skin = gAgentWearables.getViewerWearable(LLWearableType::WT_SKIN, 0);
+    if (!skin)
+    {
+        return;
+    }
+
+    LLFloaterSidePanelContainer::showPanel("appearance");
+    LLSidepanelAppearance* panel = dynamic_cast<LLSidepanelAppearance*>(
+        LLFloaterSidePanelContainer::getPanel("appearance"));
+    if (panel)
+    {
+        panel->showWearableEditPanel(skin);
+    }
 }
 
 // <FS:Zi> Omnifilter support
@@ -12862,12 +12887,14 @@ void initialize_menus()
     view_listener_t::addMenu(new LLEditEnableTakeOff(), "Edit.EnableTakeOff");
     view_listener_t::addMenu(new LLEditEnableCustomizeAvatar(), "Edit.EnableCustomizeAvatar");
     view_listener_t::addMenu(new LLEnableEditShape(), "Edit.EnableEditShape");
+    view_listener_t::addMenu(new LLEnableEditSkin(), "Edit.EnableEditSkin");
     view_listener_t::addMenu(new LLEnableHoverHeight(), "Edit.EnableHoverHeight");
     view_listener_t::addMenu(new LLEnableEditPhysics(), "Edit.EnableEditPhysics");
     commit.add("CustomizeAvatar", boost::bind(&handle_customize_avatar));
     commit.add("NowWearing", boost::bind(&handle_now_wearing));
     commit.add("EditOutfit", boost::bind(&handle_edit_outfit));
     commit.add("EditShape", boost::bind(&handle_edit_shape));
+    commit.add("EditSkin", boost::bind(&handle_edit_skin));
     commit.add("Omnifilter", boost::bind(&handle_omnifilter));      // <FS:Zi> Omnifilter support
     commit.add("HoverHeight", boost::bind(&handle_hover_height));
     commit.add("EditPhysics", boost::bind(&handle_edit_physics));
