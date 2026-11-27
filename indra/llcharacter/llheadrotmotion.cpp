@@ -225,7 +225,9 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
         F32 lookatDistance = headLookAt.isFinite()
             ? headLookAt.normVec()
             : 0.f;
-        if (!headLookAt.isFinite())
+        // normVec() clears a vector whose squared magnitude overflows.
+        // Reject that zeroed direction as well as any non-finite result.
+        if (!headLookAt.isFinite() || headLookAt.magVecSquared() < 1.e-8f)
         {
             lookatDistance = 0.f;
         }
@@ -566,6 +568,12 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
         F32 lookAtDistance = eye_look_at.isFinite()
             ? eye_look_at.normVec()
             : 0.f;
+        // normVec() clears a vector whose squared magnitude overflows.
+        // Reject that zeroed direction as well as any non-finite result.
+        if (!eye_look_at.isFinite() || eye_look_at.magVecSquared() < 1.e-8f)
+        {
+            lookAtDistance = 0.f;
+        }
 
         // A zero-length or non-finite LookAtPoint has no valid orientation.
         // Treat it as an idle eye pose instead of constructing a degenerate
