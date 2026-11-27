@@ -287,3 +287,38 @@ No build or test execution is claimed.
 `LLViewerShaderMgr` also constructs a family of generic deferred material permutations with `HAS_SKIN`, `HAS_NORMAL_MAP`, and `HAS_SPECULAR_MAP`. The corresponding `deferred/materialV.glsl` contains tangent and skinned-transform plumbing, but the current `class1/deferred/materialF.glsl` is explicitly a debug stub: it writes fixed diagnostic values rather than sampling material textures and producing the normal material G-buffer output.
 
 Therefore this generic material family is not a usable native Avatar skin shader today. Its vertex-side tangent plumbing is useful reference material only; it does not establish that the Avatar mesh vertex buffers provide valid tangent attributes or compatible UV1/UV2 data. The safe route remains a dedicated deferred Avatar skin permutation (or a separately completed and validated shared material shader), with explicit verification of tangent availability and UV semantics before normal-map sampling.
+
+## 14. Native Avatar vertex tangent and UV audit
+
+The legacy avatar mesh asset format contains more data than the live Avatar vertex buffer currently exposes. The source path was traced through `LLPolyMeshSharedData::loadMesh()`, `LLPolyMesh::initializeForMorph()`, `LLFace::getGeometryAvatar()`, and `LLViewerJointMesh::updateFaceData()`.
+
+### What exists in the legacy mesh asset
+
+- The binary mesh loader reads per-vertex base positions, normals, binormals, and UV0.
+- If the mesh header sets `mHasDetailTexCoords`, it also reads a separate detail-UV array.
+- `LLPolyMesh` exposes `getBinormals()`, `getBaseBinormals()`, and `getDetailTexCoords()`.
+- This is not equivalent to a complete tangent-space vertex stream. In particular, the loader's binormal is not automatically the tangent attribute expected by the deferred material shader, and its handedness/sign convention has not been established.
+
+### What reaches the live Avatar vertex buffer
+
+- `LLFace::getGeometryAvatar()` obtains only position, normal, texcoord0, weight, and clothing-weight striders. It does not request tangent, texcoord1, or texcoord2.
+- `LLViewerJointMesh::updateFaceData()` copies positions, normals, UV0, weights, clothing weights, and indices. It does not copy binormals, detail UV, or a tangent frame into the face VBO.
+- The live path therefore does not currently populate the tangent and secondary UV attributes used by the generic deferred material vertex shader.
+- The mesh's `initializeForMorph()` currently initializes `mBinormals` and `mScaledBinormals` from `mSharedData->mBaseNormals`, not from the separately loaded `mBaseBinormals`. This means the loaded base binormal data is not propagated into those runtime arrays by this initialization path.
+- `LLVertexBuffer` supports `TYPE_TANGENT`, `TYPE_TEXCOORD1`, and `TYPE_TEXCOORD2`, but generic support in the buffer class does not imply that the Avatar face buffer allocates or fills those attributes.
+
+### Consequence for skin Normal Maps
+
+A normal-map shader must not be enabled for native Avatar meshes yet. Sampling a tangent-space normal map without a valid per-vertex tangent frame and a well-defined UV set would produce incorrect lighting or undefined attribute values.
+
+The first implementation should explicitly generate or derive a tangent frame from the actual deformed mesh positions and UV0 (or deliberately adopt a documented alternate basis), then upload it to the Avatar face VBO. If detail UV is intended as the skin-map UV, it must be copied into a dedicated VBO attribute and its transform/scale semantics must be defined. The cheaper initial choice is to use UV0 for all three skin maps and generate tangents against UV0, unless asset compatibility testing proves otherwise.
+
+### Required follow-up before shader work
+
+1. Verify the Avatar face VBO allocation mask and its exact stride/attribute layout.
+2. Verify how morphing and joint skinning affect tangent direction and handedness; do not upload static untransformed tangents if the shader's skinned basis expects deformed tangent vectors.
+3. Decide whether tangents are generated on CPU during mesh update or generated/derived in the vertex shader from available data. CPU generation adds per-avatar work; shader derivation needs a mathematically valid and stable basis.
+4. Add tests for degenerate UV triangles, mirrored UV islands, zero-area triangles, and LOD changes.
+5. Keep Normal Map rendering disabled until the tangent stream is proven valid. Specular/Roughness scalar sampling does not need tangent attributes, but it still needs a verified UV stream and a valid material shader.
+
+No runtime code, shader, or VBO layout was changed in this audit. No build or test execution is claimed.
