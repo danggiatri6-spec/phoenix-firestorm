@@ -1318,7 +1318,9 @@ LLViewerFetchedTexture::~LLViewerFetchedTexture()
     // LLAppViewer::cleanup() was called. (see ticket EXT-177)
     if (mHasFetcher && LLAppViewer::getTextureFetch())
     {
-        LLAppViewer::getTextureFetch()->deleteRequest(getID(), true);
+        // An invalid previous host is resolved dynamically at send time; do not
+        // risk sending its cancellation to the avatar's new current simulator.
+        LLAppViewer::getTextureFetch()->deleteRequest(getID(), mTargetHost.isOk());
     }
     cleanup();
 }
