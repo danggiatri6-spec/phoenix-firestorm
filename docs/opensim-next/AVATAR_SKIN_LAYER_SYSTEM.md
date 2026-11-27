@@ -405,3 +405,40 @@ The legacy binary mesh loader reads three independent float components per verte
 Commit: `e542d4be621b4a62d171c7639c4ef3601e2bca1e`.
 
 Validation status: the edited source was fetched again and the two corrected assignments were confirmed. No llappearance-specific test directory or existing LLPolyMesh unit-test target is present in this branch; no build or automated test was run. A focused runtime/asset regression test remains required before enabling Tangent or Normal Map rendering.
+
+
+## 16. Built-in mesh topology and legacy binormal basis audit
+
+The repository contains the built-in classic Avatar mesh assets under `indra/newview/character/`, including `avatar_head.llm`, `avatar_upper_body.llm`, `avatar_lower_body.llm`, plus eye, eyelash, hair, and skirt meshes. The body/head assets are tracked in this repository; they are not merely external viewer cache files. The GitHub text-file endpoint cannot decode these binary `.llm` assets as UTF-8, so no per-mesh numerical topology/UV statistics are claimed in this audit.
+
+### Confirmed binary layout and topology
+
+- For a non-LOD/reference mesh, `LLPolyMeshSharedData::loadMesh()` reads positions, normals, base binormals, UV0, optional detail UVs, optional skin weights, then face indices.
+- Each serialized face record read by this loader contains exactly three 16-bit vertex indices. The runtime `LLPolyFace` declaration also has three slots; its old comment mentioning quads is stale and must not be used to infer quad support in this file path.
+- LOD mesh files reuse reference-mesh vertex arrays and provide their own face index lists. Tangent generation must therefore use each active LOD's own triangles, not assume that one LOD's triangle adjacency applies to every other LOD.
+- The loader also reads a shared-vertex remap table after morph data. That table is used by morph-mask UV lookup; it is not evidence that separate UV seam vertices can safely be welded for tangent accumulation.
+
+### New tangent-space lead: derive a candidate tangent from the legacy binormal
+
+The morph implementation provides a concrete orientation relationship. After accumulating a binormal direction, it computes a tangent-like direction as `cross(binormal, normal)`, then reconstructs an orthogonal binormal as `cross(normal, tangent)`. This is consistent with a candidate frame:
+
+- `N` = current morphed normal
+- `B` = current, orthogonalized legacy binormal
+- `T` = normalize(`cross(B, N)`)
+
+This is a stronger starting point than rebuilding tangent from triangle derivatives on every morph update: the legacy asset already carries a binormal direction and morph targets carry binormal deltas. It may preserve the asset's authored orientation across morphs without per-frame triangle accumulation.
+
+However, this is not yet proof that the candidate `T` matches the UV0 tangent convention expected by standard tangent-space normal maps. The asset producer's exact handedness convention, mirrored-UV behavior, and treatment of seam duplicates still need to be established. Do not assume the candidate frame can be passed to a conventional normal-map shader until those checks are complete.
+
+### Implementation implications
+
+1. Keep each mesh vertex as authored; do not weld vertices across UV seams. Any tangent accumulation path must preserve seam splits and per-vertex orientation.
+2. Prefer evaluating the candidate `T = cross(B, N)` from the already-morphed CPU normal/binormal arrays, then validate its orientation against UV0 triangle derivatives on the built-in head/upper/lower meshes.
+3. For validation, compute per-triangle UV determinant. A near-zero determinant is a degenerate UV triangle and must be excluded from derivative-based reference comparisons; mirrored islands have the opposite determinant sign and must not be averaged together across a seam.
+4. Compare candidate `T` and reconstructed `B` against UV-derived tangent frames on representative triangles, recording angular error and sign agreement separately for positive- and negative-determinant UV triangles.
+5. If the legacy binormal convention proves UV-consistent, the existing morph binormal path can supply the CPU-side frame. The class1 vertex shader must still transform `T` using the same Avatar skin matrix as the normal, re-orthogonalize it, and preserve the validated sign.
+6. If the convention is not UV-consistent, generate tangents from morphed positions and UV0 with seam-aware per-vertex accumulation, and explicitly define how that tangent is refreshed or transformed during hardware skinning.
+
+### Current conclusion
+
+The built-in source assets and morph data make a legacy-binormal-derived tangent a promising lower-cost candidate. The repository inspection has confirmed the loader layout and morph cross-product relationship, but has **not** numerically inspected the binary mesh topology or UV handedness. No tangent code, VBO attribute, or shader was added. No build or test was run.
