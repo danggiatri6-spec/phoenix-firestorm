@@ -248,9 +248,23 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
             // reference direction before constructing the target rotation.
             if (left.magVecSquared() < 0.15f)
             {
+                // Build a fallback direction in the plane perpendicular to
+                // root_up. Projecting the avatar's forward axis onto the
+                // world-horizontal plane can collapse when the avatar is
+                // pitched steeply, so use a second reference axis if needed.
                 LLVector3 root_at = LLVector3(1.f, 0.f, 0.f) * currentRootRotWorld;
-                root_at.mV[VZ] = 0.f;
-                root_at.normVec();
+                root_at -= root_up * (root_at * root_up);
+                if (root_at.normVec() < 1.e-4f)
+                {
+                    root_at.setVec(0.f, 1.f, 0.f);
+                    root_at -= root_up * (root_at * root_up);
+                    if (root_at.normVec() < 1.e-4f)
+                    {
+                        root_at.setVec(0.f, 0.f, 1.f);
+                        root_at -= root_up * (root_at * root_up);
+                        root_at.normVec();
+                    }
+                }
 
                 headLookAt = lerp(headLookAt, root_at, 0.4f);
                 headLookAt.normVec();
