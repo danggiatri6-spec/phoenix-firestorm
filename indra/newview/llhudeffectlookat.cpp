@@ -697,7 +697,9 @@ void LLHUDEffectLookAt::clearLookAtTarget()
     mTargetType = LOOKAT_TARGET_NONE;
     if (mSourceObject.notNull())
     {
-        ((LLVOAvatar*)(LLViewerObject*)mSourceObject)->stopMotion(ANIM_AGENT_HEAD_ROT);
+        LLVOAvatar* source_avatar = (LLVOAvatar*)(LLViewerObject*)mSourceObject;
+        source_avatar->removeAnimationData("LookAtPoint");
+        source_avatar->stopMotion(ANIM_AGENT_HEAD_ROT);
     }
 }
 
