@@ -281,3 +281,9 @@ Do not add bindings in `drawShape()` yet. First add a dedicated, optional deferr
 `drawShape()` can then bind the already-selected optional channels for SKIN meshes only, while every other surface and every failure case continues through the existing diffuse path. The forward/preview path, impostor regeneration, tangent-basis correctness, texture invalidation generations, and final visual sampling still require separate validation. No shader or runtime behavior is changed by this audit.
 
 No build or test execution is claimed.
+
+### Additional shader-manager finding: do not reuse the generic material permutation yet
+
+`LLViewerShaderMgr` also constructs a family of generic deferred material permutations with `HAS_SKIN`, `HAS_NORMAL_MAP`, and `HAS_SPECULAR_MAP`. The corresponding `deferred/materialV.glsl` contains tangent and skinned-transform plumbing, but the current `class1/deferred/materialF.glsl` is explicitly a debug stub: it writes fixed diagnostic values rather than sampling material textures and producing the normal material G-buffer output.
+
+Therefore this generic material family is not a usable native Avatar skin shader today. Its vertex-side tangent plumbing is useful reference material only; it does not establish that the Avatar mesh vertex buffers provide valid tangent attributes or compatible UV1/UV2 data. The safe route remains a dedicated deferred Avatar skin permutation (or a separately completed and validated shared material shader), with explicit verification of tangent availability and UV semantics before normal-map sampling.
