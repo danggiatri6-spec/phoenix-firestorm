@@ -192,6 +192,18 @@ void LLSidepanelAppearance::onOpen(const LLSD& key)
         {
             showWearableEditPanel();
         }
+        else if (type == "edit_skin")
+        {
+            LLViewerWearable* skin = gAgentWearables.getViewerWearable(LLWearableType::WT_SKIN, 0);
+            if (skin)
+            {
+                showWearableEditPanel(skin);
+            }
+            else
+            {
+                showOutfitsInventoryPanel();
+            }
+        }
     }
 
     mOpened = true;
