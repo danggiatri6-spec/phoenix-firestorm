@@ -341,7 +341,8 @@ public:
     bool needsAux() const { return mNeedsAux; }
 
     // Host we think might have this image, used for baked av textures.
-    void setTargetHost(LLHost host)         { mTargetHost = host; }
+    // Switching a legacy bake host also retires any request sent to the old host.
+    void setTargetHost(LLHost host);
     LLHost getTargetHost() const            { return mTargetHost; }
 
     void updateVirtualSize() ;
