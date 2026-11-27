@@ -3713,6 +3713,7 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
                                         U16 data_size, U8* data)
 {
     LL_PROFILE_ZONE_SCOPED;
+    bool res = true;
     LLTextureFetchWorker* worker = getWorker(id);
     ++mPacketCount;
     if (!worker)
@@ -3765,6 +3766,7 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
 bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U16 packet_num, U16 data_size, U8* data)
 {
     LL_PROFILE_ZONE_SCOPED;
+    bool res = true;
     LLTextureFetchWorker* worker = getWorker(id);
     ++mPacketCount;
     if (!worker)
