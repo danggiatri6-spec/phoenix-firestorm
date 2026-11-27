@@ -953,7 +953,16 @@ bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
 
     LLVOAvatar* source_avatar = (LLVOAvatar*)(LLViewerObject*)mSourceObject;
     if (!source_avatar->isBuilt())
+    {
+        // Do not leave a previous target active while the source avatar
+        // temporarily lacks a built skeleton. Interaction overlays must not
+        // clear the independent legacy look-at target.
+        if (!use_interaction_target)
+        {
+            source_avatar->removeAnimationData("LookAtPoint");
+        }
         return false;
+    }
 
     if (target_obj && target_obj->mDrawable.notNull())
     {
@@ -1017,7 +1026,16 @@ bool LLHUDEffectLookAt::calcTargetPosition(bool use_interaction_target)
     mTargetPos -= source_avatar->mHeadp->getWorldPosition();
 
     if (!mTargetPos.isFinite())
+    {
+        // A failed legacy target update must not keep driving the previous
+        // frame's direction. Preserve it when only an interaction overlay
+        // failed, since that overlay is independent of the legacy target.
+        if (!use_interaction_target)
+        {
+            source_avatar->removeAnimationData("LookAtPoint");
+        }
         return false;
+    }
 
     static LLCachedControl<bool> disable_look_at(gSavedSettings, "DisableLookAtAnimation", true);
     if (disable_look_at())
