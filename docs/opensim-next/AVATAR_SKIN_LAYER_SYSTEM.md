@@ -48,7 +48,7 @@ Do not bind every logical editor layer as a separate sampler. Flatten enabled lo
 
 - Skin overlay composite: RGBA color + alpha.
 - Skin normal composite: tangent-space normal, only when valid normal layers exist.
-- Skin material composite: packed channels (R = roughness, G = specular strength, B = subsurface mask, A = reserved/detail mask).
+- Skin material composite: packed channels (R = specular strength, G = roughness, B = subsurface mask, A = reserved/detail mask).
 
 The existing legacy baked diffuse remains sampler 0 and remains authoritative for base color, clothing and legacy appearance. Optional composites are additive enhancements.
 
@@ -181,3 +181,19 @@ Implemented as CPU-only functions in the existing skin-material module:
 - Five additional TUT cases (tests 17–21) cover normal blending, transparent detail coverage, missing-map defaults, mismatched dimensions and invalid normal formats. The existing CMake test registration resolves llavatarskinmaterial.cpp to tests/llavatarskinmaterial_test.cpp.
 
 These tests are authored but have not been compiled or executed. This CPU slice does not yet resolve texture UUIDs, generate GPU textures, select a shader permutation or render on an Avatar. Source pixel color-space metadata is also not established; this is safe for the normal and scalar data maps because these channels must be treated as linear data, not color.
+
+
+## 10. Mesh Head material-slot model (SL / VRChat comparison)
+
+A Mesh Head does not have a universal fixed number of skin texture layers. Keep these concepts separate:
+
+- **Mesh faces / submeshes:** geometry partitions that can be assigned different materials. Their count is asset-author-defined and may separate face skin, ears, scalp, eyes, teeth, lashes or other surfaces.
+- **Material slots:** material assignments used by those faces. A head can have multiple slots even when some slots share the same material or texture assets.
+- **Texture maps per material:** maps sampled by the selected material shader. A legacy SL-style skin material commonly uses diffuse/base color, normal and specular inputs; a PBR material uses base color, normal and metallic-roughness (with optional additional maps). These are map roles, not editable stacked layers.
+- **Logical editor layers:** authoring inputs that are composited into a bounded runtime set. Their count must not be confused with material slots or GPU texture samplers.
+
+VRChat follows Unity's renderer/material model: the avatar author chooses mesh submeshes and materials, while the selected shader determines which maps and additional layers are available. Therefore, neither SL nor VRChat defines one fixed "number of head texture layers" for all creators' heads.
+
+For OpenSim-next, attach the optional skin material set only to explicitly classified native skin material slots. Do not automatically apply it to eyes, teeth, hair, lashes, clothing or arbitrary attachments. A head may have several skin-related slots; the runtime may share a composite across compatible slots only when their UV layout, material parameters and skin classification are proven compatible. Otherwise keep separate per-slot composites, subject to a strict memory budget.
+
+The canonical packed surface channel order is **R = specular strength, G = roughness, B = reserved subsurface mask, A = reserved detail mask**. This order matches `packSpecularRoughness()` and its current unit test. Do not silently swap channels in shader bindings or asset serialization.
