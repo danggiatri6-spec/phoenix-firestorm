@@ -37,6 +37,17 @@ class LLFace;
 class LLCharacter;
 class LLTexLayerSet;
 
+enum class EAvatarSurfaceType : U8
+{
+    UNKNOWN = 0,
+    SKIN,
+    EYE,
+    EYELASH,
+    HAIR,
+    CLOTHING,
+    OTHER
+};
+
 typedef enum e_avatar_render_pass
 {
     AVATAR_RENDER_PASS_SINGLE,
@@ -77,6 +88,7 @@ protected:
     U32                         mNumSkinJoints;
     LLSkinJoint*                mSkinJoints;
     S32                         mMeshID;
+    EAvatarSurfaceType          mSurfaceType = EAvatarSurfaceType::UNKNOWN;
 
 public:
     static bool                 sPipelineRender;
@@ -127,6 +139,10 @@ public:
 
     // Gets ID for picking
     S32 getMeshID() { return mMeshID; }
+
+    // Semantic material classification; unknown meshes stay on the legacy path.
+    void setSurfaceType(EAvatarSurfaceType type) { mSurfaceType = type; }
+    EAvatarSurfaceType getSurfaceType() const { return mSurfaceType; }
 
     void setIsTransparent(bool is_transparent) { mIsTransparent = is_transparent; }
 
