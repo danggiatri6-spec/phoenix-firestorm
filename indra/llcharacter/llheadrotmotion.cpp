@@ -217,6 +217,7 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     F32 torso_slerp_amt = LLSmoothInterpolation::getInterpolant(TORSO_LOOKAT_LAG_HALF_LIFE);
 
     LLVector3* targetPos = (LLVector3*)mCharacter->getAnimationData("LookAtPoint");
+    bool has_valid_look_at = false;
 
     if (targetPos)
     {
@@ -238,19 +239,13 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
             lookatDistance = 0.f;
         }
 
-        if (lookatDistance < MIN_HEAD_LOOKAT_DISTANCE)
-        {
-            targetHeadRotWorld = mPelvisJoint->getWorldRotation();
-        }
-        else
+        has_valid_look_at = lookatDistance >= MIN_HEAD_LOOKAT_DISTANCE;
+        if (has_valid_look_at)
         {
             LLVector3 root_up = LLVector3(0.f, 0.f, 1.f) * currentRootRotWorld;
             LLVector3 left(root_up % headLookAt);
-            // if look_at has zero length, fail
-            // if look_at and skyward are parallel, fail
-            //
-            // Test both of these conditions with a cross product.
-
+            // if look_at and skyward are parallel, use a stable horizontal
+            // reference direction before constructing the target rotation.
             if (left.magVecSquared() < 0.15f)
             {
                 LLVector3 root_at = LLVector3(1.f, 0.f, 0.f) * currentRootRotWorld;
@@ -263,14 +258,12 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
                 left = root_up % headLookAt;
             }
 
-            // Make sure look_at and skyward and not parallel
-            // and neither are zero length
             LLVector3 up(headLookAt % left);
-
             targetHeadRotWorld = LLQuaternion(headLookAt, left, up);
         }
     }
-    else
+
+    if (!has_valid_look_at)
     {
         targetHeadRotWorld = currentRootRotWorld;
     }
@@ -278,7 +271,7 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     // Add a very small local idle head drift only when no explicit look target
     // is active. It is a procedural pose hint, not a network animation, and
     // remains subject to the normal motion-controller joint blending.
-    if (targetPos)
+    if (has_valid_look_at)
     {
         mIdleHeadTargetYaw = 0.f;
         mIdleHeadTargetPitch = 0.f;
@@ -302,7 +295,7 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     // hint. Keep it inside the existing idle layer: explicit look targets and
     // externally driven head poses are never modified by this contribution.
     F32 facial_head_pitch_bias = 0.f;
-    if (!targetPos)
+    if (!has_valid_look_at)
     {
         F32* facial_bias = (F32*)mCharacter->getAnimationData("FacialHeadPitchBias");
         if (facial_bias)
@@ -312,7 +305,7 @@ bool LLHeadRotMotion::onUpdate(F32 time, U8* joint_mask)
     }
 
     LLQuaternion head_rot_local = targetHeadRotWorld * currentInvRootRotWorld;
-    if (!targetPos)
+    if (!has_valid_look_at)
     {
         LLQuaternion idle_yaw(mIdleHeadYaw, LLVector3::z_axis);
         LLQuaternion idle_pitch(mIdleHeadPitch + facial_head_pitch_bias, LLVector3::y_axis);
