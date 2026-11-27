@@ -3689,9 +3689,12 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
 //      LL_WARNS(LOG_TXT) << "Received header for non active worker: " << id << LL_ENDL;
         res = false;
     }
+    // Only compare hosts when the request was pinned to a specific simulator.
+    // An invalid worker host is intentionally resolved to the current agent
+    // region when the request is sent, so it cannot be compared to the sender.
     // A delayed packet from a previous simulator must not be applied to a
-    // replacement worker for the same asset UUID.
-    else if (worker->mHost != host)
+    // replacement worker for the same asset UUID when its host is explicit.
+    else if (worker->mHost.isOk() && worker->mHost != host)
     {
         res = false;
     }
@@ -3755,9 +3758,12 @@ bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U1
 //      LL_WARNS(LOG_TXT) << "Received packet " << packet_num << " for non active worker: " << id << LL_ENDL;
         res = false;
     }
+    // Only compare hosts when the request was pinned to a specific simulator.
+    // An invalid worker host is intentionally resolved to the current agent
+    // region when the request is sent, so it cannot be compared to the sender.
     // A delayed packet from a previous simulator must not be applied to a
-    // replacement worker for the same asset UUID.
-    else if (worker->mHost != host)
+    // replacement worker for the same asset UUID when its host is explicit.
+    else if (worker->mHost.isOk() && worker->mHost != host)
     {
         res = false;
     }
