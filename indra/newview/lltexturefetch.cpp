@@ -3714,61 +3714,39 @@ bool LLTextureFetch::receiveImageHeader(const LLHost& host, const LLUUID& id, U8
 {
     LL_PROFILE_ZONE_SCOPED;
     LLTextureFetchWorker* worker = getWorker(id);
+    ++mPacketCount;
+    if (!worker)
+    {
+        {
+            LLMutexLock lock(&mNetworkQueueMutex);
+            ++mBadPacketCount;
+        }
+        return false;
+    }
+
+    // Serialize destination and state validation with packet insertion.
+    // Lock order is Worker mutex followed by network-queue mutex, matching
+    // the request-send path.
+    worker->lockWorkMutex();
     LLHost sent_host;
-    if (worker)
     {
         LLMutexLock lock(&mNetworkQueueMutex);
         sent_host = worker->mSentHost;
     }
-    bool res = true;
-
-    ++mPacketCount;
-
-    if (!worker)
+    if ((sent_host.isOk() && sent_host != host) ||
+        worker->mState != LLTextureFetchWorker::LOAD_FROM_NETWORK ||
+        worker->mSentRequest != LLTextureFetchWorker::SENT_SIM ||
+        worker->mLastPacket != -1 || !data_size)
     {
-//      LL_WARNS(LOG_TXT) << "Received header for non active worker: " << id << LL_ENDL;
-        res = false;
-    }
-    // Validate against the simulator that actually received this request.
-    // mHost may be invalid and dynamically resolve to the current region.
-    // mSentHost prevents delayed packets from a previous region from being
-    // applied to a replacement worker for the same asset UUID.
-    else if (sent_host.isOk() && sent_host != host)
-    {
-        res = false;
-    }
-    else if (worker->mState != LLTextureFetchWorker::LOAD_FROM_NETWORK ||
-             worker->mSentRequest != LLTextureFetchWorker::SENT_SIM)
-    {
-//      LL_WARNS(LOG_TXT) << "receiveImageHeader for worker: " << id
-//              << " in state: " << LLTextureFetchWorker::sStateDescs[worker->mState]
-//              << " sent: " << worker->mSentRequest << LL_ENDL;
-        res = false;
-    }
-    else if (worker->mLastPacket != -1)
-    {
-        // check to see if we've gotten this packet before
-//      LL_WARNS(LOG_TXT) << "Received duplicate header for: " << id << LL_ENDL;
-        res = false;
-    }
-    else if (!data_size)
-    {
-//      LL_WARNS(LOG_TXT) << "Img: " << id << ":" << " Empty Image Header" << LL_ENDL;
-        res = false;
-    }
-    if (!res)
-    {
-        mNetworkQueueMutex.lock();                                      // +Mfnq
-        ++mBadPacketCount;
-        mCancelQueue[host].insert(id);
-        mNetworkQueueMutex.unlock();                                    // -Mfnq
+        worker->unlockWorkMutex();
+        {
+            LLMutexLock lock(&mNetworkQueueMutex);
+            ++mBadPacketCount;
+        }
         return false;
     }
 
     LLViewerStatsRecorder::instance().textureFetch();
-
-    worker->lockWorkMutex();
-
 
     //  Copy header data into image object
     worker->mImageCodec = codec;
@@ -3788,52 +3766,39 @@ bool LLTextureFetch::receiveImagePacket(const LLHost& host, const LLUUID& id, U1
 {
     LL_PROFILE_ZONE_SCOPED;
     LLTextureFetchWorker* worker = getWorker(id);
+    ++mPacketCount;
+    if (!worker)
+    {
+        {
+            LLMutexLock lock(&mNetworkQueueMutex);
+            ++mBadPacketCount;
+        }
+        return false;
+    }
+
+    // Serialize destination and state validation with packet insertion.
+    // Lock order is Worker mutex followed by network-queue mutex, matching
+    // the request-send path.
+    worker->lockWorkMutex();
     LLHost sent_host;
-    if (worker)
     {
         LLMutexLock lock(&mNetworkQueueMutex);
         sent_host = worker->mSentHost;
     }
-    bool res = true;
-
-    ++mPacketCount;
-
-    if (!worker)
+    if ((sent_host.isOk() && sent_host != host) ||
+        worker->mLastPacket == -1 || !data_size ||
+        (worker->mState != LLTextureFetchWorker::LOAD_FROM_SIMULATOR &&
+         worker->mState != LLTextureFetchWorker::LOAD_FROM_NETWORK))
     {
-//      LL_WARNS(LOG_TXT) << "Received packet " << packet_num << " for non active worker: " << id << LL_ENDL;
-        res = false;
-    }
-    // Validate against the simulator that actually received this request.
-    // mHost may be invalid and dynamically resolve to the current region.
-    // mSentHost prevents delayed packets from a previous region from being
-    // applied to a replacement worker for the same asset UUID.
-    else if (sent_host.isOk() && sent_host != host)
-    {
-        res = false;
-    }
-    else if (worker->mLastPacket == -1)
-    {
-//      LL_WARNS(LOG_TXT) << "Received packet " << packet_num << " before header for: " << id << LL_ENDL;
-        res = false;
-    }
-    else if (!data_size)
-    {
-//      LL_WARNS(LOG_TXT) << "Img: " << id << ":" << " Empty Image Header" << LL_ENDL;
-        res = false;
-    }
-    if (!res)
-    {
-        mNetworkQueueMutex.lock();                                      // +Mfnq
-        ++mBadPacketCount;
-        mCancelQueue[host].insert(id);
-        mNetworkQueueMutex.unlock();                                    // -Mfnq
+        worker->unlockWorkMutex();
+        {
+            LLMutexLock lock(&mNetworkQueueMutex);
+            ++mBadPacketCount;
+        }
         return false;
     }
 
     LLViewerStatsRecorder::instance().textureFetch();
-
-    worker->lockWorkMutex();
-
 
     res = worker->insertPacket(packet_num, data, data_size);
 
