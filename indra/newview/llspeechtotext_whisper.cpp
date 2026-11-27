@@ -124,14 +124,16 @@ public:
                 mono[right] * fraction);
         }
 
-        // Decode bounded five-second windows. This first adapter emits final
-        // segments only; live partial hypotheses can be added after UI wiring.
-        const std::size_t window_samples = 5 * WHISPER_SAMPLE_RATE;
+        // Use a longer multilingual context window with a one-second overlap.
+        // Five-second independent chunks repeatedly re-detect language and often
+        // split Chinese/English phrases at arbitrary boundaries.
+        const std::size_t window_samples = 8 * WHISPER_SAMPLE_RATE;
+        const std::size_t overlap_samples = WHISPER_SAMPLE_RATE;
+        const std::size_t step_samples = window_samples - overlap_samples;
         while (mAudio.size() >= window_samples)
         {
-            // Do not spend CPU decoding a completely silent five-second window.
-            // A low threshold keeps quiet speech eligible; this is only a coarse
-            // silence gate, not voice activity detection or speech segmentation.
+            // Keep the gate deliberately permissive: quiet speech should reach
+            // Whisper. This is only a whole-window silence guard, not VAD.
             double energy = 0.0;
             for (std::size_t i = 0; i < window_samples; ++i)
             {
@@ -139,16 +141,18 @@ public:
                 energy += sample * sample;
             }
             const double rms = std::sqrt(energy / static_cast<double>(window_samples));
-            if (rms < 0.003)
+            if (rms < 0.001)
             {
-                mAudio.erase(mAudio.begin(), mAudio.begin() + window_samples);
+                mAudio.erase(mAudio.begin(), mAudio.begin() + step_samples);
                 continue;
             }
 
             whisper_full_params params =
                 whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
             params.n_threads = 2;
-            params.no_context = true;
+            // Keep decoder context between overlapping windows. Language stays
+            // auto so mixed Mandarin/English speech is not forced into Chinese.
+            params.no_context = false;
             params.single_segment = false;
             params.print_progress = false;
             params.print_realtime = false;
@@ -165,9 +169,17 @@ public:
                     std::to_string(decode_result));
             }
 
+            // Whisper timestamps are in 10 ms units. Suppress segments wholly
+            // contained in the overlapped prefix to avoid duplicate output.
+            const int64_t overlap_ticks =
+                static_cast<int64_t>(overlap_samples / (WHISPER_SAMPLE_RATE / 100));
             const int count = whisper_full_n_segments(mContext);
             for (int i = 0; i < count; ++i)
             {
+                if (whisper_full_get_segment_t1(mContext, i) <= overlap_ticks)
+                {
+                    continue;
+                }
                 const char* segment = whisper_full_get_segment_text(mContext, i);
                 if (segment && *segment)
                 {
@@ -177,7 +189,7 @@ public:
                     results.push_back(std::move(result));
                 }
             }
-            mAudio.erase(mAudio.begin(), mAudio.begin() + window_samples);
+            mAudio.erase(mAudio.begin(), mAudio.begin() + step_samples);
         }
     }
 

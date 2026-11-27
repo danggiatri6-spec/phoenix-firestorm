@@ -66,7 +66,10 @@ public:
 class LLSpeechToText
 {
 public:
-    static constexpr std::size_t MAX_PENDING_FRAMES = 25;
+    // WebRTC capture frames are up to 20 ms each. Keep several seconds of
+    // backlog so a short Whisper inference spike does not immediately discard
+    // the user's speech on slower CPUs.
+    static constexpr std::size_t MAX_PENDING_FRAMES = 250;
     static constexpr std::size_t MAX_PENDING_RESULTS = 32;
 
     LLSpeechToText() = default;
