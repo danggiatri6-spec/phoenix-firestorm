@@ -3547,6 +3547,12 @@ void LLTextureFetch::sendRequestListToSimulators()
                 req->mSentRequest = LLTextureFetchWorker::SENT_SIM;
                 {
                     LLMutexLock lock(&mNetworkQueueMutex);
+                    // If a dynamic-host request is retried after a region
+                    // change, stop the previous simulator before forgetting it.
+                    if (req->mSentHost.isOk() && req->mSentHost != host)
+                    {
+                        mCancelQueue[req->mSentHost].insert(req->mID);
+                    }
                     req->mSentHost = host;
                 }
                 req->mSimRequestedDiscard = req->mDesiredDiscard;
