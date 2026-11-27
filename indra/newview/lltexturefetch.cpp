@@ -3492,6 +3492,22 @@ void LLTextureFetch::sendRequestListToSimulators()
             LLTextureFetchWorker* req = *iter2;
             if (gMessageSystem)
             {
+                // A replacement request may resolve an invalid logical host to
+                // this simulator. Retire only a pending cancellation for this
+                // same UUID and actual destination before sending the new request.
+                {
+                    LLMutexLock lock(&mNetworkQueueMutex);
+                    cancel_queue_t::iterator cancel_iter = mCancelQueue.find(host);
+                    if (cancel_iter != mCancelQueue.end())
+                    {
+                        cancel_iter->second.erase(req->mID);
+                        if (cancel_iter->second.empty())
+                        {
+                            mCancelQueue.erase(cancel_iter);
+                        }
+                    }
+                }
+
                 if (req->mSentRequest != LLTextureFetchWorker::SENT_SIM)
                 {
                     // Initialize packet data based on data read from cache
