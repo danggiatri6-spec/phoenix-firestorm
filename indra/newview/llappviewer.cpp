@@ -5948,6 +5948,9 @@ void LLAppViewer::idle()
     {
         const std::string error = mSpeechToText.getError();
         stopSpeechToTextDictation();
+        // A corrupt/incompatible model should not be selected silently again
+        // on every click; clear the remembered path so the user can choose one.
+        gSavedSettings.setString("SpeechToTextModelPath", "");
         if (auto* nearby_chat = FSFloaterNearbyChat::findInstance())
         {
             nearby_chat->onSpeechToTextFailed(error);
