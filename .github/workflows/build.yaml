@@ -94,7 +94,8 @@ jobs:
       build_log_dir: ${{ github.workspace }}/.logs
       build_viewer: true
       # Disable test targets for manual portable Viewer builds; PR validation keeps tests enabled.
-      LL_TESTS: ${{ github.event_name == 'workflow_dispatch' && 'OFF' || 'ON' }}
+      # OpenSim-next currently validates the Viewer build separately; avoid compiling unrelated legacy test targets on its feature branches.
+      LL_TESTS: ${{ (github.event_name == 'workflow_dispatch' || startsWith(github.head_ref || github.ref_name, 'opensim-next/')) && 'OFF' || 'ON' }}
       BUILDSCRIPTS_SHARED: ${{ github.workspace }}/.shared
       # extracted and committed to viewer repo
       BUILDSCRIPTS_SUPPORT_FUNCTIONS: ${{ github.workspace }}/buildscripts_support_functions
