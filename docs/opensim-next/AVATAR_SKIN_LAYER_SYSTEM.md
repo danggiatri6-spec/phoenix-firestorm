@@ -549,3 +549,24 @@ This means a future tangent/handedness implementation must use the post-morph UV
 **Important limitation:** the current morph code's reconstructed binormal is orthogonalized against the current normal, but that alone does not prove it remains aligned to the derivative of the post-morph UV mapping. The morph's UV0 deltas and binormal deltas must be validated together on actual morph targets, including mask replacement. We have not yet run a numerical morph-target replay, and no GPU skinning result is claimed.
 
 Implementation implication: do not add a separate per-frame CPU tangent rebuild yet. First replay representative morph targets from the shipped mesh/morph assets and compare (a) the post-morph UV-derived tangent frame, (b) the live morph-updated normal/binormal frame, and (c) the result after the Avatar skinning transform. Preserve explicit per-vertex handedness/seam handling; do not infer it from one global sign.
+
+
+### Mirrored-UV vertex incidence audit
+
+A topology-level pass now distinguishes vertices that merely belong to mirrored UV triangles from vertices shared by triangles of both UV orientations. This resolves the earlier ambiguity in the mirrored-vertex counts.
+
+| Asset | Positive-orientation faces | Negative-orientation faces | UV-degenerate faces | Positive-only vertices | Negative-only vertices | Mixed-orientation vertices |
+|---|---:|---:|---:|---:|---:|---:|
+| Upper Body | 2,527 | 1,159 | 2 | 1,479 | 720 | 12 |
+| Lower Body | 1,418 | 236 | 0 | 835 | 142 | 0 |
+
+Interpretation:
+
+- Lower Body's positive and negative UV islands are fully separated at the indexed-vertex level in this asset. Its 142 negative-only vertices do not require an additional split merely because their UV orientation is mirrored.
+- Upper Body has only 12 indexed vertices incident to both positive- and negative-determinant triangles. The issue is localized rather than affecting all 732 vertices that touch mirrored faces.
+- For those 12 mixed vertices, face-derived tangent directions were projected onto each vertex's base-normal plane and corrected for UV orientation before averaging by orientation. The positive-vs-negative group direction dots ranged from -0.459 to 0.923. Two vertices (654 and 903) have opposing group directions (approximately -0.387 and -0.459), so a single smoothed tangent at those locations is not safe to assume.
+- The remaining mixed vertices show varying agreement and still require seam-specific review; a dot below 1 is not by itself proof of a defective asset because adjacent face frames can vary over curved geometry.
+
+**Implementation implication:** a single per-index tangent/handedness value is likely adequate for most of these two body assets, but Upper Body needs explicit handling of its 12 mixed-orientation vertices. Before VBO design, inspect whether those vertices are intentional topology junctions and whether splitting only the affected tangent vertices (without changing legacy position/UV indices or baked texture behavior) is viable. Do not split or rewrite the source mesh asset as part of this audit.
+
+No runtime source or mesh asset changed. No build or test was run.
