@@ -639,9 +639,13 @@ void LLEyeMotion::adjustEyeTarget(LLVector3* targetPos, LLJointState& left_eye_s
     {
         target_eye_rot = LLQuaternion::DEFAULT;
         vergence = 0.f;
+    }
 
-        // Emotional eye direction is an idle-only hint. Never offset an
-        // explicit avatar/object/world look target, and keep the range tiny.
+    // Emotional eye direction is an idle-only hint. Apply it whenever there
+    // is no valid target, including a present but malformed LookAtPoint.
+    // Never offset an explicit avatar/object/world look target.
+    if (!has_eye_target)
+    {
         F32* facial_eye_bias = (F32*)mCharacter->getAnimationData("FacialEyePitchBias");
         if (facial_eye_bias)
         {
