@@ -557,6 +557,7 @@ private:
     FTType mFTType;
     LLUUID mID;
     LLHost mHost;
+    LLHost mSentHost; // Actual simulator used for the most recent UDP request.
     std::string mUrl;
     U8 mType;
     F32 mImagePriority; // should map to max virtual size
