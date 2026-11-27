@@ -82,42 +82,11 @@ jobs:
 
       - name: Configure OpenSim-enabled viewer with runtime packaging
         shell: cmd
-        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=ON -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE -DOPENSIMNEXT_ENABLE_WHISPER_CPP:BOOL=ON
+        run: autobuild configure -A 64 -c ReleaseOS -- -DOPENSIM:BOOL=ON -DPACKAGE:BOOL=ON -DVIEWER_CHANNEL:STRING=OpenSimNext -DUSE_VELOPACK:BOOL=OFF -DLL_TESTS:BOOL=FALSE
 
       - name: Build OpenSim-enabled viewer and runtime package
         shell: cmd
         run: autobuild build -A 64 -c ReleaseOS --no-configure
-
-      - name: Bundle multilingual Whisper base model
-        shell: pwsh
-        run: |
-          $modelDir = Join-Path $env:GITHUB_WORKSPACE "build-vc170-64/newview/Release/app_settings/speech_models"
-          New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-          $modelPath = Join-Path $modelDir "ggml-base.bin"
-          $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/0b364b566045a405be7225ee1e415a073e04da77/ggml-base.bin"
-          Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath
-          $expectedSha256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
-          $actualSha256 = (Get-FileHash -Algorithm SHA256 $modelPath).Hash.ToLowerInvariant()
-          if ($actualSha256 -ne $expectedSha256) {
-            throw "Whisper base model SHA256 mismatch. Expected $expectedSha256, got $actualSha256"
-          }
-          @"
-          Whisper model attribution
-
-          File: ggml-base.bin
-          Project: whisper.cpp
-          Source: https://huggingface.co/ggerganov/whisper.cpp
-          Pinned revision: 0b364b566045a405be7225ee1e415a073e04da77
-          SHA256: $expectedSha256
-          Model format: multilingual Whisper GGML
-          License: MIT (see https://huggingface.co/ggerganov/whisper.cpp)
-
-          The model is bundled for local, on-device speech recognition. It is not
-          uploaded to OpenSim servers. The model is distributed under the license
-          indicated by its upstream repository; consult the upstream repository
-          for the complete license and notices.
-          "@ | Set-Content -Encoding UTF8 (Join-Path $modelDir "MODEL-NOTICE.txt")
-          Write-Host "Bundled and SHA256-verified multilingual Whisper base model."
 
       - name: Validate and package portable Windows x64 Viewer
         shell: pwsh
@@ -131,9 +100,7 @@ jobs:
             "character",
             "skins/skins.xml",
             "llplugin/media_plugin_cef.dll",
-            "slplugin.exe",
-            "app_settings/speech_models/ggml-base.bin",
-            "app_settings/speech_models/MODEL-NOTICE.txt"
+            "slplugin.exe"
           )
           $missing = @()
           foreach ($relativePath in $requiredPaths) {
@@ -151,7 +118,6 @@ jobs:
             "Configuration: ReleaseOS"
             "Runtime files staged by viewer_manifest.py with PACKAGE=ON."
             "This is an unsigned CI test package, not a production installer."
-            "Whisper.cpp is built into this configuration; the multilingual ggml-base.bin model is bundled under app_settings/speech_models and selected automatically by Nearby Chat."
           ) | Set-Content (Join-Path $viewerDir "OPENSIMNEXT-TEST-BUILD.txt")
           $zipPath = Join-Path $env:GITHUB_WORKSPACE "OpenSimNext-Windows-x64-Portable.zip"
           if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
