@@ -219,3 +219,20 @@ The mapping is defined by `LLAvatarAppearanceDictionary::MeshEntries` in `indra/
 For the first native skin-material implementation, eligibility must be explicit and mesh-based: allow only `MESH_ID_HEAD`, `MESH_ID_UPPER_BODY`, and `MESH_ID_LOWER_BODY`. Exclude eyelash, eyeballs, hair, skirt, and all rigged attachments. Do not change the existing Bake-to-mesh association or the legacy `mJointMeshes` list to achieve this.
 
 This is an initial classification for the built-in classic avatar meshes. Future custom/native mesh avatar support must carry explicit per-material semantic metadata (for example `SKIN`, `EYE`, `LASH`, `HAIR`, `CLOTHING`, `OTHER`) rather than relying on mesh names, Bake IDs, or face order. Missing or unknown classification must fall back to the legacy material path.
+
+
+## 12. First implementation: per-LOD native mesh surface classification
+
+The first code-level classification is stored on each `LLAvatarJointMesh` as `EAvatarSurfaceType`:
+
+- `UNKNOWN` is the in-class default and must remain the safe fallback.
+- `SKIN`: head, upper-body, and lower-body built-in mesh IDs.
+- `EYE`: left and right eyeball mesh IDs.
+- `EYELASH`: eyelash mesh ID.
+- `HAIR`: hair mesh ID.
+- `CLOTHING`: skirt mesh ID.
+- `OTHER`: reserved for explicit future classification.
+
+The classification is assigned when each LOD `LLAvatarJointMesh` is created in `LLAvatarAppearance::initInstance()`. It is independent of the baked-texture association: the legacy `mBakedTextureDatas[].mJointMeshes` population remains unchanged, including the existing head-bake/eyelash association.
+
+This is metadata groundwork only. No renderer, shader, texture upload, material resolver, or network path consumes the classification yet. Until those paths are explicitly implemented and validated, all meshes continue using the existing rendering behavior. Future per-material-slot classification for custom mesh heads remains a separate extension; a mesh-level `SKIN` tag must not imply that every sub-material or face is skin.
