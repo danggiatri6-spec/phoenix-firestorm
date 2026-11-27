@@ -124,7 +124,7 @@ FSFloaterNearbyChat::~FSFloaterNearbyChat()
     }
 
     mEmojiCloseConn.disconnect();
-    
+
     if (mRlvBehaviorCallbackConnection.connected())
     {
         mRlvBehaviorCallbackConnection.disconnect();
@@ -973,7 +973,7 @@ void FSFloaterNearbyChat::sendChat( EChatType type )
     // If the user wants to stop chatting on hitting return, lose focus
     // and go out of chat mode.
     const bool in_mouselook = gAgentCamera.cameraMouselook();
-    const bool closeChatOnReturn = gSavedSettings.getBOOL("CloseChatOnReturn") 
+    const bool closeChatOnReturn = gSavedSettings.getBOOL("CloseChatOnReturn")
                          && !(!in_mouselook && gSavedSettings.getBOOL("FSCloseChatOnReturnInMouselook"))
                          && !gSavedSettings.getBOOL("FSCloseChatOnReturnOnlyBar");
     if (closeChatOnReturn && gSavedSettings.getBOOL("FSUnfocusChatHistoryOnReturn"))

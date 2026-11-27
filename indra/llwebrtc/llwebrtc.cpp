@@ -50,7 +50,7 @@
 #include "api/environment/environment_factory.h"
 
 // <FS:minerjr> [FIRE-36022] - Removing my USB headset crashes entire viewer
-// Audio device mutex to be shared between audio engine and Voice systems to 
+// Audio device mutex to be shared between audio engine and Voice systems to
 // syncronize on when audio hardware accessed for disconnected/connecting hardware
 // Uses Timed Mutex so as to not lockup the threads forever.
 inline std::timed_mutex gAudioDeviceMutex;
