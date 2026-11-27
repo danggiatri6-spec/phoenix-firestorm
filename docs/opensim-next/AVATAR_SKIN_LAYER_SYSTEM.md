@@ -322,3 +322,16 @@ The first implementation should explicitly generate or derive a tangent frame fr
 5. Keep Normal Map rendering disabled until the tangent stream is proven valid. Specular/Roughness scalar sampling does not need tangent attributes, but it still needs a verified UV stream and a valid material shader.
 
 No runtime code, shader, or VBO layout was changed in this audit. No build or test execution is claimed.
+
+### Confirmed Avatar VBO allocation mask
+
+The allocation site is now confirmed in `LLVOAvatar::restoreMeshData()`: new Avatar face buffers are created with `LLDrawPoolAvatar::VERTEX_DATA_MASK`. In `lldrawpoolavatar.h`, that mask contains exactly:
+- `MAP_VERTEX`
+- `MAP_NORMAL`
+- `MAP_TEXCOORD0`
+- `MAP_WEIGHT`
+- `MAP_CLOTHWEIGHT`
+
+It does not allocate `MAP_TANGENT`, `MAP_TEXCOORD1`, or `MAP_TEXCOORD2`. Existing buffers that are resized preserve their original type mask, so the current Avatar path has no hidden secondary-attribute allocation path in this restore routine.
+
+This closes the VBO-layout question: native Avatar face buffers must be extended deliberately before a tangent-space Normal Map shader can be used. Do not add attributes globally to every Avatar buffer without checking memory cost and rigid/alpha/shadow pass compatibility; prefer a capability-gated layout or a single shared Avatar buffer layout with deterministic defaults and measured memory impact.
