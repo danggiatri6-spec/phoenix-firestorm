@@ -570,3 +570,29 @@ Interpretation:
 **Implementation implication:** a single per-index tangent/handedness value is likely adequate for most of these two body assets, but Upper Body needs explicit handling of its 12 mixed-orientation vertices. Before VBO design, inspect whether those vertices are intentional topology junctions and whether splitting only the affected tangent vertices (without changing legacy position/UV indices or baked texture behavior) is viable. Do not split or rewrite the source mesh asset as part of this audit.
 
 No runtime source or mesh asset changed. No build or test was run.
+
+
+### Upper Body mixed-orientation vertex neighborhood inspection
+
+The 12 mixed-orientation indices are not 12 unrelated locations. Their base positions form six left/right mirrored pairs (same X/Z and opposite Y):
+
+| Positive/negative counterpart pair | Approximate base position (X, |Y|, Z) |
+|---|---|
+| 239 / 468 | (0.0230, 0.6995, 1.5233) |
+| 260 / 432 | (-0.0110, 0.7365, 1.5349) |
+| 265 / 441 | (-0.0097, 0.7287, 1.5400) |
+| 582 / 633 | (-0.0045, 0.7340, 1.5213) |
+| 654 / 903 | (0.0168, 0.7052, 1.5321) |
+| 1392 / 1596 | (0.0004, 0.7312, 1.5222) |
+
+This symmetry strongly suggests a localized mirrored-UV/topology boundary rather than widespread random mesh corruption. It does not, by itself, prove that the pairs should share a tangent frame.
+
+The incident-face inspection also found very small but nonzero UV determinants around these neighborhoods. Examples include approximately 0.000026 and 0.000050 around vertices 654/903, and approximately 0.000001 around vertices 1392/1596. These triangles were not counted as exactly degenerate by the earlier 1e-10 determinant threshold, but their UV derivatives can still be numerically sensitive. The current degenerate-face count therefore must not be interpreted as a guarantee that all remaining UV tangent calculations are well-conditioned.
+
+For the 12 mixed vertices, the positive- and negative-orientation face tangent groups were calculated separately, with each face tangent projected onto the vertex's base-normal plane and normalized before group averaging. The group-to-group direction comparison includes:
+- Vertex 654 and counterpart 903: approximately -0.387 and -0.459, respectively. A single averaged tangent is not acceptable without further seam handling.
+- Vertex pairs 239/468 and 582/633 show partial directional disagreement, while other pairs are more aligned. These differences need to be judged against local curvature and face quality, not treated automatically as asset defects.
+
+**Candidate implementation direction, not yet implemented:** retain the legacy mesh topology and baked UVs as the source of truth, but build a tangent-ready vertex/index representation that can duplicate only vertices whose incident triangles require distinct orientation groups. The grouping must be derived from the *post-morph UV0* determinant signs, or be rebuilt when those signs change; a split computed once from base UVs is not sufficient because morphs can modify UV0. Near-degenerate UV triangles need a defined fallback (for example, use a stable neighboring tangent or disable normal-map contribution for those corners) rather than amplifying unstable derivatives.
+
+No mesh asset, runtime source, VBO, or shader was changed. No build or test was run.
