@@ -8743,19 +8743,7 @@ void handle_edit_shape()
 
 void handle_edit_skin()
 {
-    LLViewerWearable* skin = gAgentWearables.getViewerWearable(LLWearableType::WT_SKIN, 0);
-    if (!skin)
-    {
-        return;
-    }
-
-    LLFloaterSidePanelContainer::showPanel("appearance");
-    LLSidepanelAppearance* panel = dynamic_cast<LLSidepanelAppearance*>(
-        LLFloaterSidePanelContainer::getPanel("appearance"));
-    if (panel)
-    {
-        panel->showWearableEditPanel(skin);
-    }
+    LLFloaterSidePanelContainer::showPanel("appearance", LLSD().with("type", "edit_skin"));
 }
 
 // <FS:Zi> Omnifilter support
