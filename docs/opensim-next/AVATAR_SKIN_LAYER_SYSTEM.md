@@ -632,3 +632,23 @@ The lower-body asset also contains a record named `default_lowerbodyParallel` th
 **Updated engineering decision:** tangent handedness and seam groups must be derived from the live post-Morph UV0 state, or maintained through an equivalent robust update mechanism. A static base-UV split alone is insufficient. Before implementation, the next validation should cover combinations of active Morphs, runtime mask replacement, the Head mesh, and the Avatar skinning transform. Do not enable normal mapping or change the Avatar VBO yet.
 
 No runtime source or mesh asset changed. No build or test was run.
+
+
+### Additive multi-Morph UV replay
+
+A follow-up pass combined XML-referenced Upper Body Morph deltas additively, matching the mesh's accumulated position/UV0 and softened normal-delta model. This is still an unmasked diagnostic from the base mesh, but it tests whether individually modest UV changes compound into additional orientation changes.
+
+| Combined Upper Body Morphs | Weights | Sign changes total | Changes from non-degenerate base faces | Post-Morph near-degenerate faces |
+|---|---:|---:|---:|---:|
+| Fat_Torso + Big_Chest | 0.75 + 0.75 | 3 | 3 | 24 |
+| Fat_Torso + Big_Chest | 1.00 + 1.00 | 12 | 12 | 27 |
+| Fat_Torso + Muscular_Torso | 0.75 + 0.75 | 3 | 3 | 24 |
+| Fat_Torso + Muscular_Torso | 1.00 + 1.00 | 12 | 12 | 33 |
+| Fat_Torso + Male_Torso | 0.75 + 0.75 | 13 | 11 | 29 |
+| Fat_Torso + Male_Torso | 1.00 + 1.00 | 41 | 39 | 25 |
+
+The two excluded changes in the `Fat_Torso + Male_Torso` rows again originate from base triangles whose determinants were already approximately +/-6.7e-11. The 39 valid-base changes at full weight show that combined shape changes can affect substantially more faces than either Morph tested in isolation. Several post-Morph determinants remain small, so the production response must distinguish a stable orientation reversal from a triangle whose UV parameterization is collapsing.
+
+This combined pass is not a claim that the tested extreme values are a common avatar configuration. It confirms that the tangent frame cannot be treated as immutable after initial mesh load. A future implementation must either update orientation/seam data from the final accumulated UV0 state after the active Morph set is applied, or use a formulation that remains correct without explicit per-frame vertex splitting. Runtime masks and actual driven-parameter values still need replay before selecting the implementation.
+
+No runtime source or mesh asset changed. No build or test was run.
