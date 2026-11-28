@@ -596,3 +596,39 @@ For the 12 mixed vertices, the positive- and negative-orientation face tangent g
 **Candidate implementation direction, not yet implemented:** retain the legacy mesh topology and baked UVs as the source of truth, but build a tangent-ready vertex/index representation that can duplicate only vertices whose incident triangles require distinct orientation groups. The grouping must be derived from the *post-morph UV0* determinant signs, or be rebuilt when those signs change; a split computed once from base UVs is not sufficient because morphs can modify UV0. Near-degenerate UV triangles need a defined fallback (for example, use a stable neighboring tangent or disable normal-map contribution for those corners) rather than amplifying unstable derivatives.
 
 No mesh asset, runtime source, VBO, or shader was changed. No build or test was run.
+
+
+### Numerical replay of shipped body Morph targets
+
+The previous source-only conclusion has now been tested against the actual binary body assets in `indra/newview/character`. The binary loader stores Morph records inside each base `.llm` file; each record contains a vertex index plus position, normal, binormal, and UV0 deltas. The replay used the serialized base mesh, triangle indices, and Morph records from `avatar_upper_body.llm` and `avatar_lower_body.llm`.
+
+The diagnostic applies one Morph at a time to the base arrays at the requested weight:
+- position and UV0 receive the Morph deltas multiplied by weight;
+- the normal accumulator and binormal accumulator receive their Morph deltas multiplied by `NORMAL_SOFTEN_FACTOR = 0.65` and weight;
+- the normal is normalized, and the candidate binormal is reconstructed by projecting the accumulated binormal onto the normal plane, matching the direction of the Viewer cross-product reconstruction.
+
+The UV-orientation test compares each post-Morph triangle determinant against that triangle's base determinant. The near-degenerate warning threshold is `abs(det) < 1e-5`; the exact-degenerate diagnostic threshold is `abs(det) < 1e-10`.
+
+| Asset / Morph | Weight | UV orientation flips from valid base triangles | Post-Morph near-degenerate triangles |
+|---|---:|---:|---:|
+| Upper Body / Fat_Torso | 0.25 | 0 | 24 |
+| Upper Body / Fat_Torso | 0.50 | 0 | 24 |
+| Upper Body / Fat_Torso | 0.75 | 3 | 24 |
+| Upper Body / Fat_Torso | 1.00 | 6 | 27 |
+| Upper Body / Male_Torso | 0.25 | 0 | 22 |
+| Upper Body / Male_Torso | 0.50 | 0 | 22 |
+| Upper Body / Male_Torso | 0.75 | 0 | 23 |
+| Upper Body / Male_Torso | 1.00 | 7 | 27 |
+| Lower Body / Fat_Legs | 1.00 | 4 | 2 |
+
+For `Male_Torso`, two additional apparent sign changes at weights 0.25–1.0 originate from triangles that were already effectively degenerate in the base asset (base determinants approximately +/-6.7e-11). They are not counted as valid-base orientation flips. At weight 1.0, seven other triangles do cross orientation; their post-Morph determinants are small, so they also need a degeneracy-aware fallback rather than blind tangent splitting.
+
+For `Fat_Torso`, three valid-base triangles flip by weight 0.75 and six by weight 1.0. For `Fat_Legs`, all four flipped triangles collapse to very small post-Morph determinants (approximately -0.0000017 to -0.0000119). These results show that UV0 orientation can change under real, XML-referenced shape Morphs; a tangent split computed once from base UVs is not robust. The practical issue is not simply a large number of cleanly mirrored faces: many flips occur as the local UV parameterization approaches degeneracy.
+
+The lower-body asset also contains a record named `default_lowerbodyParallel` that produces eight sign changes when replayed at weight 1. However, that name is not referenced by `avatar_lad.xml`; it is therefore excluded from the active user-shape Morph results until its intended activation path is established. The same caution applies to any unreferenced binary Morph record. `Male_Legs` did not produce a valid-base orientation flip in this pass.
+
+**Scope and limitations:** this is a one-Morph-at-a-time diagnostic from the base mesh, without avatar runtime mask textures, simultaneous Morph combinations, per-frame joint skinning, or GPU execution. The full-weight replay is a boundary test, not a claim that every avatar reaches that exact state. It establishes that live UV orientation can change and that near-degenerate UV triangles need explicit handling; it does not yet select a production tangent-splitting or dynamic-rebuild algorithm.
+
+**Updated engineering decision:** tangent handedness and seam groups must be derived from the live post-Morph UV0 state, or maintained through an equivalent robust update mechanism. A static base-UV split alone is insufficient. Before implementation, the next validation should cover combinations of active Morphs, runtime mask replacement, the Head mesh, and the Avatar skinning transform. Do not enable normal mapping or change the Avatar VBO yet.
+
+No runtime source or mesh asset changed. No build or test was run.
